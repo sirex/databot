@@ -284,9 +284,7 @@ class Task(object):
     def run(self):
         self.log(INFO, 'run...', end=' ')
         state = self.get_state()
-        print(list(self.source.data.items()))
         for row in self.rows():
-            print((self, row.key, row.value))
             try:
                 for key, value in self.handler(row):
                     self.append(key, value, log=False)
