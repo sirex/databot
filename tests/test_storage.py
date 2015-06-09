@@ -1,6 +1,8 @@
 import unittest
 import datetime
+
 import databot
+from databot.db.serializers import dumps
 
 
 def exclude(data, keys):
@@ -29,7 +31,7 @@ class StorageTests(unittest.TestCase):
     def test_append(self):
         t1 = self.bot.task('task 1')
         t1.append('foo', 'bar').append('a', 'b')
-        data = [(row.key, row.value) for row in t1.table.all()]
+        data = [(row['key'], row['value']) for row in self.bot.engine.execute(t1.table.select())]
         self.assertEqual(data, [('foo', b'"bar"'), ('a', b'"b"')])
 
     def test_clean(self):
@@ -38,9 +40,9 @@ class StorageTests(unittest.TestCase):
 
         day = datetime.timedelta(days=1)
         now = datetime.datetime(2015, 6, 1, 1, 1, 0)
-        t1.table.insert(dict(key='1', value=databot.dumps('a'), created=now - 1*day))
-        t1.table.insert(dict(key='2', value=databot.dumps('b'), created=now - 2*day))
-        t1.table.insert(dict(key='3', value=databot.dumps('c'), created=now - 3*day))
+        self.bot.engine.execute(t1.table.insert(), key='1', value=dumps('a'), created=now - 1*day)
+        self.bot.engine.execute(t1.table.insert(), key='2', value=dumps('b'), created=now - 2*day)
+        self.bot.engine.execute(t1.table.insert(), key='3', value=dumps('c'), created=now - 3*day)
 
         with t1:
             self.assertEqual(t2.count(), 3)
@@ -63,9 +65,9 @@ class StorageTests(unittest.TestCase):
         t1.append('2', 'c')
         t1.append('3', 'd')
         t1.append('3', 'e')
-        self.assertEqual(t1.table.count(), 5)
-        self.assertEqual(t1.dedup().table.count(), 3)
-        self.assertEqual([(row.key, databot.loads(row.value)) for row in t1.table.all()], [
+        self.assertEqual(t1.data.count(), 5)
+        self.assertEqual(t1.dedup().data.count(), 3)
+        self.assertEqual(list(t1.data.items()), [
             ('1', 'a'),
             ('2', 'b'),
             ('3', 'd'),
@@ -78,19 +80,19 @@ class StorageTests(unittest.TestCase):
         t1.append('2', 'c')
         t1.append('3', 'd')
         t1.append('3', 'e')
-        self.assertEqual(t1.table.count(), 5)
-        self.assertEqual(t1.compact().table.count(), 3)
-        self.assertEqual([(row.key, databot.loads(row.value)) for row in t1.table.all()], [
+        self.assertEqual(t1.data.count(), 5)
+        self.assertEqual(t1.compact().data.count(), 3)
+        self.assertEqual(list(t1.data.items()), [
             ('1', 'a'),
             ('2', 'c'),
             ('3', 'e'),
         ])
 
         t1.append('3', 'x')
-        self.assertEqual(t1.table.count(), 4)
+        self.assertEqual(t1.data.count(), 4)
 
         self.bot.compact()
-        self.assertEqual(t1.table.count(), 3)
+        self.assertEqual(t1.data.count(), 3)
 
 
 class StateTests(unittest.TestCase):
@@ -104,16 +106,14 @@ class StateTests(unittest.TestCase):
 
         self.assertEqual(exclude(t1.get_state(), 'id'), {
             'offset': 0,
-            'source': None,
-            'target': 'task 1',
-            'bot': 'tests.test_storage.TestBot',
+            'source_id': None,
+            'target_id': t1.id,
         })
 
         self.assertEqual(exclude(t2.get_state(), 'id'), {
             'offset': 0,
-            'source': None,
-            'target': 'task 2',
-            'bot': 'tests.test_storage.TestBot',
+            'source_id': None,
+            'target_id': t2.id,
         })
 
     def test_context_state(self):
@@ -123,9 +123,8 @@ class StateTests(unittest.TestCase):
         with t1:
             self.assertEqual(exclude(t2.get_state(), 'id'), {
                 'offset': 0,
-                'source': 'task 1',
-                'target': 'task 2',
-                'bot': 'tests.test_storage.TestBot',
+                'source_id': t1.id,
+                'target_id': t2.id,
             })
 
     def test_offset(self):
@@ -150,9 +149,8 @@ class StateTests(unittest.TestCase):
             t3.run()
             self.assertEqual(exclude(t3.get_state(), 'id'), {
                 'offset': 2,
-                'source': 'task 1',
-                'target': 'task 3',
-                'bot': 'tests.test_storage.TestBot',
+                'source_id': t1.id,
+                'target_id': t3.id,
             })
 
             self.assertEqual(items_processed, 2)
@@ -167,9 +165,8 @@ class StateTests(unittest.TestCase):
             t3.run()
             self.assertEqual(exclude(t3.get_state(), 'id'), {
                 'offset': 3,
-                'source': 'task 1',
-                'target': 'task 3',
-                'bot': 'tests.test_storage.TestBot',
+                'source_id': t1.id,
+                'target_id': t3.id,
             })
 
             self.assertEqual(items_processed, 3)

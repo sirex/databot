@@ -1,0 +1,60 @@
+import sqlalchemy as sa
+import sqlalchemy.orm.exc
+
+
+class Row(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+def fetch_some(result, n):
+    """Fetch n rows from result and close result cursor.
+
+    Parameters:
+    - result: sqlalchemy.engine.result.ResultProxy
+    - n: int, number of rows to fetch
+
+    Returns: generator
+    """
+    row = None
+    for i in range(n):
+        row = result.fetchone()
+        if row:
+            yield Row(row)
+        else:
+            break
+    if row:
+        result.close()
+
+
+def get_or_none(engine, model, *params):
+    result = list(fetch_some(engine.execute(model.select(sa.and_(*params))), 2))
+    n = len(result)
+    if n == 1:
+        return result[0]
+    elif n > 1:
+        raise sqlalchemy.orm.exc.MultipleResultsFound
+    else:
+        return None
+
+
+def get_or_create(engine, model, fields, data):
+    """Get instance from database or create if not found.
+
+    Parameters:
+    - engine: sqlalchemy.engine.base.Engine
+    - model: sqlalchemy.sql.schema.Table
+    - fields: list of keys from data dict
+    - data: dict for new object to be created if existing does not exists
+
+    Returns: sqlalchemy.engine.result.RowProxy
+
+    """
+    params = [model.columns[field] == data[field] for field in fields]
+    row = get_or_none(engine, model, *params)
+    if row:
+        return Row(row)
+    else:
+        engine.execute(model.insert(), **data)
+        return get_or_none(engine, model, *params)
