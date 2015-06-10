@@ -6,7 +6,7 @@ import databot.db
 import databot.tasks
 import databot.handlers.dummy
 from databot.db import models
-from databot.db.utils import get_or_create
+from databot.db.utils import create_row, get_or_create
 from databot.logging import QUIET
 
 
@@ -50,10 +50,32 @@ class Bot(object):
         return self.tasks_by_name[name]
 
     def retry(self):
-        pass  # todo...
+        for error in self.query_retry_tasks():
+            with self.task(error.source.task):
+                self.task(error.target.task).retry()
 
     def query_retry_tasks(self):
-        pass
+        errors, state, tasks = models.errors, models.state, models.tasks
+
+        error = errors.alias('error')
+        source = tasks.alias('source')
+        target = tasks.alias('target')
+
+        query = (
+            sa.select([error, source, target], use_labels=True).
+            select_from(
+                error.
+                join(state).
+                join(source, state.c.source_id == source.c.id).
+                join(target, state.c.target_id == target.c.id)
+            )
+        )
+
+        for row in self.engine.execute(query):
+            error = create_row(row, 'error_')
+            error['source'] = create_row(row, 'source_')
+            error['target'] = create_row(row, 'target_')
+            yield error
 
     def main(self, args=None):
         args = args or sys.argv

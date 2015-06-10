@@ -8,6 +8,17 @@ class Row(dict):
         self.__dict__ = self
 
 
+def create_row(row, prefix=''):
+    result = Row()
+    for key, value in row.items():
+        if prefix:
+            if key.startswith(prefix):
+                result[key[len(prefix):]] = value
+        else:
+            result[key] = value
+    return result
+
+
 def fetch_some(result, n):
     """Fetch n rows from result and close result cursor.
 

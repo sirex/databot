@@ -6,7 +6,7 @@ import traceback
 
 from databot.db.serializers import dumps, loads
 from databot.logging import PROGRESS, INFO, ERROR
-from databot.db.utils import Row, get_or_create
+from databot.db.utils import Row, create_row, get_or_create
 from databot.db import models
 
 
@@ -67,15 +67,41 @@ class TaskErrors(object):
         self.task = task
         self.engine = task.bot.engine
 
-    def __call__(self):
+    def __call__(self, chunks=None):
+        if self.engine.name == 'sqlite':
+            chunks = 100
         if self.task.source:
-            state = self.task.get_state()
-            table = self.task.source.table
-            query = models.errors.select(models.errors.c.state_id == state.id)
-            errors = self.engine.execute(query)
-            for error in errors:
-                row = self.engine.execute(table.select(table.c.id == error['row_id'])).first()
-                yield Row(error, row=Row(row, value=loads(row.value)))
+            has_rows = True
+            old_state_id = None
+            new_state_id = self.task.get_state().id
+            error = models.errors.alias('error')
+            table = self.task.source.table.alias('table')
+            while has_rows and old_state_id != new_state_id:
+                has_rows = False
+                old_state_id = new_state_id
+                new_state_id = self.task.get_state().id
+
+                query = (
+                    sa.select([error, table], use_labels=True).
+                    select_from(
+                        error.
+                        join(table, error.c.row_id == table.c.id)
+                    ).
+                    where(error.c.state_id == new_state_id).
+                    order_by(error.c.id)
+                )
+
+                if chunks:
+                    rows = list(self.engine.execute(query.limit(chunks)))
+                else:
+                    rows = self.engine.execute(query)
+
+                for row in rows:
+                    has_rows = True
+                    item = create_row(row, 'error_')
+                    item['row'] = create_row(row, 'table_')
+                    item.row.value = loads(item.row.value)
+                    yield item
 
     def count(self):
         if self.task.source:
