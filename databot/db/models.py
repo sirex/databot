@@ -1,3 +1,4 @@
+import datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, mysql, sqlite
 
@@ -42,5 +43,5 @@ def get_data_table(name, meta):
         sa.Column('id', BigInteger, primary_key=True),
         sa.Column('key', sa.Unicode(255), index=True, default='', nullable=False),
         sa.Column('value', sa.LargeBinary, default='', nullable=False),
-        sa.Column('created', sa.DateTime),
+        sa.Column('created', sa.DateTime, default=datetime.datetime.utcnow),
     )
