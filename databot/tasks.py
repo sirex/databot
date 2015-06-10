@@ -14,8 +14,8 @@ def wrapper(handler, wrap):
     if wrap is None:
         return handler
 
-    def wrapped(item):
-        yield from wrap(handler, item)
+    def wrapped(row):
+        return wrap(handler, row)
     return wrapped
 
 
@@ -46,7 +46,7 @@ class TaskData(object):
         return self.engine.execute(self.table.count()).scalar()
 
     def rows(self):
-        for row in self.engine.execute(self.table.select()):
+        for row in self.engine.execute(self.table.select().order_by(self.table.c.id)):
             yield Row(row, value=loads(row.value))
 
     def items(self):
@@ -125,6 +125,35 @@ class TaskErrors(object):
     def values(self):
         for row in self.rows():
             yield row.value
+
+    def report(self, error_or_row, message):
+        self.task.log(ERROR)
+        self.task.log(ERROR, message)
+        now = datetime.datetime.utcnow()
+        if 'retries' in error_or_row:
+            error = error_or_row
+            self.engine.execute(
+                models.errors.update(sa.and_(
+                    models.errors.c.state_id == error.state_id,
+                    models.errors.c.row_id == error.row_id,
+                )).values(
+                    retries=models.errors.c.retries + 1,
+                    traceback=message,
+                    updated=datetime.datetime.utcnow(),
+                ),
+            )
+        else:
+            row = error_or_row
+            state = self.task.get_state()
+            self.engine.execute(
+                models.errors.insert(),
+                state_id=state.id,
+                row_id=row.id,
+                retries=0,
+                traceback=message,
+                created=now,
+                updated=now,
+            )
 
 
 class Task(object):
@@ -208,7 +237,7 @@ class Task(object):
         if age:
             now = now or datetime.datetime.utcnow()
             timestamp = now - age
-            query = self.table.delete().where(self.table.c.created <= timestamp)
+            query = self.table.delete(self.table.c.created <= timestamp)
         else:
             query = self.table.delete()
         self.bot.engine.execute(query)
@@ -231,7 +260,7 @@ class Task(object):
                 self.table.c.id != agg.c.id,
             )))
         )
-        self.delete(id for id, in self.bot.engine.execute(query))
+        self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         self.log(INFO, 'done.')
         return self
 
@@ -251,20 +280,9 @@ class Task(object):
                 self.table.c.id != agg.c.id,
             )))
         )
-        self.delete(id for id, in self.bot.engine.execute(query))
+        self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         self.log(INFO, 'done.')
         return self
-
-    def delete(self, items, bufsize=524288):
-        ids, size = [], 0
-        for id in items:
-            ids.append(id)
-            size += len(str(id))
-            if size > bufsize:
-                self.bot.engine.execute(self.table.delete().where(self.table.c.id.in_(ids)))
-                ids, size = [], 0
-        if ids:
-            self.bot.engine.execute(self.table.delete().where(self.table.c.id.in_(ids)))
 
     def count(self):
         """How much items left to process."""
@@ -312,22 +330,9 @@ class Task(object):
         state = self.get_state()
         for row in self.rows():
             try:
-                for key, value in self.handler(row):
-                    self.append(key, value, log=False)
+                self.append(self.handler(row), log=False)
             except:
-                exception = traceback.format_exc()
-                self.log(ERROR)
-                self.log(ERROR, exception)
-                now = datetime.datetime.utcnow()
-                self.bot.engine.execute(
-                    models.errors.insert(),
-                    state_id=state.id,
-                    row_id=row.id,
-                    retries=0,
-                    traceback=exception,
-                    created=now,
-                    updated=now,
-                )
+                self.errors.report(row, traceback.format_exc())
             self.bot.engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
         self.log(INFO, 'done.')
         return self
@@ -339,19 +344,7 @@ class Task(object):
                 for key, value in self.handler(error.row):
                     self.append(key, value, log=False)
             except:
-                exception = traceback.format_exc()
-                self.log(ERROR)
-                self.log(ERROR, exception)
-                self.bot.engine.execute(
-                    models.errors.update(sa.and_(
-                        models.errors.c.state_id == error.state_id,
-                        models.errors.c.row_id == error.row_id,
-                    )).values(
-                        retries=models.errors.c.retries + 1,
-                        traceback=exception,
-                        updated=datetime.datetime.utcnow(),
-                    ),
-                )
+                self.errors.report(error, traceback.format_exc())
             else:
                 self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
         self.log(INFO, 'done.')

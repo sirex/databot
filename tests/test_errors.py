@@ -71,3 +71,38 @@ class RetryTests(unittest.TestCase):
         bot.retry()
 
         self.assertEqual(list(bot.task('t2').data.items()), [('2', 'B'), ('1', 'A'), ('3', 'C')])
+
+
+class ErrorDataTests(unittest.TestCase):
+    def setUp(self):
+        self.bot = TestBot()
+        self.t1 = self.bot.define('task 1', None).append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+        self.t2 = self.bot.define('task 2', None)
+
+        rows = list(self.t1.data.rows())
+        with self.t1:
+            self.t2.errors.report(rows[0], 'Error 1')
+            self.t2.errors.report(rows[2], 'Error 2')
+
+    def test_count_without_source(self):
+        self.assertEqual(self.t2.errors.count(), 0)
+
+    def test_count_with_source(self):
+        with self.t1:
+            self.assertEqual(self.t2.errors.count(), 2)
+
+    def test_keys(self):
+        with self.t1:
+            self.assertEqual(list(self.t2.errors.keys()), ['1', '3'])
+
+    def test_values(self):
+        with self.t1:
+            self.assertEqual(list(self.t2.errors.values()), ['a', 'c'])
+
+    def test_items(self):
+        with self.t1:
+            self.assertEqual(list(self.t2.errors.items()), [('1', 'a'), ('3', 'c')])
+
+    def test_rows(self):
+        with self.t1:
+            self.assertEqual([(row.key, row.value) for row in self.t2.errors.rows()], [('1', 'a'), ('3', 'c')])
