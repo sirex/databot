@@ -1,5 +1,4 @@
-import unittest
-import sqlalchemy as sa
+import tests.db
 
 from databot.db.windowedquery import windowed_query
 from databot.db.models import get_data_table
@@ -18,32 +17,24 @@ def populate(engine, table, keys):
     engine.execute(table.insert(), [row(key) for key in keys])
 
 
+@tests.db.usedb()
 class WindowedQueryTests(object):
+    def setUp(self):
+        super().setUp()
+        self.table = get_data_table('t1', self.db.meta)
+        self.db.meta.create_all()
+
     def test_windowed_query(self):
-        populate(self.engine, self.table, [1, 2, 3, 4])
-        query = windowed_query(self.engine, self.table.select(), self.table.c.id)
+        populate(self.db.engine, self.table, [1, 2, 3, 4])
+        query = windowed_query(self.db.engine, self.table.select(), self.table.c.id)
         self.assertEqual(keys(query), [1, 2, 3, 4])
 
     def test_small_windowsize(self):
-        populate(self.engine, self.table, [1, 2, 3, 4, 5])
-        query = windowed_query(self.engine, self.table.select(), self.table.c.id, windowsize=2)
+        populate(self.db.engine, self.table, [1, 2, 3, 4, 5])
+        query = windowed_query(self.db.engine, self.table.select(), self.table.c.id, windowsize=2)
         self.assertEqual(keys(query), [1, 2, 3, 4, 5])
 
-
-class WindowedQuerySqliteTests(WindowedQueryTests, unittest.TestCase):
-    def setUp(self):
-        self.engine = sa.create_engine('sqlite:///:memory:')
-        meta = sa.MetaData(self.engine)
-        self.table = get_data_table('t1', meta)
-        meta.create_all()
-
-
-class WindowedQueryPsqlTests(WindowedQueryTests, unittest.TestCase):
-    def setUp(self):
-        self.engine = sa.create_engine('postgresql:///databot')
-        meta = sa.MetaData(self.engine)
-        self.table = get_data_table('t1', meta)
-        meta.create_all()
-
-    def tearDown(self):
-        sa.MetaData(self.engine, reflect=True).drop_all()
+    def test_even_windowsize(self):
+        populate(self.db.engine, self.table, [1, 2, 3, 4, 5, 6])
+        query = windowed_query(self.db.engine, self.table.select(), self.table.c.id, windowsize=2)
+        self.assertEqual(keys(query), [1, 2, 3, 4, 5, 6])
