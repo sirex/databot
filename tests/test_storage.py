@@ -1,8 +1,9 @@
-import unittest
 import datetime
 
 import databot
 from databot.db.serializers import dumps
+
+import tests.db
 
 
 def exclude(data, keys):
@@ -10,8 +11,6 @@ def exclude(data, keys):
 
 
 class TestBot(databot.Bot):
-    db = 'sqlite:///:memory:'
-
     def task_task_1(self):
         pass
 
@@ -23,9 +22,11 @@ class TestBot(databot.Bot):
         self.define('task 2')
 
 
-class StorageTests(unittest.TestCase):
+@tests.db.usedb()
+class StorageTests(object):
     def setUp(self):
-        self.bot = TestBot()
+        super().setUp()
+        self.bot = TestBot(self.db.engine)
         self.bot.init()
 
     def test_append(self):
@@ -95,9 +96,11 @@ class StorageTests(unittest.TestCase):
         self.assertEqual(t1.data.count(), 3)
 
 
-class StateTests(unittest.TestCase):
+@tests.db.usedb()
+class StateTests(object):
     def setUp(self):
-        self.bot = TestBot()
+        super().setUp()
+        self.bot = TestBot(self.db.engine)
         self.bot.init()
 
     def test_initial_state(self):

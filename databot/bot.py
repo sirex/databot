@@ -11,14 +11,16 @@ from databot.logging import QUIET
 
 
 class Bot(object):
-    db = None
 
-    def __init__(self, verbosity=QUIET):
+    def __init__(self, uri_or_engine, verbosity=QUIET):
         self.tasks = []
         self.tasks_by_name = {}
         self.stack = []
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
-        self.engine = sa.create_engine(self.db.format(path=self.path))
+        if isinstance(uri_or_engine, str):
+            self.engine = sa.create_engine(uri_or_engine.format(path=self.path))
+        else:
+            self.engine = uri_or_engine
         self.metadata = sa.MetaData()
         self.conn = self.engine.connect()
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)

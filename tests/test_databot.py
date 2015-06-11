@@ -1,13 +1,12 @@
-import unittest
 import databot
+import tests.db
 
 
-class DatabotTests(unittest.TestCase):
+@tests.db.usedb()
+class DatabotTests(object):
     def test_main(self):
 
         class TestBot(databot.Bot):
-            db = 'sqlite:///:memory:'
-
             def task_t2(self, row):
                 yield row.key, row.value.upper()
 
@@ -19,7 +18,7 @@ class DatabotTests(unittest.TestCase):
                 with self.task('t1').append([('1', 'a'), ('2', 'b'), ('3', 'c')]):
                     self.task('t2').run()
 
-        bot = TestBot()
+        bot = TestBot(self.db.engine)
         bot.main()
 
         self.assertEqual(list(bot.task('t1').data.items()), [('1', 'a'), ('2', 'b'), ('3', 'c')])

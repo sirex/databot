@@ -3,8 +3,6 @@ import databot
 
 
 class TestBot(databot.Bot):
-    db = 'sqlite:///:memory:'
-
     def task_task_1(self):
         pass
 
@@ -18,7 +16,7 @@ class TestBot(databot.Bot):
 
 class ContextTests(unittest.TestCase):
     def setUp(self):
-        self.bot = TestBot()
+        self.bot = TestBot('sqlite:///:memory:')
         self.bot.init()
 
     def test_context(self):
@@ -41,7 +39,7 @@ class ContextTests(unittest.TestCase):
 
 class DataTests(unittest.TestCase):
     def setUp(self):
-        self.bot = TestBot()
+        self.bot = TestBot('sqlite:///:memory:')
         self.t1 = self.bot.define('task 1').append([('1', 'a'), ('2', 'b')])
         self.t2 = self.bot.define('task 2')
 

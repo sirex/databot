@@ -8,6 +8,7 @@ from databot.db.serializers import dumps, loads
 from databot.logging import PROGRESS, INFO, ERROR
 from databot.db.utils import Row, create_row, get_or_create
 from databot.db import models
+from databot.db.windowedquery import windowed_query
 
 
 def wrapper(handler, wrap):
@@ -67,41 +68,26 @@ class TaskErrors(object):
         self.task = task
         self.engine = task.bot.engine
 
-    def __call__(self, chunks=None):
-        if self.engine.name == 'sqlite':
-            chunks = 100
+    def __call__(self):
         if self.task.source:
-            has_rows = True
-            old_state_id = None
-            new_state_id = self.task.get_state().id
             error = models.errors.alias('error')
             table = self.task.source.table.alias('table')
-            while has_rows and old_state_id != new_state_id:
-                has_rows = False
-                old_state_id = new_state_id
-                new_state_id = self.task.get_state().id
 
-                query = (
-                    sa.select([error, table], use_labels=True).
-                    select_from(
-                        error.
-                        join(table, error.c.row_id == table.c.id)
-                    ).
-                    where(error.c.state_id == new_state_id).
-                    order_by(error.c.id)
-                )
+            query = (
+                sa.select([error, table], use_labels=True).
+                select_from(
+                    error.
+                    join(table, error.c.row_id == table.c.id)
+                ).
+                where(error.c.state_id == self.task.get_state().id).
+                order_by(error.c.id)
+            )
 
-                if chunks:
-                    rows = list(self.engine.execute(query.limit(chunks)))
-                else:
-                    rows = self.engine.execute(query)
-
-                for row in rows:
-                    has_rows = True
-                    item = create_row(row, 'error_')
-                    item['row'] = create_row(row, 'table_')
-                    item.row.value = loads(item.row.value)
-                    yield item
+            for row in windowed_query(self.engine, query, table.c.id):
+                item = create_row(row, 'error_')
+                item['row'] = create_row(row, 'table_')
+                item.row.value = loads(item.row.value)
+                yield item
 
     def count(self):
         if self.task.source:
@@ -247,12 +233,14 @@ class Task(object):
     def dedup(self):
         """Delete all records with duplicate keys except ones created first."""
         self.log(INFO, 'dedup...', end=' ')
+
         agg = (
             sa.select([self.table.c.key, sa.func.min(self.table.c.id).label('id')]).
             group_by(self.table.c.key).
             having(sa.func.count(self.table.c.id) > 1).
-            alias('agg')
+            alias()
         )
+
         query = (
             sa.select([self.table.c.id]).
             select_from(self.table.join(agg, sa.and_(
@@ -260,6 +248,11 @@ class Task(object):
                 self.table.c.id != agg.c.id,
             )))
         )
+
+        if self.bot.engine.name == 'mysql':
+            # http://stackoverflow.com/a/45498/475477
+            query = sa.select([query.alias().c.id])
+
         self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         self.log(INFO, 'done.')
         return self
@@ -267,12 +260,14 @@ class Task(object):
     def compact(self):
         """Delete all records with duplicate keys except ones created last."""
         self.log(INFO, 'compact...', end=' ')
+
         agg = (
             sa.select([self.table.c.key, sa.func.max(self.table.c.id).label('id')]).
             group_by(self.table.c.key).
             having(sa.func.count(self.table.c.id) > 1).
-            alias('agg')
+            alias()
         )
+
         query = (
             sa.select([self.table.c.id]).
             select_from(self.table.join(agg, sa.and_(
@@ -280,6 +275,11 @@ class Task(object):
                 self.table.c.id != agg.c.id,
             )))
         )
+
+        if self.bot.engine.name == 'mysql':
+            # http://stackoverflow.com/a/45498/475477
+            query = sa.select([query.alias().c.id])
+
         self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         self.log(INFO, 'done.')
         return self
@@ -292,26 +292,12 @@ class Task(object):
         else:
             return 0
 
-    def rows(self, chunks=None):
-        if self.bot.engine.name == 'sqlite':
-            chunks = 100
+    def rows(self):
         if self.source:
             table = self.source.table
-            has_rows = True
-            old_offset = -1
-            new_offset = self.get_state().offset
-            while has_rows and old_offset < new_offset:
-                has_rows = False
-                old_offset = new_offset
-                new_offset = self.get_state().offset
-                query = table.select(table.c.id > new_offset).order_by(table.c.id)
-                if chunks:
-                    rows = list(self.bot.engine.execute(query.limit(chunks)))
-                else:
-                    rows = self.bot.engine.execute(query)
-                for row in rows:
-                    has_rows = True
-                    yield Row(row, value=loads(row['value']))
+            query = table.select(table.c.id > self.get_state().offset).order_by(table.c.id)
+            for row in windowed_query(self.bot.engine, query, table.c.id):
+                yield Row(row, value=loads(row['value']))
 
     def items(self):
         for row in self.rows():

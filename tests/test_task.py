@@ -2,10 +2,10 @@ import unittest
 import databot
 import databot.tasks
 
+import tests.db
+
 
 class TestBot(databot.Bot):
-    db = 'sqlite:///:memory:'
-
     def task_task_1(self):
         pass
 
@@ -15,7 +15,7 @@ class TestBot(databot.Bot):
 
 class TaskTests(unittest.TestCase):
     def setUp(self):
-        self.bot = TestBot()
+        self.bot = TestBot('sqlite:///:memory:')
         self.bot.init()
 
     def test_str(self):
@@ -28,7 +28,7 @@ class TaskTests(unittest.TestCase):
 
 class DefineTaskTests(unittest.TestCase):
     def setUp(self):
-        self.bot = TestBot()
+        self.bot = TestBot('sqlite:///:memory:')
 
     def test_simple_define(self):
         self.bot.define('task 1')
@@ -80,9 +80,11 @@ class KeyValueItemsTests(unittest.TestCase):
         self.assertEqual(list(databot.tasks.keyvalueitems(generate())), [(1, 'a')])
 
 
-class TaskDataTests(unittest.TestCase):
+@tests.db.usedb()
+class TaskDataTests(object):
     def setUp(self):
-        self.bot = TestBot()
+        super().setUp()
+        self.bot = TestBot(self.db.engine)
         self.t1 = self.bot.define('t1', None).append([('1', 'a'), ('2', 'b')])
 
     def test_keys(self):

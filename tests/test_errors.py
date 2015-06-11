@@ -1,12 +1,10 @@
-import unittest
 import databot
 
-
-class TestBot(databot.Bot):
-    db = 'sqlite:///:memory:'
+import tests.db
 
 
-class ErrorHandlingTests(unittest.TestCase):
+@tests.db.usedb()
+class ErrorHandlingTests(object):
     def test_main(self):
         error_key = '2'
 
@@ -17,7 +15,7 @@ class ErrorHandlingTests(unittest.TestCase):
             else:
                 yield row.key, row.value.upper()
 
-        bot = TestBot()
+        bot = databot.Bot(self.db.engine)
         bot.define('t1', None).append([('1', 'a'), ('2', 'b'), ('3', 'c')])
         bot.define('t2', t2)
 
@@ -42,7 +40,8 @@ class ErrorHandlingTests(unittest.TestCase):
             self.assertEqual(list(bot.task('t2').data.items()), [('1', 'A'), ('3', 'C'), ('2', 'B')])
 
 
-class RetryTests(unittest.TestCase):
+@tests.db.usedb()
+class RetryTests(object):
     def test_retry_query(self):
         error_keys = {'1', '3'}
 
@@ -53,7 +52,7 @@ class RetryTests(unittest.TestCase):
             else:
                 yield row.key, row.value.upper()
 
-        bot = TestBot()
+        bot = databot.Bot(self.db.engine)
         bot.define('t1', None).append([('1', 'a'), ('2', 'b'), ('3', 'c')])
         bot.define('t2', t2)
 
@@ -73,9 +72,11 @@ class RetryTests(unittest.TestCase):
         self.assertEqual(list(bot.task('t2').data.items()), [('2', 'B'), ('1', 'A'), ('3', 'C')])
 
 
-class ErrorDataTests(unittest.TestCase):
+@tests.db.usedb()
+class ErrorDataTests(object):
     def setUp(self):
-        self.bot = TestBot()
+        super().setUp()
+        self.bot = databot.Bot(self.db.engine)
         self.t1 = self.bot.define('task 1', None).append([('1', 'a'), ('2', 'b'), ('3', 'c')])
         self.t2 = self.bot.define('task 2', None)
 

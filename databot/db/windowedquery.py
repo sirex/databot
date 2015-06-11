@@ -19,15 +19,14 @@ def column_windows(engine, column, windowsize):
 
 def offset_windows(engine, query, column, windowsize):
     total = engine.execute(query.alias().count()).scalar()
-    for offset in range(0, total, windowsize):
-        for row in engine.execute(query.order_by(column).offset(offset).limit(windowsize)):
-            yield row
+    yield from range(0, total, windowsize)
 
 
 def windowed_query(engine, query, column, windowsize=1000):
     """"Break a query into windows on a given column."""
     if engine.name == 'postgresql':
         for whereclause in column_windows(engine, column, windowsize):
-            yield from engine.execute(query.where(whereclause).order_by(column))
+            yield from list(engine.execute(query.where(whereclause).order_by(column)))
     else:
-        yield from offset_windows(engine, query, column, windowsize)
+        for offset in offset_windows(engine, query, column, windowsize):
+            yield from list(engine.execute(query.order_by(column).offset(offset).limit(windowsize)))

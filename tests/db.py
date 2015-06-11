@@ -4,6 +4,7 @@ import pathlib
 import unittest
 import sqlalchemy as sa
 import sqlalchemy.exc
+import sqlalchemy.pool
 
 connections = {}
 
@@ -14,9 +15,10 @@ class DatabaseFixture(object):
         self.meta = None
 
     def set_up(self):
-        self.meta = sa.MetaData(self.engine, reflect=True)
+        self.meta = sa.MetaData(self.engine)
 
     def tear_down(self):
+        self.meta.reflect()
         self.meta.drop_all()
 
 
@@ -30,7 +32,7 @@ def get_database_fixture(name, uri, FixtureClass=DatabaseFixture):
     global connections
 
     if name not in connections:
-        engine = sa.create_engine(uri)
+        engine = sa.create_engine(uri, poolclass=sqlalchemy.pool.SingletonThreadPool)
         try:
             engine.connect()
         except sqlalchemy.exc.OperationalError as e:
