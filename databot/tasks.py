@@ -144,6 +144,17 @@ class TaskErrors(object):
 
 class Task(object):
     def __init__(self, bot, id, name, handler, table, wrap=None):
+        """
+
+        Parameters:
+        - bot: databot.Bot
+        - id: int, primary key of this task from databot.db.models.tasks.id
+        - name: str, human readable task identifier
+        - handler: callable, it will be called with each row if rows=False or with all rows if rows=True
+        - table: sqlalchemy.Table, a table where data is stored
+        - wrap: callable, a decorator, that wraps handler, can be used to do common initialization for the handler
+
+        """
         self.bot = bot
         self.id = id
         self.name = name
@@ -314,12 +325,14 @@ class Task(object):
     def run(self):
         self.log(INFO, 'run...', end=' ')
         state = self.get_state()
+        engine = self.bot.engine
         for row in self.rows():
             try:
                 self.append(self.handler(row), log=False)
             except:
                 self.errors.report(row, traceback.format_exc())
-            self.bot.engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+            finally:
+                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
         self.log(INFO, 'done.')
         return self
 
@@ -335,3 +348,16 @@ class Task(object):
                 self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
         self.log(INFO, 'done.')
         return self
+
+    def export(self, path):
+        if path.endswith('.csv'):
+            import databot.exporters.csv
+            return databot.exporters.csv.Exporter(path, overwrite=True)
+        else:
+            raise ValueError("Don't know how to export %s." % path)
+
+
+
+        with self.path.open('a', newline='') as f:
+            writer = csv.writer(f, delimiter=self.delimiter)
+            writer.writerows(self.rows(rows))
