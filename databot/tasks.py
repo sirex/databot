@@ -3,6 +3,7 @@ import datetime
 import itertools
 import sqlalchemy as sa
 import traceback
+import tqdm
 
 from databot.db.serializers import dumps, loads
 from databot.logging import PROGRESS, INFO, ERROR
@@ -157,6 +158,7 @@ class Task(object):
         """
         self.bot = bot
         self.id = id
+        self.code = 't%d' % id
         self.name = name
         self.handler = wrapper(handler, wrap)
         self.table = table
@@ -222,9 +224,18 @@ class Task(object):
         conn = conn or self.bot.engine
         if log:
             self.log(INFO, 'append...', end=' ')
-        for key, value in keyvalueitems(key, value):
+
+        data = []
+        for i, (key, value) in enumerate(keyvalueitems(key, value), 1):
             now = datetime.datetime.utcnow()
-            self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
+            data.append({'key': key, 'value': dumps(value), 'created': now})
+            if i % 1000 == 0:
+                self.bot.engine.execute(self.table.insert(), data)
+                data = []
+
+        if data:
+            self.bot.engine.execute(self.table.insert(), data)
+
         if log:
             self.log(INFO, 'done.')
         return self
@@ -326,38 +337,60 @@ class Task(object):
         self.log(INFO, 'run...', end=' ')
         state = self.get_state()
         engine = self.bot.engine
-        for row in self.rows():
+
+        data = []
+        for i, row in enumerate(tqdm.tqdm(self.rows(), self.name, total=self.count()), 1):
             try:
-                self.append(self.handler(row), log=False)
+                data.extend(self.handler(row))
+            except KeyboardInterrupt:
+                raise
             except:
+                self.append(data, log=False)
+                data = []
                 self.errors.report(row, traceback.format_exc())
-            finally:
                 engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+
+            if i % 100 == 0:
+                self.append(data, log=False)
+                data = []
+                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+
+        if data:
+            self.append(data, log=False)
+            engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+
         self.log(INFO, 'done.')
         return self
 
     def retry(self):
         self.log(INFO, 'retry...', end=' ')
-        for error in self.errors():
+        data = []
+        errors = []
+        for i, error in enumerate(tqdm.tqdm(self.errors(), self.name, total=self.errors.count()), 1):
             try:
-                for key, value in self.handler(error.row):
-                    self.append(key, value, log=False)
+                data.extend(self.handler(error.row))
+            except KeyboardInterrupt:
+                raise
             except:
                 self.errors.report(error, traceback.format_exc())
             else:
-                self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
+                errors.append(error.id)
+
+            if i % 100 == 0:
+                self.append(data, log=False)
+                self.bot.engine.execute(models.errors.delete(models.errors.c.id.in_(errors)))
+
+        if data:
+            self.append(data, log=False)
+            self.bot.engine.execute(models.errors.delete(models.errors.c.id.in_(errors)))
+
         self.log(INFO, 'done.')
         return self
 
-    def export(self, path):
-        if path.endswith('.csv'):
+    def export(self, name, file):
+        if name.endswith('.csv'):
             import databot.exporters.csv
-            return databot.exporters.csv.Exporter(path, overwrite=True)
+            exporter = databot.exporters.csv.Exporter(file)
+            exporter.export(self.data.rows())
         else:
-            raise ValueError("Don't know how to export %s." % path)
-
-
-
-        with self.path.open('a', newline='') as f:
-            writer = csv.writer(f, delimiter=self.delimiter)
-            writer.writerows(self.rows(rows))
+            raise ValueError("Don't know how to export %s." % name)

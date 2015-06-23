@@ -2,6 +2,7 @@ import sys
 import pathlib
 import sqlalchemy as sa
 
+import databot.cli
 import databot.db
 import databot.tasks
 import databot.handlers.dummy
@@ -48,44 +49,39 @@ class Bot(object):
 
         return task
 
-    def task(self, name):
-        return self.tasks_by_name[name]
+    def task(self, name=None, code=None):
+        if code:
+            for task in self.tasks:
+                if 't%d' % task.id == code:
+                    return task
+            raise AttributeError('Unknown tasks with code "%s"' % code)
+        else:
+            return self.tasks_by_name[name]
 
-    def retry(self):
-        for error in self.query_retry_tasks():
-            with self.task(error.source.task):
-                self.task(error.target.task).retry()
-
-    def query_retry_tasks(self):
-        errors, state, tasks = models.errors, models.state, models.tasks
-
-        error = errors.alias('error')
-        source = tasks.alias('source')
-        target = tasks.alias('target')
+    def query_tasks_state(self):
+        state = models.state.alias('state')
+        source = models.tasks.alias('source')
+        target = models.tasks.alias('target')
 
         query = (
-            sa.select([error, source, target], use_labels=True).
+            sa.select([state, source, target], use_labels=True).
             select_from(
-                error.
-                join(state).
+                state.
                 join(source, state.c.source_id == source.c.id).
                 join(target, state.c.target_id == target.c.id)
             )
         )
 
         for row in self.engine.execute(query):
-            error = create_row(row, 'error_')
-            error['source'] = create_row(row, 'source_')
-            error['target'] = create_row(row, 'target_')
-            yield error
+            record = create_row(row, 'state_')
+            record['source'] = create_row(row, 'source_')
+            record['target'] = create_row(row, 'target_')
+            yield record
 
     def main(self, args=None):
-        args = args or sys.argv
-        self.init()
-        if 'retry' in args:
-            self.retry()
-        else:
-            self.run()
+        args = args or sys.argv[1:]
+        cli = databot.cli.Cli(self, args)
+        cli.main()
 
     def compact(self):
         for task in self.tasks:
