@@ -28,7 +28,7 @@ class Bot(object):
         self.verbosity = verbosity
         models.metadata.create_all(self.engine, checkfirst=True)
 
-    def define(self, name, handler=True, dburi=None, table=None, wrap=None):
+    def define(self, name, handler=True, dburi=None, table=None, wrap=None, data=False):
         if name in self.tasks_by_name:
             raise ValueError('A task with "%s" name is already defined.' % name)
 
@@ -43,7 +43,7 @@ class Bot(object):
         table = models.get_data_table(table_name, self.metadata)
         table.create(self.engine, checkfirst=True)
 
-        task = databot.tasks.Task(self, row.id, name, handler, table, wrap)
+        task = databot.tasks.Task(self, row.id, name, handler, table, wrap, data)
         self.tasks.append(task)
         self.tasks_by_name[name] = task
 

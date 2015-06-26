@@ -4,6 +4,7 @@ import requests
 import string
 import databot
 import hashlib
+import xmltodict
 from urllib.parse import urlencode
 
 from databot.db.serializers import dumps
@@ -42,11 +43,22 @@ class Bot(databot.Bot):
                 }
                 yield hashlib.sha1(dumps(data)).hexdigest(), data
 
+    def task_extract_osm_addresses(self, data, row):
+
+        def handle(path, item):
+            data.append(path, item)
+            return True
+
+        with open(row.value) as f:
+            xmltodict.parse(f, item_depth=2, item_callback=handle)
+
     def init(self):
         self.define('download streets suggestions', None)
         self.define('extract streets')
         self.define('download pages')
         self.define('extract search results', wrap=databot.html)
+        self.define('osm addresses', None)
+        self.define('extract osm addresses', data=True)
 
     def run(self):
         start_url = 'http://www.manogyvunai.lt/m/m_animalproblems/files/ajax_workaround.php'
@@ -62,8 +74,11 @@ class Bot(databot.Bot):
                 with self.task('download pages').run():
                     self.task('extract search results').run()
 
+        with self.task('osm addresses').append('vilnius', 'vilnius.xml').dedup():
+            self.task('extract osm addresses').run()
+
         self.compact()
 
 
 if __name__ == '__main__':
-    Bot('sqlite:///{path}/gyvunai.sqlite3').main()
+    Bot('sqlite:///gyvunai.sqlite3').main()

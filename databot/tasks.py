@@ -143,8 +143,26 @@ class TaskErrors(object):
             )
 
 
+class Appender(object):
+    def __init__(self, source):
+        self.data = []
+        self.num = 1
+        self.source = source
+
+    def append(self, data):
+        self.num += 1
+        self.data.extend(data)
+        if self.num % 100 == 0:
+            self.save()
+
+    def save(self):
+        self.source.append(self.data, log=False)
+        self.data = []
+        engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+
+
 class Task(object):
-    def __init__(self, bot, id, name, handler, table, wrap=None):
+    def __init__(self, bot, id, name, handler, table, wrap=None, data=False):
         """
 
         Parameters:
@@ -154,6 +172,7 @@ class Task(object):
         - handler: callable, it will be called with each row if rows=False or with all rows if rows=True
         - table: sqlalchemy.Table, a table where data is stored
         - wrap: callable, a decorator, that wraps handler, can be used to do common initialization for the handler
+        - data: pass data appender arbument to handler
 
         """
         self.bot = bot
@@ -165,6 +184,7 @@ class Task(object):
         self.wrap = wrap
         self.data = TaskData(self)
         self.errors = TaskErrors(self)
+        self.pass_data_arg = data
 
     def __str__(self):
         return self.name
@@ -338,23 +358,17 @@ class Task(object):
         state = self.get_state()
         engine = self.bot.engine
 
-        data = []
-        for i, row in enumerate(tqdm.tqdm(self.rows(), self.name, total=self.count()), 1):
+        appender, data, errors = Appender(('data', 'errors'))
+        for row in tqdm.tqdm(self.rows(), self.name, total=self.count()):
             try:
-                data.extend(self.handler(row))
+                data.append(self.handler(row))
             except KeyboardInterrupt:
                 raise
             except:
-                self.append(data, log=False)
-                data = []
                 self.errors.report(row, traceback.format_exc())
                 engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
 
-            if i % 100 == 0:
-                self.append(data, log=False)
-                data = []
-                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
-
+        appender.save()
         if data:
             self.append(data, log=False)
             engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)

@@ -35,6 +35,7 @@ class Cli(object):
             'run': RunCommand,
             'skip': SkipCommand,
             'export': ExportCommand,
+            'append': AppendCommand,
         }
 
         # Pop command
@@ -196,3 +197,14 @@ class ExportCommand(Command):
 
     def main(self):
         self.task.export(self.args.path.name, self.args.path)
+
+
+class AppendCommand(Command):
+    require = 'task'
+
+    def arguments(self):
+        self.parser.add_argument('key')
+        self.parser.add_argument('value', nargs='?', default=None)
+
+    def main(self):
+        self.task.append(self.args.key, self.args.value)
