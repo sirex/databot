@@ -3,15 +3,9 @@ import databot
 
 
 class TestBot(databot.Bot):
-    def task_task_1(self):
-        pass
-
-    def task_task_2(self):
-        pass
-
     def init(self):
-        self.define('task 1')
-        self.define('task 2')
+        self.define('pipe 1')
+        self.define('pipe 2')
 
 
 class ContextTests(unittest.TestCase):
@@ -20,28 +14,28 @@ class ContextTests(unittest.TestCase):
         self.bot.init()
 
     def test_context(self):
-        self.assertTrue(self.bot.task('task 1').source is None)
-        self.assertTrue(self.bot.task('task 2').source is None)
+        self.assertTrue(self.bot.pipe('pipe 1').source is None)
+        self.assertTrue(self.bot.pipe('pipe 2').source is None)
 
-        with self.bot.task('task 1'):
-            self.assertEqual(self.bot.task('task 1').source.name, 'task 1')
-            self.assertEqual(self.bot.task('task 2').source.name, 'task 1')
+        with self.bot.pipe('pipe 1'):
+            self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 1')
+            self.assertEqual(self.bot.pipe('pipe 2').source.name, 'pipe 1')
 
-            with self.bot.task('task 2'):
-                self.assertEqual(self.bot.task('task 1').source.name, 'task 2')
+            with self.bot.pipe('pipe 2'):
+                self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 2')
 
-            self.assertEqual(self.bot.task('task 1').source.name, 'task 1')
-            self.assertEqual(self.bot.task('task 2').source.name, 'task 1')
+            self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 1')
+            self.assertEqual(self.bot.pipe('pipe 2').source.name, 'pipe 1')
 
-        self.assertTrue(self.bot.task('task 1').source is None)
-        self.assertTrue(self.bot.task('task 2').source is None)
+        self.assertTrue(self.bot.pipe('pipe 1').source is None)
+        self.assertTrue(self.bot.pipe('pipe 2').source is None)
 
 
 class DataTests(unittest.TestCase):
     def setUp(self):
         self.bot = TestBot('sqlite:///:memory:')
-        self.t1 = self.bot.define('task 1').append([('1', 'a'), ('2', 'b')])
-        self.t2 = self.bot.define('task 2')
+        self.t1 = self.bot.define('pipe 1').append([('1', 'a'), ('2', 'b')])
+        self.t2 = self.bot.define('pipe 2')
 
     def test_count_with_context(self):
         self.assertEqual(self.t2.count(), 0)

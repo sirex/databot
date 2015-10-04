@@ -3,12 +3,16 @@ import datetime
 import itertools
 import sqlalchemy as sa
 import traceback
+import tqdm
+import pprint
+import textwrap
 
 from databot.db.serializers import dumps, loads
 from databot.logging import PROGRESS, INFO, ERROR
 from databot.db.utils import Row, create_row, get_or_create
 from databot.db import models
 from databot.db.windowedquery import windowed_query
+from databot.handlers import download, html
 
 
 def wrapper(handler, wrap):
@@ -37,11 +41,11 @@ def keyvalueitems(key, value=None):
         return itertools.chain([(item, None)], ((k, None) for k in items))
 
 
-class TaskData(object):
-    def __init__(self, task):
-        self.task = task
-        self.table = task.table
-        self.engine = task.bot.conn.engine
+class PipeData(object):
+    def __init__(self, pipe):
+        self.pipe = pipe
+        self.table = pipe.table
+        self.engine = pipe.bot.conn.engine
 
     def count(self):
         return self.engine.execute(self.table.count()).scalar()
@@ -63,15 +67,15 @@ class TaskData(object):
             yield row.value
 
 
-class TaskErrors(object):
-    def __init__(self, task):
-        self.task = task
-        self.engine = task.bot.engine
+class PipeErrors(object):
+    def __init__(self, pipe):
+        self.pipe = pipe
+        self.engine = pipe.bot.engine
 
     def __call__(self):
-        if self.task.source:
+        if self.pipe.source:
             error = models.errors.alias('error')
-            table = self.task.source.table.alias('table')
+            table = self.pipe.source.table.alias('table')
 
             query = (
                 sa.select([error, table], use_labels=True).
@@ -79,7 +83,7 @@ class TaskErrors(object):
                     error.
                     join(table, error.c.row_id == table.c.id)
                 ).
-                where(error.c.state_id == self.task.get_state().id).
+                where(error.c.state_id == self.pipe.get_state().id).
                 order_by(error.c.id)
             )
 
@@ -90,8 +94,8 @@ class TaskErrors(object):
                 yield item
 
     def count(self):
-        if self.task.source:
-            state = self.task.get_state()
+        if self.pipe.source:
+            state = self.pipe.get_state()
             return self.engine.execute(models.errors.count(models.errors.c.state_id == state.id)).scalar()
         else:
             return 0
@@ -113,8 +117,8 @@ class TaskErrors(object):
             yield row.value
 
     def report(self, error_or_row, message):
-        self.task.log(ERROR)
-        self.task.log(ERROR, message)
+        self.pipe.log(ERROR)
+        self.pipe.log(ERROR, message)
         now = datetime.datetime.utcnow()
         if 'retries' in error_or_row:
             error = error_or_row
@@ -130,7 +134,7 @@ class TaskErrors(object):
             )
         else:
             row = error_or_row
-            state = self.task.get_state()
+            state = self.pipe.get_state()
             self.engine.execute(
                 models.errors.insert(),
                 state_id=state.id,
@@ -142,33 +146,29 @@ class TaskErrors(object):
             )
 
 
-class Task(object):
-    def __init__(self, bot, id, name, handler, table, wrap=None):
+class Pipe(object):
+    def __init__(self, bot, id, name, table):
         """
 
         Parameters:
         - bot: databot.Bot
-        - id: int, primary key of this task from databot.db.models.tasks.id
-        - name: str, human readable task identifier
-        - handler: callable, it will be called with each row if rows=False or with all rows if rows=True
+        - id: int, primary key of this pipe from databot.db.models.pipes.id
+        - name: str, human readable pipe identifier
         - table: sqlalchemy.Table, a table where data is stored
-        - wrap: callable, a decorator, that wraps handler, can be used to do common initialization for the handler
 
         """
         self.bot = bot
         self.id = id
         self.name = name
-        self.handler = wrapper(handler, wrap)
         self.table = table
-        self.wrap = wrap
-        self.data = TaskData(self)
-        self.errors = TaskErrors(self)
+        self.data = PipeData(self)
+        self.errors = PipeErrors(self)
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return '<databot.Task[%d]: %s>' % (self.id, self.name)
+        return '<databot.Pipe[%d]: %s>' % (self.id, self.name)
 
     def __enter__(self):
         self.log(PROGRESS, self.name)
@@ -210,7 +210,7 @@ class Task(object):
             return False
 
     def append(self, key, value=None, conn=None, log=True):
-        """Append data to the task's storage
+        """Append data to the pipe
 
         You can call this method in following ways::
 
@@ -227,6 +227,45 @@ class Task(object):
             self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
         if log:
             self.log(INFO, 'done.')
+        return self
+
+    def reset(self):
+        state = self.get_state()
+        self.bot.engine.execute(models.state.update(models.state.c.id == state.id), offset=0)
+        return self
+
+    def skip(self):
+        state = self.get_state()
+        engine = self.bot.engine
+        source = self.source.table
+        query = sa.select([source.c.id]).order_by(source.c.id.desc()).limit(1)
+        offset = engine.execute(query).scalar()
+        if offset:
+            engine.execute(models.state.update(models.state.c.id == state.id), offset=offset)
+        return self
+
+    def offset(self, value=None):
+        state = self.get_state()
+        source = self.source.table
+        engine = self.bot.engine
+
+        offset = None
+
+        if value:
+            query = sa.select([source.c.id])
+            if value > 0:
+                query = query.where(source.c.id > state.offset).order_by(source.c.id.asc())
+            else:
+                query = query.where(source.c.id < state.offset).order_by(source.c.id.desc())
+            query = query.limit(1).offset(abs(value) - 1)
+            offset = engine.execute(query).scalar()
+            if offset is None:
+                if value > 0:
+                    return self.skip()
+                else:
+                    return self.reset()
+        if offset is not None:
+            engine.execute(models.state.update(models.state.c.id == state.id), offset=offset)
         return self
 
     def clean(self, age=None, now=None):
@@ -322,42 +361,107 @@ class Task(object):
         for row in self.rows():
             yield row.value
 
-    def run(self):
-        self.log(INFO, 'run...', end=' ')
+    def call(self, handler):
+        self.log(INFO, 'call...', end=' ')
         state = self.get_state()
         engine = self.bot.engine
-        for row in self.rows():
-            try:
-                self.append(self.handler(row), log=False)
-            except:
-                self.errors.report(row, traceback.format_exc())
-            finally:
-                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
-        self.log(INFO, 'done.')
-        return self
+        desc = '%s -> %s' % (self.source, self)
 
-    def retry(self):
-        self.log(INFO, 'retry...', end=' ')
-        for error in self.errors():
-            try:
-                for key, value in self.handler(error.row):
-                    self.append(key, value, log=False)
-            except:
-                self.errors.report(error, traceback.format_exc())
-            else:
-                self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
-        self.log(INFO, 'done.')
-        return self
+        if self.bot.args.retry:
+            self.retry(handler)
 
-    def export(self, path):
-        if path.endswith('.csv'):
-            import databot.exporters.csv
-            return databot.exporters.csv.Exporter(path, overwrite=True)
+        if self.bot.args.verbosity == 1 and not self.bot.args.debug:
+            rows = tqdm.tqdm(self.rows(), desc, self.count())
         else:
-            raise ValueError("Don't know how to export %s." % path)
+            rows = self.rows()
 
+        n = 0
+        for row in rows:
+            if self.bot.args.debug:
+                self._verbose_append(handler, row)
+                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+            else:
+                try:
+                    if self.bot.args.verbosity > 1:
+                        self._verbose_append(handler, row)
+                    else:
+                        self.append(handler(row), log=False)
+                except:
+                    self.errors.report(row, traceback.format_exc())
+                finally:
+                    engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+            n += 1
 
+        if self.bot.args.verbosity > 0:
+            print('%s, rows processed: %d' % (desc, n))
 
-        with self.path.open('a', newline='') as f:
-            writer = csv.writer(f, delimiter=self.delimiter)
-            writer.writerows(self.rows(rows))
+        self.log(INFO, 'done.')
+        return self
+
+    def retry(self, handler):
+        self.log(INFO, 'retry...', end=' ')
+
+        desc = '%s -> %s (retry)' % (self.source, self)
+
+        if self.bot.args.verbosity == 1 and not self.bot.args.debug:
+            errors = tqdm.tqdm(self.errors(), desc, self.errors.count())
+        else:
+            errors = self.errors()
+
+        n = 0
+        for error in errors:
+            if self.bot.args.debug:
+                self._verbose_append(handler, error.row)
+                self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
+            else:
+                try:
+                    if self.bot.args.verbosity > 1:
+                        self._verbose_append(handler, error.row)
+                    else:
+                        self.append(handler(error.row), log=False)
+                except:
+                    self.errors.report(error, traceback.format_exc())
+                else:
+                    self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
+            n += 1
+
+        if self.bot.args.verbosity == 1:
+            print('%s, errors retries: %d' % (desc, n))
+
+        self.log(INFO, 'done.')
+        return self
+
+    def _verbose_append(self, handler, row):
+        print('-' * 72)
+        print('source: id=%d key=%r' % (row.id, row.key))
+        for key, value in keyvalueitems(handler(row)):
+            self.append(key, value, log=False)
+            print('- key: %r' % key)
+            if isinstance(value, str):
+                print('  value: %r' % value[:100])
+            elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
+                print('  headers:')
+                print(textwrap.indent(pprint.pformat(value['headers']), '    '))
+                print('  status_code: %r' % value['status_code'])
+                print('  encoding: %r' % value['encoding'])
+                print('  text: %r' % value['text'][:100])
+            else:
+                print('  value:')
+                print(textwrap.indent(pprint.pformat(value), '    '))
+
+    # def export(self, path):
+    #     if path.endswith('.csv'):
+    #         import databot.exporters.csv
+    #         return databot.exporters.csv.Exporter(path, overwrite=True)
+    #     else:
+    #         raise ValueError("Don't know how to export %s." % path)
+
+    #     with self.path.open('a', newline='') as f:
+    #         writer = csv.writer(f, delimiter=self.delimiter)
+    #         writer.writerows(self.rows(rows))
+
+    def download(self):
+        return self.call(download.download)
+
+    def select(self, key, value=None):
+        return self.call(html.Select(key, value))

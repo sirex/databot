@@ -1,10 +1,11 @@
+import requests
+
+
 class DownloadErrror(Exception):
     pass
 
 
-def handler(row):
-    import requests
-
+def download(row):
     response = requests.get(row.key)
     if response.status_code == 200:
         yield row.key, {

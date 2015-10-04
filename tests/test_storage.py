@@ -10,49 +10,38 @@ def exclude(data, keys):
     return {k: v for k, v in data.items() if k not in keys}
 
 
-class TestBot(databot.Bot):
-    def task_task_1(self):
-        pass
-
-    def task_task_2(self):
-        pass
-
-    def init(self):
-        self.define('task 1')
-        self.define('task 2')
-
-
 @tests.db.usedb()
 class StorageTests(object):
     def setUp(self):
         super().setUp()
-        self.bot = TestBot(self.db.engine)
-        self.bot.init()
+        self.bot = databot.Bot(self.db.engine).argparse(['-v0', 'run'])
+        self.bot.define('pipe 1')
+        self.bot.define('pipe 2')
 
     def test_append(self):
-        t1 = self.bot.task('task 1')
+        t1 = self.bot.pipe('pipe 1')
         t1.append('foo', 'bar').append('a', 'b')
         data = [(row['key'], row['value']) for row in self.bot.engine.execute(t1.table.select())]
         self.assertEqual(data, [('foo', b'"bar"'), ('a', b'"b"')])
 
     def test_clean(self):
-        t1 = self.bot.task('task 1')
-        t2 = self.bot.task('task 2')
+        t1 = self.bot.pipe('pipe 1')
+        t2 = self.bot.pipe('pipe 2')
 
         day = datetime.timedelta(days=1)
         now = datetime.datetime(2015, 6, 1, 1, 1, 0)
-        self.bot.engine.execute(t1.table.insert(), key='1', value=dumps('a'), created=now - 1*day)
-        self.bot.engine.execute(t1.table.insert(), key='2', value=dumps('b'), created=now - 2*day)
-        self.bot.engine.execute(t1.table.insert(), key='3', value=dumps('c'), created=now - 3*day)
+        self.bot.engine.execute(t1.table.insert(), key='1', value=dumps('a'), created=now - 1 * day)
+        self.bot.engine.execute(t1.table.insert(), key='2', value=dumps('b'), created=now - 2 * day)
+        self.bot.engine.execute(t1.table.insert(), key='3', value=dumps('c'), created=now - 3 * day)
 
         with t1:
             self.assertEqual(t2.count(), 3)
 
-            t1.clean(3*day, now=now)
+            t1.clean(3 * day, now=now)
             self.assertEqual(t2.count(), 2)
             self.assertEqual(list(map(int, t2.keys())), [1, 2])
 
-            t1.clean(2*day, now=now)
+            t1.clean(2 * day, now=now)
             self.assertEqual(t2.count(), 1)
             self.assertEqual(list(map(int, t2.keys())), [1])
 
@@ -60,7 +49,7 @@ class StorageTests(object):
             self.assertEqual(t2.count(), 0)
 
     def test_dedup(self):
-        t1 = self.bot.task('task 1')
+        t1 = self.bot.pipe('pipe 1')
         t1.append('1', 'a')
         t1.append('2', 'b')
         t1.append('2', 'c')
@@ -75,7 +64,7 @@ class StorageTests(object):
         ])
 
     def test_compact(self):
-        t1 = self.bot.task('task 1')
+        t1 = self.bot.pipe('pipe 1')
         t1.append('1', 'a')
         t1.append('2', 'b')
         t1.append('2', 'c')
@@ -100,12 +89,13 @@ class StorageTests(object):
 class StateTests(object):
     def setUp(self):
         super().setUp()
-        self.bot = TestBot(self.db.engine)
-        self.bot.init()
+        self.bot = databot.Bot(self.db.engine).argparse(['-v0', 'run'])
+        self.bot.define('pipe 1')
+        self.bot.define('pipe 2')
 
     def test_initial_state(self):
-        t1 = self.bot.task('task 1')
-        t2 = self.bot.task('task 2')
+        t1 = self.bot.pipe('pipe 1')
+        t2 = self.bot.pipe('pipe 2')
 
         self.assertEqual(exclude(t1.get_state(), 'id'), {
             'offset': 0,
@@ -120,8 +110,8 @@ class StateTests(object):
         })
 
     def test_context_state(self):
-        t1 = self.bot.task('task 1')
-        t2 = self.bot.task('task 2')
+        t1 = self.bot.pipe('pipe 1')
+        t2 = self.bot.pipe('pipe 2')
 
         with t1:
             self.assertEqual(exclude(t2.get_state(), 'id'), {
@@ -138,10 +128,10 @@ class StateTests(object):
             items_processed += 1
             yield item.key, item.value
 
-        self.bot.define('task 3', handler)
+        self.bot.define('pipe 3')
 
-        t1 = self.bot.task('task 1')
-        t3 = self.bot.task('task 3')
+        t1 = self.bot.pipe('pipe 1')
+        t3 = self.bot.pipe('pipe 3')
 
         t1.append('1', 'a').append('2', 'b')
 
@@ -149,7 +139,7 @@ class StateTests(object):
             self.assertEqual(items_processed, 0)
             self.assertTrue(t3.is_filled())
 
-            t3.run()
+            t3.call(handler)
             self.assertEqual(exclude(t3.get_state(), 'id'), {
                 'offset': 2,
                 'source_id': t1.id,
@@ -165,7 +155,7 @@ class StateTests(object):
             self.assertEqual(items_processed, 2)
             self.assertTrue(t3.is_filled())
 
-            t3.run()
+            t3.call(handler)
             self.assertEqual(exclude(t3.get_state(), 'id'), {
                 'offset': 3,
                 'source_id': t1.id,

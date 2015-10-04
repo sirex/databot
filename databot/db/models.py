@@ -10,18 +10,18 @@ BigInteger = BigInteger.with_variant(sqlite.INTEGER(), 'sqlite')
 
 metadata = sa.MetaData()
 
-tasks = sa.Table(
-    'databottasks', metadata,
+pipes = sa.Table(
+    'databotpipes', metadata,
     sa.Column('id', sa.Integer, primary_key=True),
     sa.Column('bot', sa.String(255), nullable=False),
-    sa.Column('task', sa.String(255), nullable=False),
+    sa.Column('pipe', sa.String(255), nullable=False),
 )
 
 state = sa.Table(
     'databotstate', metadata,
     sa.Column('id', sa.Integer, primary_key=True),
-    sa.Column('source_id', sa.Integer, sa.ForeignKey(tasks.c.id)),
-    sa.Column('target_id', sa.Integer, sa.ForeignKey(tasks.c.id), nullable=False),
+    sa.Column('source_id', sa.Integer, sa.ForeignKey(pipes.c.id)),
+    sa.Column('target_id', sa.Integer, sa.ForeignKey(pipes.c.id), nullable=False),
     sa.Column('offset', sa.Integer, nullable=False)
 )
 
