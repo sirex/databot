@@ -5,6 +5,7 @@ import unittest
 import sqlalchemy as sa
 import sqlalchemy.exc
 import sqlalchemy.pool
+import nose.plugins.attrib
 
 connections = {}
 
@@ -106,19 +107,36 @@ class MysqlTestCase(object):
 
 
 def usedb(*bases):
+    """Duplicate same test with different database setups.
+
+    Duplicated test cases has nose attributes [1], each test case has sqlite, psql and mysq attributes and all
+    databases, except sqlite has slowdb attribute.
+
+    To run all tests, except slowdb use:
+
+        nosetests -a !slowdb tests
+
+    To test database tests run:
+
+        nosetests -a psql -a mysql tests
+
+    [1] http://nose.readthedocs.org/en/latest/plugins/attrib.html
+    """
+
     bases = tuple(bases) or (unittest.TestCase,)
 
     def decorator(klass):
         module = sys.modules[klass.__module__]
         test_cases = (
-            ('Sqlite', SqliteTestCase),
-            ('PostgreSQL', PsqlTestCase),
-            ('MySQL', MysqlTestCase),
+            ('sqlite', 'Sqlite', SqliteTestCase),
+            ('psql', 'PostgreSQL', PsqlTestCase),
+            ('mysql', 'MySQL', MysqlTestCase),
         )
-        for test_case_name, TestCaseClass in test_cases:
+        for attr, test_case_name, TestCaseClass in test_cases:
+            attrib = nose.plugins.attrib.attr(**{attr: True, 'slowdb': attr != 'sqlite'})
             name = '%s_%s' % (klass.__name__, test_case_name)
             TestCase = type(name, (klass, TestCaseClass) + bases, {})
-            setattr(module, name, TestCase)
+            setattr(module, name, attrib(TestCase))
         return klass
 
     return decorator
