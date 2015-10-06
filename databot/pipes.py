@@ -13,6 +13,7 @@ from databot.db.utils import Row, create_row, get_or_create
 from databot.db import models
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
+from databot.bulkinsert import BulkInsert
 
 
 def wrapper(handler, wrap):
@@ -116,7 +117,7 @@ class PipeErrors(object):
         for row in self.rows():
             yield row.value
 
-    def report(self, error_or_row, message):
+    def report(self, error_or_row, message, bulk=None):
         self.pipe.log(ERROR)
         self.pipe.log(ERROR, message)
         now = datetime.datetime.utcnow()
@@ -132,6 +133,17 @@ class PipeErrors(object):
                     updated=datetime.datetime.utcnow(),
                 ),
             )
+        elif bulk:
+            row = error_or_row
+            state = self.pipe.get_state()
+            bulk.append(dict(
+                state_id=state.id,
+                row_id=row.id,
+                retries=0,
+                traceback=message,
+                created=now,
+                updated=now,
+            ))
         else:
             row = error_or_row
             state = self.pipe.get_state()
@@ -209,7 +221,7 @@ class Pipe(object):
         else:
             return False
 
-    def append(self, key, value=None, conn=None, log=True):
+    def append(self, key, value=None, conn=None, log=True, bulk=None):
         """Append data to the pipe
 
         You can call this method in following ways::
@@ -224,7 +236,10 @@ class Pipe(object):
             self.log(INFO, 'append...', end=' ')
         for key, value in keyvalueitems(key, value):
             now = datetime.datetime.utcnow()
-            self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
+            if bulk:
+                bulk.append({'key': key, 'value': dumps(value), 'created': now})
+            else:
+                self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
         if log:
             self.log(INFO, 'done.')
         return self
@@ -375,22 +390,26 @@ class Pipe(object):
         else:
             rows = self.rows()
 
+        pipe = BulkInsert(engine, self.table)
+        errors = BulkInsert(engine, models.errors)
+        pipe.post_save(lambda: engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id))
+
         n = 0
         for row in rows:
             if self.bot.args.debug:
-                self._verbose_append(handler, row)
-                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+                self._verbose_append(handler, row, pipe)
             else:
                 try:
                     if self.bot.args.verbosity > 1:
-                        self._verbose_append(handler, row)
+                        self._verbose_append(handler, row, pipe)
                     else:
-                        self.append(handler(row), log=False)
+                        self.append(handler(row), log=False, bulk=pipe)
                 except:
-                    self.errors.report(row, traceback.format_exc())
-                finally:
-                    engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+                    self.errors.report(row, traceback.format_exc(), errors)
             n += 1
+
+        pipe.save()
+        errors.save()
 
         if self.bot.args.verbosity > 0:
             print('%s, rows processed: %d' % (desc, n))
@@ -401,6 +420,7 @@ class Pipe(object):
     def retry(self, handler):
         self.log(INFO, 'retry...', end=' ')
 
+        engine = self.bot.engine
         desc = '%s -> %s (retry)' % (self.source, self)
 
         if self.bot.args.verbosity == 1 and not self.bot.args.debug:
@@ -408,34 +428,44 @@ class Pipe(object):
         else:
             errors = self.errors()
 
+        def post_save():
+            if error_ids:
+                engine.execute(models.errors.delete(models.errors.c.id.in_(error_ids)))
+
+        pipe = BulkInsert(engine, self.table)
+        pipe.post_save(post_save)
+
         n = 0
+        error_ids = []
         for error in errors:
             if self.bot.args.debug:
-                self._verbose_append(handler, error.row)
-                self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
+                self._verbose_append(handler, error.row, pipe)
+                error_ids.append(error.id)
             else:
                 try:
                     if self.bot.args.verbosity > 1:
-                        self._verbose_append(handler, error.row)
+                        self._verbose_append(handler, error.row, pipe)
                     else:
-                        self.append(handler(error.row), log=False)
+                        self.append(handler(error.row), log=False, bulk=pipe)
                 except:
                     self.errors.report(error, traceback.format_exc())
                 else:
-                    self.bot.engine.execute(models.errors.delete(models.errors.c.id == error.id))
+                    error_ids.append(error.id)
             n += 1
 
+        pipe.save()
+
         if self.bot.args.verbosity == 1:
-            print('%s, errors retries: %d' % (desc, n))
+            print('%s, errors retried: %d' % (desc, n))
 
         self.log(INFO, 'done.')
         return self
 
-    def _verbose_append(self, handler, row):
+    def _verbose_append(self, handler, row, bulk):
         print('-' * 72)
         print('source: id=%d key=%r' % (row.id, row.key))
         for key, value in keyvalueitems(handler(row)):
-            self.append(key, value, log=False)
+            self.append(key, value, log=False, bulk=bulk)
             print('- key: %r' % key)
             if isinstance(value, str):
                 print('  value: %r' % value[:100])
