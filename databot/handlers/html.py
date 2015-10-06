@@ -4,7 +4,21 @@ import itertools
 
 from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
-from bs4 import UnicodeDammit
+from bs4 import UnicodeDammit, BeautifulSoup
+
+
+def create_html_parser(row):
+    content = row.value['text']
+    doc = UnicodeDammit(content, is_html=True)
+    encoding = doc.original_encoding
+    parser = lxml.html.HTMLParser(encoding=encoding)
+    html = lxml.html.document_fromstring(content, parser=parser)
+    html.make_links_absolute(row.key)
+
+
+def create_bs4_parser(row):
+    content = row.value['text']
+    return BeautifulSoup(content)
 
 
 class Select(object):
@@ -14,13 +28,7 @@ class Select(object):
         self.value = value
 
     def __call__(self, row):
-        content = row.value['text']
-        doc = UnicodeDammit(content, is_html=True)
-        encoding = doc.original_encoding
-        parser = lxml.html.HTMLParser(encoding=encoding)
-        html = lxml.html.document_fromstring(content, parser=parser)
-        html.make_links_absolute(row.key)
-
+        html = create_html_parser()
         if isinstance(self.key, list) and self.value is None:
             return self.render(row, html, self.key)
         else:

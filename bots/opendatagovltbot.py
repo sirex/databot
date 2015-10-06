@@ -30,4 +30,4 @@ def run(self):
 
 
 if __name__ == '__main__':
-    databot.Bot('sqlite:///{path}/opendatagovlt.db').argparse(sys.argv[1:], define, run)
+    databot.Bot('sqlite:///data/opendatagovlt.db').argparse(sys.argv[1:], define, run)
