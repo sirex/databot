@@ -113,19 +113,16 @@ class Bot(object):
                 print(line)
 
     def try_(self, args):
-        source_id, target_id = map(int, args.state.split('/'))
-
         pipes = {t.id: t for t in self.pipes}
-
-        source = pipes[source_id]
+        source = pipes[args.source]
 
         from .pipes import keyvalueitems
         from databot.handlers import html
 
-        method = html.Select(*args.argument)
+        method = html.Select([args.argument])
         for row in source.data.rows():
             for key, value in keyvalueitems(method(row)):
-                print(key, value)
+                print(key)
             break
 
     def argparse(self, argv, define=None, run=None):
@@ -145,9 +142,9 @@ class Bot(object):
         sp.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
 
         sp = sps.add_parser('try')
-        sp.add_argument('state', type=str, help="State id, for example: 1/2")
+        sp.add_argument('source', type=int, help="Source id, for example: 1")
         sp.add_argument('method', type=str, help="Example: select")
-        sp.add_argument('argument', type=str, nargs='*')
+        sp.add_argument('argument', type=str, nargs='?')
 
         self.args = args = parser.parse_args(argv)
 

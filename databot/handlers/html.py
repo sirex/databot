@@ -1,5 +1,6 @@
 import re
 import lxml.html
+import lxml.etree
 import itertools
 
 from cssselect.parser import SelectorSyntaxError
@@ -14,6 +15,7 @@ def create_html_parser(row):
     parser = lxml.html.HTMLParser(encoding=encoding)
     html = lxml.html.document_fromstring(content, parser=parser)
     html.make_links_absolute(row.key)
+    return html
 
 
 def create_bs4_parser(row):
@@ -28,7 +30,7 @@ class Select(object):
         self.value = value
 
     def __call__(self, row):
-        html = create_html_parser()
+        html = create_html_parser(row)
         if isinstance(self.key, list) and self.value is None:
             return self.render(row, html, self.key)
         else:
@@ -55,7 +57,12 @@ class Select(object):
                 if value.endswith('?'):
                     return None
                 else:
-                    raise ValueError("'%s' did not returned any results." % value)
+                    if html.tag != 'html':
+                        raise ValueError("'%s' did not returned any results. Context:\n\n%s" % (
+                            value, lxml.etree.tostring(html, pretty_print=True).decode('utf-8')
+                        ))
+                    else:
+                        raise ValueError("'%s' did not returned any results. Source: %s" % (value, row.key))
             elif len(result) > 1:
                 raise ValueError("'%s' returned more than one value: %r." % (value, result))
             else:
@@ -63,8 +70,8 @@ class Select(object):
 
     def select(self, html, query):
         engines = {'xpath': self.xpath, 'css': self.cssselect}
-        split_re = re.compile(r' (%s):' % '|'.join(engines.keys()))
-        queries = split_re.split(query)
+        split_re = re.compile(r'\b(%s):' % '|'.join(engines.keys()))
+        queries = filter(None, [s.strip() for s in split_re.split(query)])
         engine = self.cssselect
         result = [html]
         for subquery in queries:
