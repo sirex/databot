@@ -14,6 +14,7 @@ from databot.db import models
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
+from databot.exporters import csv
 
 
 def wrapper(handler, wrap):
@@ -479,16 +480,8 @@ class Pipe(object):
                 print('  value:')
                 print(textwrap.indent(pprint.pformat(value), '    '))
 
-    # def export(self, path):
-    #     if path.endswith('.csv'):
-    #         import databot.exporters.csv
-    #         return databot.exporters.csv.Exporter(path, overwrite=True)
-    #     else:
-    #         raise ValueError("Don't know how to export %s." % path)
-
-    #     with self.path.open('a', newline='') as f:
-    #         writer = csv.writer(f, delimiter=self.delimiter)
-    #         writer.writerows(self.rows(rows))
+    def export(self, path):
+        csv.export(path, self)
 
     def download(self):
         return self.call(download.download)

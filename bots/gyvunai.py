@@ -71,6 +71,8 @@ def run(bot):
             with bot.pipe('pages').call(download_page):
                 bot.pipe('extract search results').call(extract_search_results)
 
+    bot.pipe('extract search results').export('data/gyvunai.csv')
+
 
 if __name__ == '__main__':
     databot.Bot('sqlite:///data/gyvunai.db').argparse(sys.argv[1:], define, run)

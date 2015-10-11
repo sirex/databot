@@ -38,6 +38,8 @@ def run(bot):
                         )
                     ])
 
+    bot.pipe('tarybos nariai').export('data/savivaldybiu-rinkimai.csv')
+
 
 if __name__ == '__main__':
     databot.Bot('sqlite:///data/savivaldybiu-rinkimai.db').argparse(sys.argv[1:], define, run)

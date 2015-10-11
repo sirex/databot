@@ -16,28 +16,24 @@ def define(bot):
 
 
 def run(bot):
-    bot.compact()
-
     start_url = 'http://www.vilnius.lt/lit/Posedziu_archyvas/7/1724278'
     with bot.pipe('start urls').append(start_url):
         with bot.pipe('archive index pages').download():
-            with bot.pipe('session links'):
-                bot.select(['#wp2sw_content table.info_table tr td[1] a@href']).dedup()
+            with bot.pipe('session links').select(['#wp2sw_content table.info_table tr td[1] a@href']).dedup():
                 bot.pipe('session pages').download()
 
     with bot.pipe('session pages'):
-        with bot.pipe('session data'):
-            bot.select(databot.row.key(), {
-                'numeris': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio numeris")] css:td.long:text?',
-                'pavadinimas': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio pavadinimas")] css:td.long:text',
-                'data': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio data")] css:td.long:text',
-                'pirmininkas': 'form > table.info_table xpath:tr[contains(th/text(), "Pirmininkas")] css:td.long div[2] a:text',
-                'dalyviai': ['form > table.info_table xpath:tr[contains(th/text(), "Dalyviai")] css:td.long div[1] *:tail'],
-                'kurejas': 'form > table.info_table xpath:tr[contains(th/text(), "Kūrėjas")] css:td.long div[2] a:text',
-                'busena': 'form > table.info_table xpath:tr[contains(th/text(), "Būsena")] css:td.long:content',
-                'klausimai': ['td > .info_table tr td[2] a@href'],
-            })
-        with bot.pipe('question links').select(['td > .info_table tr td[2] a@href']):
+        bot.pipe('session data').select(databot.row.key(), {
+            'numeris': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio numeris")] css:td.long:text?',
+            'pavadinimas': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio pavadinimas")] css:td.long:text',
+            'data': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio data")] css:td.long:text',
+            'pirmininkas': 'form > table.info_table xpath:tr[contains(th/text(), "Pirmininkas")] css:td.long div[2] a:text',
+            'dalyviai': ['form > table.info_table xpath:tr[contains(th/text(), "Dalyviai")] css:td.long div[1] *:tail'],
+            'kurejas': 'form > table.info_table xpath:tr[contains(th/text(), "Kūrėjas")] css:td.long div[2] a:text',
+            'busena': 'form > table.info_table xpath:tr[contains(th/text(), "Būsena")] css:td.long:content',
+            'klausimai': ['td > .info_table tr td[2] a@href'],
+        })
+        with bot.pipe('question links').select(['td > .info_table tr td[2] a@href']).dedup():
             bot.pipe('question pages').download()
 
     with bot.pipe('question pages'):
@@ -83,6 +79,8 @@ def run(bot):
                 'form > table.info_table xpath:tr[contains(th/text(), "Nedalyvavo balsavime")] css:td.long:content?'
             ),
         })
+
+    bot.compact()
 
 
 if __name__ == '__main__':

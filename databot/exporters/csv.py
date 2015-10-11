@@ -1,29 +1,51 @@
 import csv
-import pathlib
+import json
 
 
-class Exporter(ExporterBase):
-    def __init__(self, path, columns=None, delimiter=','):
-        self.path = pathlib.Path(path)
-        self.columns = columns
-        self.delimiter = delimiter
+def get_fields(data, field=()):
+    fields = []
+    if isinstance(data, dict):
+        for k, v in sorted(data.items()):
+            fields.extend(get_fields(v, field + (k,)))
+    else:
+        fields.append(field)
+    return fields
 
-    def __call__(self, rows):
-        if self.columns and self.path.exists():
-            self.columns = self.get_columns_from_file()
-        with self.path.open('a', newline='') as f:
-            writer = csv.writer(f, delimiter=self.delimiter)
-            writer.writerows(self.rows(rows))
 
-    def get_columns_from_file(self):
-        with self.path.open() as f:
-            line = f.readline().strip()
-            if line:
-                return line.split(self.delimiter)
+def get_values(fields, data):
+    values = []
+    for field in fields:
+        node = data
+        for key in field:
+            try:
+                node = node[key]
+            except KeyError:
+                node = None
+                break
+        values.append(node)
+    return tuple(values)
 
-    def rows(self, rows):
-        for row in rows:
-            if self.columns is None:
-                self.columns = sorted(row.value.keys())
-                yield ['key'] + self.columns
-            yield [row.key] + [row.value.get(col) for col in self.columns]
+
+def values_to_csv(values):
+    row = []
+    for value in values:
+        if isinstance(value, (list, dict)):
+            value = json.dumps(value).encode('utf-8')
+        row.append(value)
+    return row
+
+
+def export(path, pipe):
+    with open(path, 'w') as f:
+        writer = csv.writer(f)
+
+        fields = []
+        for row in pipe.data.rows():
+            fields = get_fields(row.value)
+            break
+
+        writer.writerow(['key'] + ['.'.join(field) for field in fields])
+
+        for row in pipe.data.rows():
+            values = values_to_csv(get_values(fields, row.value))
+            writer.writerow([row.key] + values)
