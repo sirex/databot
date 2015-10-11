@@ -4,8 +4,6 @@ import itertools
 import sqlalchemy as sa
 import traceback
 import tqdm
-import pprint
-import textwrap
 
 from databot.db.serializers import dumps, loads
 from databot.logging import PROGRESS, INFO, ERROR
@@ -52,8 +50,9 @@ class PipeData(object):
     def count(self):
         return self.engine.execute(self.table.count()).scalar()
 
-    def rows(self):
-        for row in self.engine.execute(self.table.select().order_by(self.table.c.id)):
+    def rows(self, desc=False):
+        order_by = self.table.c.id.desc() if desc else self.table.c.id
+        for row in self.engine.execute(self.table.select().order_by(order_by)):
             yield Row(row, value=loads(row.value))
 
     def items(self):
@@ -467,18 +466,7 @@ class Pipe(object):
         print('source: id=%d key=%r' % (row.id, row.key))
         for key, value in keyvalueitems(handler(row)):
             self.append(key, value, log=False, bulk=bulk)
-            print('- key: %r' % key)
-            if isinstance(value, str):
-                print('  value: %r' % value[:100])
-            elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
-                print('  headers:')
-                print(textwrap.indent(pprint.pformat(value['headers']), '    '))
-                print('  status_code: %r' % value['status_code'])
-                print('  encoding: %r' % value['encoding'])
-                print('  text: %r' % value['text'][:100])
-            else:
-                print('  value:')
-                print(textwrap.indent(pprint.pformat(value), '    '))
+            self.bot.printer.print_key_value(key, value, short=True)
 
     def export(self, path):
         csv.export(path, self)

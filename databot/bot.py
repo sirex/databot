@@ -6,15 +6,19 @@ import argparse
 import databot.db
 import databot.pipes
 from databot.db import models
-from databot.db.utils import create_row, get_or_create
+from databot.db.utils import Row, create_row, get_or_create
+from databot.db.serializers import loads
 from databot.logging import QUIET
+from databot.printing import Printer
 
 
 class Bot(object):
 
     def __init__(self, uri_or_engine, verbosity=QUIET):
+        self.printer = Printer()
         self.pipes = []
         self.pipes_by_name = {}
+        self.pipes_by_id = {}
         self.stack = []
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         if isinstance(uri_or_engine, str):
@@ -39,6 +43,7 @@ class Bot(object):
         pipe = databot.pipes.Pipe(self, row.id, name, table)
         self.pipes.append(pipe)
         self.pipes_by_name[name] = pipe
+        self.pipes_by_id[pipe.id] = pipe
 
         return pipe
 
@@ -106,24 +111,13 @@ class Bot(object):
             lines.append(None)
 
         lenght = max(map(len, filter(None, lines)))
+        border = '='
         for line in lines:
             if line is None:
-                print('-' * lenght)
+                print(border * lenght)
+                border = '-'
             else:
                 print(line)
-
-    def try_(self, args):
-        pipes = {t.id: t for t in self.pipes}
-        source = pipes[args.source]
-
-        from .pipes import keyvalueitems
-        from databot.handlers import html
-
-        method = html.Select([args.argument])
-        for row in source.data.rows():
-            for key, value in keyvalueitems(method(row)):
-                print(key)
-            break
 
     def argparse(self, argv, define=None, run=None):
         parser = argparse.ArgumentParser()
@@ -141,10 +135,24 @@ class Bot(object):
         sp.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
         sp.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
 
-        sp = sps.add_parser('try')
-        sp.add_argument('source', type=int, help="Source id, for example: 1")
-        sp.add_argument('method', type=str, help="Example: select")
-        sp.add_argument('argument', type=str, nargs='?')
+        sp = sps.add_parser('select')
+        sp.add_argument('source', type=str, help="Source id, for example: 1")
+        sp.add_argument('query', type=str, help='Selector query.')
+        sp.add_argument('-k', '--key', type=str, help="Try on specific source key.")
+
+        sp = sps.add_parser('show')
+        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
+        sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
+        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+
+        sp = sps.add_parser('tail')
+        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
+        sp.add_argument('-n', type=int, dest='limit', default=10, help="Number of rows to show.")
+        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+        sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
+
+        sp = sps.add_parser('compact')
+        sp.add_argument('pipe', type=str, nargs='?', help="Pipe id, for example: 1 or my-pipe")
 
         self.args = args = parser.parse_args(argv)
 
@@ -154,12 +162,75 @@ class Bot(object):
         if args.command == 'run':
             if run is not None:
                 run(self)
-        elif args.command == 'try':
-            self.try_(args)
+        elif args.command == 'select':
+            self.command_select(args)
+        elif args.command == 'show':
+            self.show(args)
+        elif args.command == 'tail':
+            self.tail(args)
+        elif args.command == 'compact':
+            if args.pipe:
+                self.get_pipe_from_string(args.pipe).compact()
+            else:
+                self.compact()
         else:
             self.status()
 
         return self
+
+    def get_pipe_from_string(self, name):
+        if name.isdigit():
+            pipe = self.pipes_by_id[int(name)]
+        else:
+            pipe = self.pipes_by_name.get(name)
+            pipe = pipe or self.pipes_by_name[name.replace('-', ' ')]
+        return pipe
+
+    def get_last_row(self, pipe, key=None):
+        if key:
+            query = pipe.table.select().where(pipe.table.c.key == key).order_by(pipe.table.c.id.desc())
+        else:
+            query = pipe.table.select().order_by(pipe.table.c.id.desc())
+
+        return self.engine.execute(query).first()
+
+    def command_select(self, args):
+        from databot.pipes import keyvalueitems
+        from databot.handlers import html
+
+        source = self.get_pipe_from_string(args.source)
+        selector = html.Select([args.query])
+        row = self.get_last_row(source, args.key)
+        if row:
+            row = Row(row, value=loads(row.value))
+            for key, value in keyvalueitems(selector(row)):
+                self.printer.print_key_value(key, value)
+        else:
+            print('Not found.')
+
+    def show(self, args):
+        pipe = self.get_pipe_from_string(args.pipe)
+        row = self.get_last_row(pipe, args.key)
+
+        if row:
+            exclude = args.exclude.split(',') if args.exclude else None
+            self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)
+        else:
+            print('Not found.')
+
+    def tail(self, args):
+        pipe = self.get_pipe_from_string(args.pipe)
+        rows = self.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
+        rows = list(rows)
+        if rows:
+            exclude = args.exclude.split(',') if args.exclude else None
+            if args.table:
+                self.printer.print_table([Row(row, value=loads(row.value)) for row in reversed(rows)], exclude=exclude)
+            else:
+                for row in reversed(rows):
+                    self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)
+        else:
+            print('Not found.')
 
     @property
     def data(self):
