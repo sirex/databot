@@ -5,14 +5,12 @@ import itertools
 
 from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
-from bs4 import UnicodeDammit, BeautifulSoup
+from bs4 import BeautifulSoup
 
 
 def create_html_parser(row):
     content = row.value['text']
-    doc = UnicodeDammit(content, is_html=True)
-    encoding = doc.original_encoding
-    parser = lxml.html.HTMLParser(encoding=encoding)
+    parser = lxml.html.HTMLParser(encoding='utf-8')
     html = lxml.html.document_fromstring(content, parser=parser)
     html.make_links_absolute(row.key)
     return html

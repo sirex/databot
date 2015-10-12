@@ -139,6 +139,11 @@ class Bot(object):
         sp.add_argument('source', type=str, help="Source id, for example: 1")
         sp.add_argument('query', type=str, help='Selector query.')
         sp.add_argument('-k', '--key', type=str, help="Try on specific source key.")
+        sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
+
+        sp = sps.add_parser('download')
+        sp.add_argument('url', type=str)
+        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
 
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
@@ -164,6 +169,8 @@ class Bot(object):
                 run(self)
         elif args.command == 'select':
             self.command_select(args)
+        elif args.command == 'download':
+            self.command_download(args)
         elif args.command == 'show':
             self.show(args)
         elif args.command == 'tail':
@@ -203,10 +210,21 @@ class Bot(object):
         row = self.get_last_row(source, args.key)
         if row:
             row = Row(row, value=loads(row.value))
-            for key, value in keyvalueitems(selector(row)):
-                self.printer.print_key_value(key, value)
+            rows = keyvalueitems(selector(row))
+            if args.table:
+                self.printer.print_table([Row(key=key, value=value) for key, value in rows])
+            else:
+                for key, value in rows:
+                    self.printer.print_key_value(key, value)
         else:
             print('Not found.')
+
+    def command_download(self, args):
+        from databot.handlers import download
+
+        exclude = args.exclude.split(',') if args.exclude else None
+        key, value = next(download.download(Row(key=args.url, value=None)))
+        self.printer.print_key_value(key, value, exclude=exclude)
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)
