@@ -144,6 +144,7 @@ class Bot(object):
         sp = sps.add_parser('download')
         sp.add_argument('url', type=str)
         sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+        sp.add_argument('-a', '--append', type=str, help="Append downloaded content to specified pipe.")
 
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
@@ -225,6 +226,10 @@ class Bot(object):
         exclude = args.exclude.split(',') if args.exclude else None
         key, value = next(download.download(Row(key=args.url, value=None)))
         self.printer.print_key_value(key, value, exclude=exclude)
+
+        if args.append:
+            pipe = self.get_pipe_from_string(args.append)
+            pipe.append(key, value)
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)
