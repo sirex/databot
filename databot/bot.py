@@ -146,6 +146,10 @@ class Bot(object):
         sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
         sp.add_argument('-a', '--append', type=str, help="Append downloaded content to specified pipe.")
 
+        sp = sps.add_parser('skip')
+        sp.add_argument('source', type=str, help="Source pipe.")
+        sp.add_argument('target', type=str, help="Target pipe.")
+
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
         sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
@@ -172,6 +176,8 @@ class Bot(object):
             self.command_select(args)
         elif args.command == 'download':
             self.command_download(args)
+        elif args.command == 'skip':
+            self.command_skip(args)
         elif args.command == 'show':
             self.show(args)
         elif args.command == 'tail':
@@ -203,11 +209,18 @@ class Bot(object):
         return self.engine.execute(query).first()
 
     def command_select(self, args):
+        import ast
+
         from databot.pipes import keyvalueitems
         from databot.handlers import html
 
+        if args.query and args.query[0] in ('[', '{', '"', "'"):
+            query = ast.literal_eval(args.query)
+        else:
+            query = [args.query]
+
         source = self.get_pipe_from_string(args.source)
-        selector = html.Select([args.query])
+        selector = html.Select(query)
         row = self.get_last_row(source, args.key)
         if row:
             row = Row(row, value=loads(row.value))
@@ -230,6 +243,13 @@ class Bot(object):
         if args.append:
             pipe = self.get_pipe_from_string(args.append)
             pipe.append(key, value)
+
+    def command_skip(self, args):
+        source = self.get_pipe_from_string(args.source)
+        target = self.get_pipe_from_string(args.target)
+
+        with source:
+            target.skip()
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)
