@@ -36,8 +36,9 @@ def values_to_csv(values):
     return row
 
 
-def flatten_rows(rows, scan_fields=1):
+def flatten_rows(rows, exclude=None, scan_fields=1):
     _rows = []
+    exclude = exclude or set()
 
     rows = iter(rows)
 
@@ -49,16 +50,17 @@ def flatten_rows(rows, scan_fields=1):
             break
 
     fields = sorted(fields)
-    _fields = list(filter(None, ['.'.join(field) for field in fields]))
+    cols = ['key'] + (list(filter(None, ['.'.join(field) for field in fields])) or ['value'])
 
-    yield ['key'] + (_fields or ['value'])
+    yield [c for c in cols if c not in exclude]
 
     for row in itertools.chain(_rows, rows):
-        yield [row.key] + list(get_values(fields, row.value))
+        values = [row.key] + list(get_values(fields, row.value))
+        yield [v for k, v in zip(cols, values) if k not in exclude]
 
 
-def export(path, pipe):
+def export(path, pipe, exclude=None):
     with open(path, 'w') as f:
         writer = csv.writer(f)
-        for row in flatten_rows(pipe.data.rows()):
+        for row in flatten_rows(pipe.data.rows(), exclude):
             writer.writerow(values_to_csv(row))

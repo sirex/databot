@@ -161,6 +161,11 @@ class Bot(object):
         sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
         sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
 
+        sp = sps.add_parser('export')
+        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
+        sp.add_argument('path', type=str, help="Path CSV file to export to (will be overwritten).")
+        sp.add_argument('-x', '--exclude', type=str, help="Exclude columns.")
+
         sp = sps.add_parser('compact')
         sp.add_argument('pipe', type=str, nargs='?', help="Pipe id, for example: 1 or my-pipe")
 
@@ -182,6 +187,8 @@ class Bot(object):
             self.show(args)
         elif args.command == 'tail':
             self.tail(args)
+        elif args.command == 'export':
+            self.export_command(args)
         elif args.command == 'compact':
             if args.pipe:
                 self.get_pipe_from_string(args.pipe).compact()
@@ -274,6 +281,12 @@ class Bot(object):
                     self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)
         else:
             print('Not found.')
+
+    def export_command(self, args):
+        from databot.exporters import csv
+        pipe = self.get_pipe_from_string(args.pipe)
+        exclude = set(args.exclude.split(',') if args.exclude else [])
+        csv.export(args.path, pipe, exclude)
 
     @property
     def data(self):
