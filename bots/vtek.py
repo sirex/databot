@@ -42,7 +42,7 @@ def run(bot):
     #
     with bot.pipe('puslapiai'):
         bot.pipe('žmonės').select([
-            'xpath://div[contains(@class,\"panel-body\") and count(div)=3]', (
+            'xpath://div[contains(@class,"panel-body") and count(div)=3]', (
                 'div[1] > a@href', {
                     'name': 'div[1] > a:text',  # Person's full name
                     'position': 'div[2]:text',  # Position code in an institution where this person work
