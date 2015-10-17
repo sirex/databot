@@ -2,7 +2,7 @@ import unittest
 import databot
 import databot.pipes
 
-from databot import call
+from databot import call, value
 from databot.handlers import html
 
 
@@ -75,7 +75,7 @@ class CallbackTests(unittest.TestCase):
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_direct(self):
-        select = html.Select((lambda row, html, value: row.key), 'div:text')
+        select = html.Select((lambda row, html: row.key), 'div:text')
         self.assertEqual(select(self.row), [('http://exemple.com', 'value')])
 
     def test_row(self):
@@ -160,3 +160,17 @@ class AbsoluteCssSelectorTests(unittest.TestCase):
     def test_mixed_query(self):
         select = html.Select(['div > a', ('@name', '/h2:text')])
         self.assertEqual(select(self.row), [('1', 'heading'), ('2', 'heading')])
+
+
+class ValueTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div><h2>heading</h2><a name="1">a</a><a name="2">b</a></div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_mixed_query(self):
+        select = html.Select(['div > a', ('@name', value('x'))])
+        self.assertEqual(select(self.row), [('1', 'x'), ('2', 'x')])

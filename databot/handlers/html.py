@@ -40,7 +40,7 @@ class Select(object):
         elif isinstance(value, Call):
             return value(row, html, self.render(row, html, value.query))
         elif callable(value):
-            return value(row, html, value)
+            return value(row, html)
         elif isinstance(value, dict):
             return {k: self.render(row, html, v) for k, v in sorted(value.items())}
         elif isinstance(value, list):
@@ -147,3 +147,12 @@ class Call(object):
         for call in self.callables:
             value = call(value)
         return value
+
+
+class Value(object):
+
+    def __init__(self, value):
+        self.value = value
+
+    def __call__(self, row, node):
+        return self.value

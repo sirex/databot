@@ -2,6 +2,51 @@
 
 import sys
 import databot
+import functools
+
+
+@functools.lru_cache()
+def get_first_names():
+    return {v['name'].lower() for v in databot.Bot('sqlite:///data/vardai.db').define('vardų sąrašas').data.values()}
+
+
+def split_first_last_name(names):
+    first_name = []
+    last_name = []
+    first_names = get_first_names()
+    for name in names:
+        if name.lower() in first_names:
+            first_name.append(name)
+        else:
+            last_name.append(name)
+
+    if not first_name:
+        raise ValueError('Could not detect first name for "%s".' % ' '.join(names))
+
+    return ' '.join(first_name), ' '.join(last_name)
+
+
+def split_name(data):
+    names = data.pop('pavardė vardas').strip().split()
+
+    if names[-1] in ('(MERAS)', '(MERĖ)'):
+        meras = True
+        names = names[:-1]
+    else:
+        meras = False
+
+    assert len(names) > 1
+
+    if len(names) > 2:
+        first_name, last_name = split_first_last_name(names)
+    else:
+        last_name, first_name = names
+
+    data['meras'] = meras
+    data['vardas'] = first_name
+    data['pavardė'] = last_name
+
+    return data
 
 
 def define(bot):
@@ -28,12 +73,13 @@ def run(bot):
                 with bot.pipe('savivaldybių rezultatų puslapiai').download():
                     bot.pipe('tarybos nariai').select([
                         'xpath://table[contains(@class,"partydata3")][1]/tr[count(td)>0]', (
-                            'tr td[2] > a@href', {
+                            'tr td[2] > a@href', databot.call(split_name, {
                                 'sąrašas': 'tr td[1]:text',
                                 'pavardė vardas': 'tr td[2] > a:text',
                                 'įgaliojimai pripažinti': 'tr td[3]:text',
                                 'savivaldybė': '/font[size="5"] > b:text',
-                            }
+                                'kadencija': databot.value(2015),
+                            })
                         )
                     ])
 
