@@ -28,11 +28,11 @@ class Select(object):
         self.value = value
 
     def __call__(self, row):
-        html = create_html_parser(row)
+        self.html = create_html_parser(row)
         if isinstance(self.key, list) and self.value is None:
-            return self.render(row, html, self.key)
+            return self.render(row, self.html, self.key)
         else:
-            return [(self.render(row, html, self.key), self.render(row, html, self.value))]
+            return [(self.render(row, self.html, self.key), self.render(row, self.html, self.value))]
 
     def render(self, row, html, value):
         if value is None:
@@ -109,6 +109,10 @@ class Select(object):
         elif query.endswith(':tail'):
             tail = True
             query = query[:-5]
+
+        if query.startswith('/'):
+            query = query[1:]
+            html = self.html
 
         if query:
             try:

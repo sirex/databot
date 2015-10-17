@@ -99,14 +99,16 @@ class Bot(object):
         lines.append('%5s  %6s %9s  %s' % ('', 'errors', 'left', '  target'))
         lines.append(None)
         for source in self.pipes:
-            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source))
+            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source.name.replace(' ', '-')))
 
             query = sa.select([models.state.c.target_id]).where(models.state.c.source_id == source.id)
             for target_id, in self.engine.execute(query):
                 if target_id in pipes:
                     target = pipes[target_id]
                     with source:
-                        lines.append('%5s  %6s %9d    %s' % ('', target.errors.count(), target.count(), target))
+                        lines.append('%5s  %6s %9d    %s' % (
+                            '', target.errors.count(), target.count(), target.name.replace(' ', '-')
+                        ))
 
             lines.append(None)
 
@@ -150,6 +152,10 @@ class Bot(object):
         sp.add_argument('source', type=str, help="Source pipe.")
         sp.add_argument('target', type=str, help="Target pipe.")
 
+        sp = sps.add_parser('reset')
+        sp.add_argument('source', type=str, help="Source pipe.")
+        sp.add_argument('target', type=str, help="Target pipe.")
+
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
         sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
@@ -183,6 +189,8 @@ class Bot(object):
             self.command_download(args)
         elif args.command == 'skip':
             self.command_skip(args)
+        elif args.command == 'reset':
+            self.command_reset(args)
         elif args.command == 'show':
             self.show(args)
         elif args.command == 'tail':
@@ -257,6 +265,13 @@ class Bot(object):
 
         with source:
             target.skip()
+
+    def command_reset(self, args):
+        source = self.get_pipe_from_string(args.source)
+        target = self.get_pipe_from_string(args.target)
+
+        with source:
+            target.reset()
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)

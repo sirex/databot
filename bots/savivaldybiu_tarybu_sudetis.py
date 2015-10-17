@@ -13,8 +13,6 @@ def define(bot):
 
 
 def run(bot):
-    bot.compact()
-
     rinkimai = [
         (
             'http://www.2013.vrk.lt/2015_savivaldybiu_tarybu_rinkimai/output_lt/savivaldybiu_tarybu_sudetis/savivaldybes.html',
@@ -34,11 +32,12 @@ def run(bot):
                                 'sąrašas': 'tr td[1]:text',
                                 'pavardė vardas': 'tr td[2] > a:text',
                                 'įgaliojimai pripažinti': 'tr td[3]:text',
+                                'savivaldybė': '/font[size="5"] > b:text',
                             }
                         )
                     ])
 
-    bot.pipe('tarybos nariai').export('data/savivaldybiu-rinkimai.csv')
+    bot.compact()
 
 
 if __name__ == '__main__':

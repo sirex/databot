@@ -146,3 +146,17 @@ class InlineCallTests(unittest.TestCase):
     def test_mixed_query(self):
         select = html.Select(['div > a', ('@name', call(lambda v: v + '!', ':text'))])
         self.assertEqual(select(self.row), [('1', 'a!'), ('2', 'b!')])
+
+
+class AbsoluteCssSelectorTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div><h2>heading</h2><a name="1">a</a><a name="2">b</a></div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_mixed_query(self):
+        select = html.Select(['div > a', ('@name', '/h2:text')])
+        self.assertEqual(select(self.row), [('1', 'heading'), ('2', 'heading')])
