@@ -58,30 +58,24 @@ def define(bot):
 
 
 def run(bot):
-    rinkimai = [
-        (
-            'http://www.2013.vrk.lt/2015_savivaldybiu_tarybu_rinkimai/output_lt/savivaldybiu_tarybu_sudetis/savivaldybes.html',
-            {
-                'date': '2015-03-01',
-            }
-        )
-    ]
 
-    with bot.pipe('savivaldybių rinkimai').append(rinkimai).dedup():
-        with bot.pipe('savivaldybių sąrašo puslapiai').download():
-            with bot.pipe('savivaldybių rezultatų nuorodos').select(['table.partydata tr td b > a@href']).dedup():
-                with bot.pipe('savivaldybių rezultatų puslapiai').download():
-                    bot.pipe('tarybos nariai').select([
-                        'xpath://table[contains(@class,"partydata3")][1]/tr[count(td)>0]', (
-                            'tr td[2] > a@href', databot.call(split_name, {
-                                'sąrašas': 'tr td[1]:text',
-                                'pavardė vardas': 'tr td[2] > a:text',
-                                'įgaliojimai pripažinti': 'tr td[3]:text',
-                                'savivaldybė': '/font[size="5"] > b:text',
-                                'kadencija': databot.value(2015),
-                            })
-                        )
-                    ])
+    if bot.run('2015'):
+        start_url = 'http://www.2013.vrk.lt/2015_savivaldybiu_tarybu_rinkimai/output_lt/savivaldybiu_tarybu_sudetis/savivaldybes.html'
+        with bot.pipe('savivaldybių rinkimai').append(start_url).dedup():
+            with bot.pipe('savivaldybių sąrašo puslapiai').download():
+                with bot.pipe('savivaldybių rezultatų nuorodos').select(['table.partydata tr td b > a@href']).dedup():
+                    with bot.pipe('savivaldybių rezultatų puslapiai').download():
+                        bot.pipe('tarybos nariai').select([
+                            'xpath://table[contains(@class,"partydata3")][1]/tr[count(td)>0]', (
+                                'tr td[2] > a@href', databot.call(split_name, {
+                                    'sąrašas': 'tr td[1]:text',
+                                    'pavardė vardas': 'tr td[2] > a:text',
+                                    'įgaliojimai pripažinti': 'tr td[3]:text',
+                                    'savivaldybė': '/font[size="5"] > b:text',
+                                    'kadencija': databot.value(2015),
+                                })
+                            )
+                        ])
 
     bot.compact()
 

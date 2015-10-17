@@ -20,6 +20,7 @@ class Bot(object):
         self.pipes_by_name = {}
         self.pipes_by_id = {}
         self.stack = []
+        self.options = []
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         if isinstance(uri_or_engine, str):
             self.engine = sa.create_engine(uri_or_engine.format(path=self.path))
@@ -134,6 +135,7 @@ class Bot(object):
         sp = sps.add_parser('status')
 
         sp = sps.add_parser('run')
+        sp.add_argument('options', type=str, nargs='*', help="Run options if not specified everythig will be run.")
         sp.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
         sp.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
 
@@ -182,6 +184,7 @@ class Bot(object):
 
         if args.command == 'run':
             if run is not None:
+                self.options = args.options
                 run(self)
         elif args.command == 'select':
             self.command_select(args)
@@ -206,6 +209,12 @@ class Bot(object):
             self.status()
 
         return self
+
+    def run(self, name):
+        if self.options:
+            return name in self.options
+        else:
+            return True
 
     def get_pipe_from_string(self, name):
         if name.isdigit():
