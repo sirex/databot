@@ -29,7 +29,7 @@ class Select(object):
 
     def __call__(self, row):
         self.html = create_html_parser(row)
-        if isinstance(self.key, list) and self.value is None:
+        if isinstance(self.key, (list, Call)) and self.value is None:
             return self.render(row, self.html, self.key)
         else:
             return [(self.render(row, self.html, self.key), self.render(row, self.html, self.value))]
@@ -38,7 +38,7 @@ class Select(object):
         if value is None:
             return None
         elif isinstance(value, Call):
-            return value(row, html, self.render(row, html, value.query))
+            return value(self, row, html)
         elif callable(value):
             return value(row, html)
         elif isinstance(value, dict):
@@ -143,10 +143,23 @@ class Call(object):
         self.query = query
         self.callables = callables if isinstance(callables, tuple) else (callables,)
 
-    def __call__(self, row, node, value):
+    def __call__(self, select, row, node):
+        value = select.render(row, node, self.query)
         for call in self.callables:
             value = call(value)
         return value
+
+
+class Join(Call):
+
+    def __init__(self, *queries):
+        self.queries = queries
+
+    def __call__(self, select, row, node):
+        result = []
+        for query in self.queries:
+            result.extend(select.render(row, node, query))
+        return result
 
 
 class Value(object):

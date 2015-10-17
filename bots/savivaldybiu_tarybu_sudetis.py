@@ -37,6 +37,8 @@ def split_name(data):
 
     assert len(names) > 1
 
+    names = [n.title() for n in names]
+
     if len(names) > 2:
         first_name, last_name = split_first_last_name(names)
     else:
@@ -65,17 +67,34 @@ def run(bot):
             with bot.pipe('savivaldybių sąrašo puslapiai').download():
                 with bot.pipe('savivaldybių rezultatų nuorodos').select(['table.partydata tr td b > a@href']).dedup():
                     with bot.pipe('savivaldybių rezultatų puslapiai').download():
-                        bot.pipe('tarybos nariai').select([
-                            'xpath://table[contains(@class,"partydata3")][1]/tr[count(td)>0]', (
-                                'tr td[2] > a@href', databot.call(split_name, {
-                                    'sąrašas': 'tr td[1]:text',
-                                    'pavardė vardas': 'tr td[2] > a:text',
-                                    'įgaliojimai pripažinti': 'tr td[3]:text',
-                                    'savivaldybė': '/font[size="5"] > b:text',
-                                    'kadencija': databot.value(2015),
-                                })
-                            )
-                        ])
+                        bot.pipe('tarybos nariai').select(databot.join(
+                            [
+                                'xpath://table[contains(@class,"partydata3")][1]/tr[count(td)>0]', (
+                                    'tr > td[2] > a@href', databot.call(split_name, {
+                                        'sąrašas': 'tr > td[1]:text',
+                                        'pavardė vardas': 'tr > td[2] > a:text',
+                                        'nuo': 'tr > td[3]:text',
+                                        'iki': databot.value('2019-03-01'),
+                                        'mandato panaikinimo priežastis': databot.value(None),
+                                        'savivaldybė': '/font[size="5"] > b:text',
+                                        'kadencija': databot.value(2015),
+                                    })
+                                )
+                            ],
+                            [
+                                'xpath://table[contains(@class,"partydata3")][2]/tr[count(td)>0]', (
+                                    'tr > td[2] > a@href', databot.call(split_name, {
+                                        'sąrašas': 'tr > td[1]:text',
+                                        'pavardė vardas': 'tr > td[2] > a:text',
+                                        'nuo': 'tr > td[3]:text',
+                                        'iki': 'tr > td[4]:text',
+                                        'mandato panaikinimo priežastis': 'tr > td[5]:text',
+                                        'savivaldybė': '/font[size="5"] > b:text',
+                                        'kadencija': databot.value(2015),
+                                    })
+                                )
+                            ],
+                        ))
 
     bot.compact()
 

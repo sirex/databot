@@ -158,6 +158,11 @@ class Bot(object):
         sp.add_argument('source', type=str, help="Source pipe.")
         sp.add_argument('target', type=str, help="Target pipe.")
 
+        sp = sps.add_parser('offset')
+        sp.add_argument('source', type=str, help="Source pipe.")
+        sp.add_argument('target', type=str, help="Target pipe.")
+        sp.add_argument('offset', type=int, help="Relative offset.")
+
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
         sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
@@ -194,6 +199,8 @@ class Bot(object):
             self.command_skip(args)
         elif args.command == 'reset':
             self.command_reset(args)
+        elif args.command == 'offset':
+            self.command_offset(args)
         elif args.command == 'show':
             self.show(args)
         elif args.command == 'tail':
@@ -281,6 +288,13 @@ class Bot(object):
 
         with source:
             target.reset()
+
+    def command_offset(self, args):
+        source = self.get_pipe_from_string(args.source)
+        target = self.get_pipe_from_string(args.target)
+
+        with source:
+            target.offset(args.offset)
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)

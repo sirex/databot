@@ -174,3 +174,23 @@ class ValueTests(unittest.TestCase):
     def test_mixed_query(self):
         select = html.Select(['div > a', ('@name', value('x'))])
         self.assertEqual(select(self.row), [('1', 'x'), ('2', 'x')])
+
+
+class JoinTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div>',
+            '  <div id="nr1"><a name="1">a</a><a name="2">b</a></div>',
+            '  <div id="nr2"><a name="3">c</a><a name="4">d</a></div>',
+            '</div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_mixed_query(self):
+        select = html.Select(databot.join(
+            ['div#nr1 > a', ('@name', ':text')],
+            ['div#nr2 > a', ('@name', ':text')],
+        ))
+        self.assertEqual(select(self.row), [('1', 'a'), ('2', 'b'), ('3', 'c'), ('4', 'd')])
