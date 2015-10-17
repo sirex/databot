@@ -194,3 +194,25 @@ class JoinTests(unittest.TestCase):
             ['div#nr2 > a', ('@name', ':text')],
         ))
         self.assertEqual(select(self.row), [('1', 'a'), ('2', 'b'), ('3', 'c'), ('4', 'd')])
+
+
+class FirstTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div><a name="1">a</a><a name="2"></a></div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_missing(self):
+        select = html.Select(databot.first('#missing?', 'a[name="1"]:text'))
+        self.assertEqual(select(self.row), 'a')
+
+    def test_value(self):
+        select = html.Select(databot.first('#missing?', value('z')))
+        self.assertEqual(select(self.row), 'z')
+
+    def test_empty_string(self):
+        select = html.Select(databot.first('a[name="2"]:text', 'a[name="1"]:text'))
+        self.assertEqual(select(self.row), 'a')

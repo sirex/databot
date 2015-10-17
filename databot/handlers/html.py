@@ -162,6 +162,19 @@ class Join(Call):
         return result
 
 
+class First(Call):
+
+    def __init__(self, *queries):
+        self.queries = queries
+
+    def __call__(self, select, row, node):
+        for query in self.queries:
+            value = select.render(row, node, query)
+            if value:
+                return value
+        return None
+
+
 class Value(object):
 
     def __init__(self, value):
