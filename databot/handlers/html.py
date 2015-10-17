@@ -37,6 +37,8 @@ class Select(object):
     def render(self, row, html, value):
         if value is None:
             return None
+        elif isinstance(value, Call):
+            return value(row, html, self.render(row, html, value.query))
         elif callable(value):
             return value(row, html, value)
         elif isinstance(value, dict):
@@ -108,10 +110,13 @@ class Select(object):
             tail = True
             query = query[:-5]
 
-        try:
-            elements = html.cssselect(query)
-        except (SelectorSyntaxError, ExpressionError) as e:
-            raise ValueError('Invalid selector "%s", %s' % (query, e))
+        if query:
+            try:
+                elements = html.cssselect(query)
+            except (SelectorSyntaxError, ExpressionError) as e:
+                raise ValueError('Invalid selector "%s", %s' % (query, e))
+        else:
+            elements = [html]
 
         result = []
         for elem in elements:
@@ -126,3 +131,15 @@ class Select(object):
             else:
                 result.append(elem)
         return result
+
+
+class Call(object):
+
+    def __init__(self, callables, query):
+        self.query = query
+        self.callables = callables if isinstance(callables, tuple) else (callables,)
+
+    def __call__(self, row, node, value):
+        for call in self.callables:
+            value = call(value)
+        return value

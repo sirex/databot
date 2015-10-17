@@ -1,3 +1,4 @@
+import sys
 import pprint
 import textwrap
 import subprocess
@@ -14,7 +15,11 @@ from databot.exporters.csv import flatten_rows
 class Printer(object):
 
     def __init__(self):
-        self.height, self.width = map(int, subprocess.check_output(['stty', 'size']).split())
+        if sys.stdin.isatty():
+            self.height, self.width = map(int, subprocess.check_output(['stty', 'size']).split())
+        else:
+            self.height = 120
+            self.width = 120
 
     def print_key_value(self, key, value, short=False, exclude=None):
         style = get_style_by_name('emacs')

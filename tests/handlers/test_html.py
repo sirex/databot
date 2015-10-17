@@ -2,6 +2,7 @@ import unittest
 import databot
 import databot.pipes
 
+from databot import call
 from databot.handlers import html
 
 
@@ -117,3 +118,31 @@ class ComplexListTests(unittest.TestCase):
     def test_mixed_query(self):
         select = html.Select(['table tr', {'a': 'td[1]:text', 'b': 'td[2]:text'}])
         self.assertEqual(select(self.row), [{'a': '1', 'b': '2'}, {'a': '1', 'b': '2'}])
+
+
+class SingleElementTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div><a name="1">a</a><a name="2">b</a></div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_mixed_query(self):
+        select = html.Select(['div > a', ('@name', ':text')])
+        self.assertEqual(select(self.row), [('1', 'a'), ('2', 'b')])
+
+
+class InlineCallTests(unittest.TestCase):
+    def setUp(self):
+        bot = databot.Bot('sqlite:///:memory:')
+        key = 'http://exemple.com'
+        value = {'text': '\n'.join([
+            '<div><a name="1">a</a><a name="2">b</a></div>',
+        ])}
+        self.row, = bot.define('a').append(key, value).data.rows()
+
+    def test_mixed_query(self):
+        select = html.Select(['div > a', ('@name', call(lambda v: v + '!', ':text'))])
+        self.assertEqual(select(self.row), [('1', 'a!'), ('2', 'b!')])
