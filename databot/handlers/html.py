@@ -82,6 +82,7 @@ class Select(object):
         return list(result)
 
     def xpath(self, html, query):
+        query = query.rstrip('?')
         return html.xpath(query)
 
     def cssselect(self, html, query):

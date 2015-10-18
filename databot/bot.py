@@ -74,14 +74,6 @@ class Bot(object):
             error['target'] = create_row(row, 'target_')
             yield error
 
-    def main(self, args=None):
-        args = args or sys.argv
-        self.init()
-        if 'retry' in args:
-            self.retry()
-        else:
-            self.run()
-
     def compact(self):
         for pipe in self.pipes:
             pipe.compact()
@@ -122,7 +114,7 @@ class Bot(object):
             else:
                 print(line)
 
-    def argparse(self, argv, define=None, run=None):
+    def main(self, define=None, run=None, argv=None):
         parser = argparse.ArgumentParser()
 
         # Vorbosity levels:

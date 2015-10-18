@@ -6,3 +6,7 @@ from databot.handlers.html import First as first  # noqa
 from databot.handlers.html import Value as value  # noqa
 
 row = Row()
+
+
+def strip(query):
+    return call(str.strip, query)
