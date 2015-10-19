@@ -42,9 +42,9 @@ hackernews.py`` and run it::
     id              rows  source
         errors      left    target
     ==============================
-        1                 0  index
+     1                 0  index
     ------------------------------
-        2                 0  news
+     2                 0  news
     ------------------------------
 
 If you execute script without any arguments it just show the status of all
@@ -65,9 +65,9 @@ Now let's check the status output::
     id              rows  source
         errors      left    target
     ==============================
-        1                 1  index
+     1                 1  index
     ------------------------------
-        2                 0  news
+     2                 0  news
     ------------------------------
 
 We see, that one item was added to our ``index`` pipe. We can see content of
@@ -264,8 +264,8 @@ And export to CSV::
 
 Our *databot* script works well, but sometimes ``time`` can be found not in
 ``xpath:./following-sibling::tr[1]/td[2]/a[2]/text()``, but in
-``xpath:./following-sibling::tr[1]/td[2]/text()``. And second case has extra
-spaces at the beginning. To fix that, we can add following improvement:
+``xpath:./following-sibling::tr[1]/td[2]/text()``. And the second case has
+extra spaces at the beginning. To fix that, we can add following improvement:
 
 .. code-block:: python
 
