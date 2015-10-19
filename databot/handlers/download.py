@@ -25,17 +25,17 @@ def dump_response(response):
     }
 
 
-def download(delay=None, **kwargs):
+def download(url, delay=None, **kwargs):
     def func(row):
         if delay is not None:
             time.sleep(delay)
         kw = call(kwargs, row)
-        print(row.key, repr(kw))
-        response = requests.get(row.key, **kw)
+        _url = url(row)
+        response = requests.get(_url, **kw)
         if response.status_code == 200:
-            yield row.key, dump_response(response)
+            yield _url, dump_response(response)
         else:
             raise DownloadErrror('Error while downloading %s, returned status code was %s, response content:\n\n%s' % (
-                row.key, response.status_code, response.text,
+                _url, response.status_code, response.text,
             ))
     return func

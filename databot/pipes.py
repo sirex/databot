@@ -481,9 +481,11 @@ class Pipe(object):
     def export(self, path):
         csv.export(path, self)
 
-    def download(self, **kwargs):
+    def download(self, key=None, **kwargs):
+        from databot import row
+        key = key or row.key
         kwargs.setdefault('delay', self.bot.download_delay)
-        return self.call(download.download(**kwargs))
+        return self.call(download.download(key, **kwargs))
 
     def select(self, key, value=None):
         return self.call(html.Select(key, value))

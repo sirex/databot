@@ -167,7 +167,8 @@ class Bot(object):
         sp = sps.add_parser('tail')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
         sp.add_argument('-n', type=int, dest='limit', default=10, help="Number of rows to show.")
-        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+        sp.add_argument('-x', '--exclude', type=str, help="Exclude fields from row.")
+        sp.add_argument('-i', '--include', type=str, help="Include fields from row.")
         sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
 
         sp = sps.add_parser('export')
@@ -193,10 +194,13 @@ class Bot(object):
             self.command_download(args)
         elif args.command == 'skip':
             self.command_skip(args)
+            self.status()
         elif args.command == 'reset':
             self.command_reset(args)
+            self.status()
         elif args.command == 'offset':
             self.command_offset(args)
+            self.status()
         elif args.command == 'show':
             self.show(args)
         elif args.command == 'tail':
@@ -208,6 +212,7 @@ class Bot(object):
                 self.get_pipe_from_string(args.pipe).compact()
             else:
                 self.compact()
+            self.status()
         else:
             self.status()
 
@@ -264,7 +269,7 @@ class Bot(object):
         from databot.handlers import download
 
         exclude = args.exclude.split(',') if args.exclude else None
-        key, value = next(download.download(Row(key=args.url, value=None)))
+        key, value = next(download.download()(Row(key=args.url, value=None)))
         self.printer.print_key_value(key, value, exclude=exclude)
 
         if args.append:
@@ -313,8 +318,10 @@ class Bot(object):
         rows = list(rows)
         if rows:
             exclude = args.exclude.split(',') if args.exclude else None
+            include = args.include.split(',') if args.include else None
             if args.table:
-                self.printer.print_table([Row(row, value=loads(row.value)) for row in reversed(rows)], exclude=exclude)
+                rows = [Row(row, value=loads(row.value)) for row in reversed(rows)]
+                self.printer.print_table(rows, exclude=exclude, include=include)
             else:
                 for row in reversed(rows):
                     self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)

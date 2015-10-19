@@ -325,3 +325,17 @@ See full example below.
 
     if __name__ == '__main__':
         Bot('sqlite:///hackernews.db').main(define, run)
+
+
+Debugging
+=========
+
+In order to debug your script, you need to ``skip`` pair of pipes, set relative
+offset to ``'-1'`` and then ``run`` your script with ``-d`` flag::
+
+    $ ./script.py skip source target
+    $ ./script.py offset source target '-1'
+    $ ./script.py run -d
+
+This will run only the last row and results will not be stored, since ``-d``
+flag is present.

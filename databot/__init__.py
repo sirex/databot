@@ -9,4 +9,6 @@ row = RowAttr()
 
 
 def strip(query):
-    return call(str.strip, query)
+    def func(v):
+        return None if v is None else v.strip()
+    return call(func, query)

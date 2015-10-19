@@ -71,24 +71,32 @@ class Printer(object):
                 code = textwrap.indent(pprint.pformat(value, width=self.width), '    ')
                 print(highlight(code, py, formatter))
 
-    def print_table(self, rows, exclude=None):
+    def print_table(self, rows, exclude=None, include=None):
         _rows = []
         exclude = exclude or []
         flat_rows = flatten_rows(rows)
 
         for row in flat_rows:
-            _rows.append([c for c in row if c not in exclude])
+            if include:
+                _rows.append(include)
+            else:
+                _rows.append([c for c in row if c not in exclude])
             break
 
         if _rows:
             cols = row
             max_value_size = (self.width // len(_rows[0])) * 3
 
+        if include:
+            cols = {c: i for i, c in enumerate(cols) if c in include}
+            cols = [cols[c] for c in include]
+        else:
+            cols = [i for i, c in enumerate(cols) if c not in exclude]
+
         for row in flat_rows:
             _row = []
-            for col, value in enumerate(row):
-                if cols[col] in exclude:
-                    continue
+            for c in cols:
+                value = row[c]
                 if isinstance(value, list):
                     value = repr(value)
                 if isinstance(value, str) and len(value) > max_value_size:

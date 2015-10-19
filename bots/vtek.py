@@ -2,7 +2,7 @@
 
 import databot
 
-from databot import row
+from databot import row, strip, first, value
 
 
 def filter_declaration_pages_with_error(row):
@@ -18,6 +18,9 @@ def define(bot):
     bot.define('deklaracijų puslapiai be klaidos')
     bot.define('deklaracijos')
     bot.define('žmonės')
+    bot.define('seimo nariai')
+    bot.define('seimo narių deklaracijų puslapiai')
+    bot.define('seimo narių deklaracijos')
 
 
 def run(bot):
@@ -34,12 +37,12 @@ def run(bot):
                     # We don't want to select page links from each page, they are the same on each page.
                     bot.pipe('sąrašas').skip()
 
-    with bot.pipe('puslapiai'):
-        bot.pipe('nuorodos').select([
-            '.panel-body xpath:div[normalize-space(following-sibling::div/text())="101"]/a/@href',
-        ])
-        with bot.pipe('nuorodos'):
-            bot.pipe('deklaracijų puslapiai').download(headers={'Referer': row.key})
+    # with bot.pipe('puslapiai'):
+    #     bot.pipe('nuorodos').select([
+    #         '.panel-body xpath:div[normalize-space(following-sibling::div/text())="101"]/a/@href',
+    #     ])
+    #     with bot.pipe('nuorodos'):
+    #         bot.pipe('deklaracijų puslapiai').download(headers={'Referer': row.key})
 
     # with bot.pipe('puslapiai'):
     #     bot.pipe('žmonės').select([
@@ -68,16 +71,33 @@ def run(bot):
 
 
 def runx(bot):
+    bot.download_delay = 7
 
-    # > bots/vtek.py select deklaracijų-puslapiai "['#pagrindine_priedai #p_virsus', ('tr[2] > td:text', ['xpath:./../../following-sibling::tr[1]/td/table[@id=\"priedas\"]/tr/td/table/tr[1]/td[1]/text()'])]"
-    with bot.pipe('deklaracijų puslapiai'):
-        bot.pipe('deklaracijos').select({
+    with bot.pipe('puslapiai'):
+        bot.pipe('seimo nariai').select([
+            '.panel-body xpath:div[normalize-space(following-sibling::div/text())="101"]/a', (':text', '@href')
+        ])
+        with bot.pipe('seimo nariai').dedup():
+            bot.pipe('seimo narių deklaracijų puslapiai').download(row.value, headers={'Referer': row.value})
+
+    with bot.pipe('seimo narių deklaracijų puslapiai'):
+        bot.pipe('seimo narių deklaracijos').select({
             'deklaruojantis asmuo': '#asmens_duomenys xpath:./tr[contains(td/text(),"DEKLARUOJANTIS ASMUO")]/following-sibling::tr[1]/td/text()',
             'darbovietė': '#asmens_duomenys xpath:./tr[contains(td/text(),"DARBOVIETĖ")][1]/following-sibling::tr[1]/td/text()',
             'pareigos': '#asmens_duomenys xpath:./tr[contains(td/text(),"PAREIGOS")][1]/following-sibling::tr[1]/td/text()',
-            'sutuoktinis': '#asmens_duomenys xpath:./tr[contains(td/text(),"SUTUOKTINIS, SUGYVENTINIS, PARTNERIS")]/following-sibling::tr[2]/td/text()',
-            'sutuoktinio darbovietė': '#asmens_duomenys xpath:./tr[contains(td/text(),"SUTUOKTINIO, SUGYVENTINIO, PARTNERIO DARBOVIETĖ")]/following-sibling::tr[1]/td/text()',
-            'sutuoktinio pareigos': '#asmens_duomenys xpath:./tr[contains(td/text(),"PAREIGOS")][2]/following-sibling::tr[1]/td/text()',
+            'sutuoktinis': '#asmens_duomenys xpath:./tr[contains(td/text(),"SUTUOKTINIS, SUGYVENTINIS, PARTNERIS")]/following-sibling::tr[2]/td/text()?',
+            'sutuoktinio darbovietė': '#asmens_duomenys xpath:./tr[contains(td/text(),"SUTUOKTINIO, SUGYVENTINIO, PARTNERIO DARBOVIETĖ")]/following-sibling::tr[1]/td/text()?',
+            'sutuoktinio pareigos': '#asmens_duomenys xpath:./tr[contains(td/text(),"PAREIGOS")][2]/following-sibling::tr[1]/td/text()?',
+            'deklaracijos': [
+                '#pagrindine_priedai #p_virsus', (
+                    strip('tr[2] > td:text'), [
+                        'xpath:./../../following-sibling::tr[1]/td/table[@id="priedas"]/tr/td/table/tr', (
+                            first(strip('td[1]:text'), value(None)),
+                            first(strip('td[2]:text?'), value(None)),
+                        )
+                    ]
+                )
+            ]
         })
 
 
