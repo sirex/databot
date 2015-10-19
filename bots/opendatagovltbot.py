@@ -23,10 +23,10 @@ def run(self):
     with self.pipe('index pages'):
         with self.pipe('dataset urls').select(['form[name=frm] > table > tr > td[3] > a@href']).dedup():
             with self.pipe('dataset pages').download():
-                self.pipe('dataset data').select(databot.row.key(), [
+                self.pipe('dataset data').select(databot.row.key, [
                     'table xpath:tr[count(td)=2]', ('td[1]:content', 'td[2]:content')
                 ])
 
 
 if __name__ == '__main__':
-    databot.Bot('sqlite:///data/opendatagovlt.db').argparse(define, run)
+    databot.Bot('sqlite:///data/opendatagovlt.db').main(define, run)

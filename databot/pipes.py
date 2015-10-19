@@ -478,8 +478,8 @@ class Pipe(object):
     def export(self, path):
         csv.export(path, self)
 
-    def download(self):
-        return self.call(download.download)
+    def download(self, **kwargs):
+        return self.call(download.download(**kwargs))
 
     def select(self, key, value=None):
         return self.call(html.Select(key, value))

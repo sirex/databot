@@ -79,7 +79,7 @@ class CallbackTests(unittest.TestCase):
         self.assertEqual(select(self.row), [('http://exemple.com', 'value')])
 
     def test_row(self):
-        select = html.Select(databot.row.key(), 'div:text')
+        select = html.Select(databot.row.key, 'div:text')
         self.assertEqual(select(self.row), [('http://exemple.com', 'value')])
 
 

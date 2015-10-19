@@ -41,6 +41,10 @@ class Printer(object):
                     print('  headers:')
                     code = textwrap.indent(pprint.pformat(value['headers'], width=self.width), '    ')
                     print(highlight(code, py, formatter))
+                if 'cookies' not in exclude:
+                    print('  cookies:')
+                    code = textwrap.indent(pprint.pformat(value.get('cookies'), width=self.width), '    ')
+                    print(highlight(code, py, formatter))
                 if 'status_code' not in exclude:
                     print('  status_code: %s' % highlight(repr(value['status_code']), py, formatter))
                 if 'encoding' not in exclude:

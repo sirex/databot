@@ -2,6 +2,8 @@
 
 import databot
 
+from databot import row
+
 
 def filter_declaration_pages_with_error(row):
     if row.value['text'] != 'Klaida.':
@@ -25,9 +27,9 @@ def run(bot):
 
     with bot.pipe('sąrašas').append(start_url).dedup():
         with bot.pipe('puslapiai').download():
-            with bot.pipe('sąrašas').select(['.panel-body > a@href']).dedup():
-                with bot.pipe('puslapiai').download():
-                    # We don't want to select page links from each page, then are the same on each page.
+            with bot.pipe('sąrašas').select([('.panel-body > a@href', row.value['cookies'])]).dedup():
+                with bot.pipe('puslapiai').download(cookies=row.value):
+                    # We don't want to select page links from each page, they are the same on each page.
                     bot.pipe('sąrašas').skip()
 
     with bot.pipe('puslapiai'):

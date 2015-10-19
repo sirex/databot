@@ -23,7 +23,7 @@ def run(bot):
                 bot.pipe('session pages').download()
 
     with bot.pipe('session pages'):
-        bot.pipe('session data').select(databot.row.key(), {
+        bot.pipe('session data').select(databot.row.key, {
             'numeris': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio numeris")] css:td.long:text?',
             'pavadinimas': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio pavadinimas")] css:td.long:text',
             'data': 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio data")] css:td.long:text',
@@ -37,7 +37,7 @@ def run(bot):
             bot.pipe('question pages').download()
 
     with bot.pipe('question pages'):
-        bot.pipe('question data').select(databot.row.key(), {
+        bot.pipe('question data').select(databot.row.key, {
             'posedzio_numeris': (
                 'form > table.info_table xpath:tr[contains(th/text(), "Posėdžio numeris")] css:td.long:text?'
             ),

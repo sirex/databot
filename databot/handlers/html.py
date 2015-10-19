@@ -7,6 +7,8 @@ from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
 from bs4 import BeautifulSoup
 
+from databot import rowvalue
+
 
 def create_html_parser(row):
     content = row.value['text']
@@ -39,6 +41,8 @@ class Select(object):
             return None
         elif isinstance(value, Call):
             return value(self, row, html)
+        elif isinstance(value, rowvalue.Row):
+            return value(row)
         elif callable(value):
             return value(row, html)
         elif isinstance(value, dict):
