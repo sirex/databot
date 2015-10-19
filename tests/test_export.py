@@ -1,5 +1,6 @@
-import json
 import unittest
+
+from databot.exporters.csv import get_fields, get_values
 
 
 class FlatteningTests(unittest.TestCase):

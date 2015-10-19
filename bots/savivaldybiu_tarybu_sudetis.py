@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import databot
 import functools
 
@@ -151,4 +150,4 @@ def run(bot):
 
 
 if __name__ == '__main__':
-    databot.Bot('sqlite:///data/savivaldybiu-rinkimai.db').argparse(sys.argv[1:], define, run)
+    databot.Bot('sqlite:///data/savivaldybiu-rinkimai.db').argparse(define, run)

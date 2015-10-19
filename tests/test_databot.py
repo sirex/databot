@@ -13,7 +13,7 @@ class DatabotTests(object):
             with bot.pipe('t1').append([('1', 'a'), ('2', 'b'), ('3', 'c')]):
                 bot.pipe('t2').call(lambda row: [(row.key, row.value.upper())])
 
-        bot = databot.Bot(self.db.engine).argparse(['-v0', 'run'], define, run)
+        bot = databot.Bot(self.db.engine).main(define, run, argv=['-v0', 'run'])
 
         self.assertEqual(list(bot.pipe('t1').data.items()), [('1', 'a'), ('2', 'b'), ('3', 'c')])
         self.assertEqual(list(bot.pipe('t2').data.items()), [('1', 'A'), ('2', 'B'), ('3', 'C')])

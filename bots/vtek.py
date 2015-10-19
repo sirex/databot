@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
-import sys
 import databot
+
+
+def filter_declaration_pages_with_error(row):
+    if row.value['text'] != 'Klaida.':
+        yield row.key, row.value
 
 
 def define(bot):
@@ -9,6 +13,7 @@ def define(bot):
     bot.define('puslapiai')
     bot.define('nuorodos')
     bot.define('deklaracijų puslapiai')
+    bot.define('deklaracijų puslapiai be klaidos')
     bot.define('deklaracijos')
     bot.define('žmonės')
 
@@ -18,7 +23,6 @@ def run(bot):
         'http://www.vtek.lt/paieska/id001/paieska.php?dekl_jkodas=188605295&dekl_vardas=&dekl_pavarde=&rasti=Surasti'
     )
 
-    # Download all pages with table containging links to the private interest declaration
     with bot.pipe('sąrašas').append(start_url).dedup():
         with bot.pipe('puslapiai').download():
             with bot.pipe('sąrašas').select(['.panel-body > a@href']).dedup():
@@ -26,20 +30,12 @@ def run(bot):
                     # We don't want to select page links from each page, then are the same on each page.
                     bot.pipe('sąrašas').skip()
 
-    # Download private interest declaration pages and extract links to declaration pages only of those with
-    # position 101.
     with bot.pipe('puslapiai'):
         with bot.pipe('nuorodos').select(
             ['.panel-body xpath:div[normalize-space(following-sibling::div/text())="101"]/a/@href']
         ).dedup():
             bot.pipe('deklaracijų puslapiai').download()
 
-    # Just extract declaration url, person full name and position code from all pages.
-    #
-    # In order to export this run:
-    #
-    #   $ bots/vtek.py export žmonės data/zmones.csv
-    #
     with bot.pipe('puslapiai'):
         bot.pipe('žmonės').select([
             'xpath://div[contains(@class,"panel-body") and count(div)=3]', (
@@ -50,10 +46,13 @@ def run(bot):
             )
         ])
 
+    with bot.pipe('deklaracijų puslapiai'):
+        bot.pipe('deklaracijų puslapiai be klaidos').call(filter_declaration_pages_with_error)
+
     # TODO: export data from declaration page.
 
     bot.compact()
 
 
 if __name__ == '__main__':
-    databot.Bot('sqlite:///data/vtek.db').argparse(sys.argv[1:], define, run)
+    databot.Bot('sqlite:///data/vtek.db').main(define, run)

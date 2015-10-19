@@ -20,10 +20,12 @@ class BulkInsert(object):
         self.size += size
         self.buffer_.append(data)
 
-    def save(self):
+    def save(self, post_save=False):
         if self.buffer_:
             self.engine.execute(self.table.insert(), self.buffer_)
             self.size = 0
             self.buffer_ = []
             if self._post_save:
                 self._post_save()
+        elif self._post_save and post_save:
+            self._post_save()

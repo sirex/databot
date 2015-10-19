@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import databot
 
 
@@ -13,4 +12,4 @@ def run(bot):
 
 
 if __name__ == '__main__':
-    databot.Bot('sqlite:///data/pages.db').argparse(sys.argv[1:], define, run)
+    databot.Bot('sqlite:///data/pages.db').main(define, run)

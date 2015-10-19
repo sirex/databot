@@ -25,14 +25,14 @@ class ErrorHandlingTests(object):
         bot.define('t2')
         bot.pipe('t1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
 
-        bot.argparse(['-v0', 'run'])
+        bot.main(argv=['-v0', 'run'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)
             self.assertEqual(bot.pipe('t2').errors.count(), 1)
             self.assertEqual(list(bot.pipe('t2').errors.keys()), ['2'])
             self.assertEqual(list(bot.pipe('t2').data.items()), [('1', 'A'), ('3', 'C')])
 
-        bot.argparse(['-v0', 'run', '--retry'])
+        bot.main(argv=['-v0', 'run', '--retry'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)
             self.assertEqual(bot.pipe('t2').errors.count(), 1)
@@ -40,7 +40,7 @@ class ErrorHandlingTests(object):
             self.assertEqual(list(bot.pipe('t2').data.items()), [('1', 'A'), ('3', 'C')])
 
         t2.error_key = None
-        bot.argparse(['-v0', 'run', '--retry'])
+        bot.main(argv=['-v0', 'run', '--retry'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)
             self.assertEqual(bot.pipe('t2').errors.count(), 0)
@@ -64,7 +64,7 @@ class RetryTests(object):
         bot.define('t1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
         bot.define('t2')
 
-        bot.argparse(['-v0', 'run'])
+        bot.main(argv=['-v0', 'run'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)
             self.assertEqual(list(bot.pipe('t2').errors.keys()), ['1', '3'])
@@ -76,7 +76,7 @@ class RetryTests(object):
         self.assertEqual(list(bot.pipe('t2').data.items()), [('2', 'B')])
 
         error_keys = {}
-        bot.argparse(['-v0', 'run', '--retry'])
+        bot.main(argv=['-v0', 'run', '--retry'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)
 

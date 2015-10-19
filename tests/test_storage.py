@@ -14,7 +14,7 @@ def exclude(data, keys):
 class StorageTests(object):
     def setUp(self):
         super().setUp()
-        self.bot = databot.Bot(self.db.engine).argparse(['-v0', 'run'])
+        self.bot = databot.Bot(self.db.engine).main(argv=['-v0', 'run'])
         self.bot.define('pipe 1')
         self.bot.define('pipe 2')
 
@@ -89,7 +89,7 @@ class StorageTests(object):
 class StateTests(object):
     def setUp(self):
         super().setUp()
-        self.bot = databot.Bot(self.db.engine).argparse(['-v0', 'run'])
+        self.bot = databot.Bot(self.db.engine).main(argv=['-v0', 'run'])
         self.bot.define('pipe 1')
         self.bot.define('pipe 2')
 

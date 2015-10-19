@@ -390,11 +390,16 @@ class Pipe(object):
         else:
             rows = self.rows()
 
+        def post_save():
+            if row:
+                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+
         pipe = BulkInsert(engine, self.table)
         errors = BulkInsert(engine, models.errors)
-        pipe.post_save(lambda: engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id))
+        pipe.post_save(post_save)
 
         n = 0
+        row = None
         for row in rows:
             if self.bot.args.debug:
                 self._verbose_append(handler, row, pipe)
@@ -408,7 +413,7 @@ class Pipe(object):
                     self.errors.report(row, traceback.format_exc(), errors)
             n += 1
 
-        pipe.save()
+        pipe.save(post_save=True)
         errors.save()
 
         if self.bot.args.verbosity > 0:
@@ -429,8 +434,10 @@ class Pipe(object):
             errors = self.errors()
 
         def post_save():
+            nonlocal error_ids
             if error_ids:
                 engine.execute(models.errors.delete(models.errors.c.id.in_(error_ids)))
+                error_ids = []
 
         pipe = BulkInsert(engine, self.table)
         pipe.post_save(post_save)
@@ -453,7 +460,7 @@ class Pipe(object):
                     error_ids.append(error.id)
             n += 1
 
-        pipe.save()
+        pipe.save(post_save=True)
 
         if self.bot.args.verbosity == 1:
             print('%s, errors retried: %d' % (desc, n))
