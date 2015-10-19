@@ -2,6 +2,8 @@ import sys
 import pathlib
 import sqlalchemy as sa
 import argparse
+import webbrowser
+import tempfile
 
 import databot.db
 import databot.pipes
@@ -30,6 +32,7 @@ class Bot(object):
         self.conn = self.engine.connect()
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.verbosity = verbosity
+        self.download_delay = None
         models.metadata.create_all(self.engine, checkfirst=True)
 
     def define(self, name, dburi=None, table=None):
@@ -159,6 +162,7 @@ class Bot(object):
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
         sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
         sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+        sp.add_argument('-b', '--in-browser', action='store_true', help="Show value content in browser.")
 
         sp = sps.add_parser('tail')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
@@ -294,7 +298,12 @@ class Bot(object):
 
         if row:
             exclude = args.exclude.split(',') if args.exclude else None
-            self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)
+            value = loads(row.value)
+            self.printer.print_key_value(row.key, value, exclude=exclude)
+            if args.in_browser:
+                with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
+                    f.write(value['text'].encode('utf-8'))
+                webbrowser.open(f.name)
         else:
             print('Not found.')
 

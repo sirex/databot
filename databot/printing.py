@@ -31,7 +31,12 @@ class Printer(object):
         exclude = exclude or []
 
         if 'key' not in exclude:
-            print('- key: %s' % highlight(repr(key), py, formatter))
+            if isinstance(value, str):
+                print('- key: %s' % highlight(repr(key), py, formatter))
+            else:
+                code = '\n\n' + textwrap.indent(pprint.pformat(key, width=self.width), '    ')
+                print('- key:')
+                print(highlight(code, py, formatter))
 
         if 'value' not in exclude:
             if isinstance(value, str):

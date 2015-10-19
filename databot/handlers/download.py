@@ -1,5 +1,8 @@
+import time
 import bs4
 import requests
+
+from databot.recursive import call
 
 
 class DownloadErrror(Exception):
@@ -22,9 +25,12 @@ def dump_response(response):
     }
 
 
-def download(**kwargs):
+def download(delay=None, **kwargs):
     def func(row):
-        kw = {v(row) if callable(v) else v for k, v in kwargs.items()}
+        if delay is not None:
+            time.sleep(delay)
+        kw = call(kwargs, row)
+        print(row.key, repr(kw))
         response = requests.get(row.key, **kw)
         if response.status_code == 200:
             yield row.key, dump_response(response)

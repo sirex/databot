@@ -396,7 +396,9 @@ class Pipe(object):
 
         pipe = BulkInsert(engine, self.table)
         errors = BulkInsert(engine, models.errors)
-        pipe.post_save(post_save)
+
+        if not self.bot.args.debug:
+            pipe.post_save(post_save)
 
         n = 0
         row = None
@@ -446,7 +448,7 @@ class Pipe(object):
         error_ids = []
         for error in errors:
             if self.bot.args.debug:
-                self._verbose_append(handler, error.row, pipe)
+                self._verbose_append(handler, error.row, pipe, append=False)
                 error_ids.append(error.id)
             else:
                 try:
@@ -468,17 +470,19 @@ class Pipe(object):
         self.log(INFO, 'done.')
         return self
 
-    def _verbose_append(self, handler, row, bulk):
+    def _verbose_append(self, handler, row, bulk, append=True):
         print('-' * 72)
         print('source: id=%d key=%r' % (row.id, row.key))
         for key, value in keyvalueitems(handler(row)):
-            self.append(key, value, log=False, bulk=bulk)
+            if append:
+                self.append(key, value, log=False, bulk=bulk)
             self.bot.printer.print_key_value(key, value, short=True)
 
     def export(self, path):
         csv.export(path, self)
 
     def download(self, **kwargs):
+        kwargs.setdefault('delay', self.bot.download_delay)
         return self.call(download.download(**kwargs))
 
     def select(self, key, value=None):

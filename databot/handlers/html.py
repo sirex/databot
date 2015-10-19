@@ -87,7 +87,10 @@ class Select(object):
 
     def xpath(self, html, query):
         query = query.rstrip('?')
-        return html.xpath(query)
+        try:
+            return html.xpath(query)
+        except lxml.etree.XPathEvalError as e:
+            raise ValueError('Invalid selector "%s", %s' % (query, e))
 
     def cssselect(self, html, query):
         attr = None

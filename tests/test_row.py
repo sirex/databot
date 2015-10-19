@@ -4,7 +4,7 @@ from databot import row
 from databot.db.utils import Row
 
 
-class KeyValueItemsTests(unittest.TestCase):
+class RowTests(unittest.TestCase):
 
     def test_row(self):
         self.assertEqual(row(Row(key=1, value=2)), {'key': 1, 'value': 2})
