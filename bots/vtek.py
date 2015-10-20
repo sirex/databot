@@ -1,7 +1,39 @@
 #!/usr/bin/env python3
 
+import subprocess
+
 from datetime import timedelta
 from databot import Bot, row, strip, first, value, lower, nspace
+
+
+def extract(kind, first_key, skip=None):
+    skip_default = {(None, None)}
+    if skip is not None:
+        skip.update(skip_default)
+    else:
+        skip = skip_default
+
+    def extractor(row):
+        for _kind, data in row.value['deklaracijos']:
+            if _kind != kind:
+                continue
+
+            if _kind == 'KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS':
+                for key, val in data:
+                    yield row.key, {'kita': key}
+                continue
+
+            item = {}
+            for key, val in data:
+                if item and key == first_key:
+                    yield row.key, item
+                    item = {}
+                if (key, val) not in skip:
+                    item[key] = val
+            if item:
+                yield row.key, item
+
+    return extractor
 
 
 def define(bot):
@@ -80,51 +112,23 @@ def run(bot):
             }
         )
 
+    # Extract all kinds of declarations, export them to csv and upload to the server
+    extract_args = [
+        ('sandoriai', ('SANDORIAI', 'Sandorį sudaręs asmuo', {('Sandoris', None)})),
+        ('juridiniai', ('RYŠIAI SU JURIDINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas')),
+        ('fiziniai', ('RYŠIAI SU FIZINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas')),
+        ('individuali veikla', ('INDIVIDUALI VEIKLA', 'Asmuo, kurio individuali veikla toliau bus nurodoma')),
+        ('kita', ('KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS', None)),
+    ]
+    for name, args in extract_args:
+        csvpath = 'data/%s.csv' % name.replace(' ', '-')
+        with bot.pipe('seimo narių deklaracijos'):
+            if bot.pipe(name).is_filled():
+                bot.pipe(name).clean().reset().call(extract(*args)).export(csvpath)
+                subprocess.call(['scp', csvpath, 'iv-4.pov.lt:/opt/atviriduomenys.lt/app/var/www/data/vtek/seimas'])
+
     bot.compact()
 
 
-def extract(kind, first_key, skip=None):
-    skip_default = {(None, None)}
-    if skip is not None:
-        skip.update(skip_default)
-    else:
-        skip = skip_default
-
-    def extractor(row):
-        for _kind, data in row.value['deklaracijos']:
-            if _kind != kind:
-                continue
-
-            if _kind == 'KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS':
-                for key, val in data:
-                    yield row.key, {'kita', key}
-                continue
-
-            item = {}
-            for key, val in data:
-                if item and key == first_key:
-                    yield row.key, item
-                    item = {}
-                if (key, val) not in skip:
-                    item[key] = val
-            if item:
-                yield row.key, item
-
-    return extractor
-
-
-def runx(bot):
-    # sandoriai = extract('SANDORIAI', 'Sandorį sudaręs asmuo', {('Sandoris', None)})
-    # row = bot.pipe('seimo narių deklaracijos').last('kęstutis glaveckas')
-    # bot.pipe('seimo narių deklaracijos')._verbose_append(sandoriai, row, None, append=False)
-
-    with bot.pipe('seimo narių deklaracijos'):
-        bot.pipe('sandoriai').call(extract('SANDORIAI', 'Sandorį sudaręs asmuo', {('Sandoris', None)}))
-        bot.pipe('juridiniai').call(extract('RYŠIAI SU JURIDINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas'))
-        bot.pipe('fiziniai').call(extract('RYŠIAI SU FIZINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas'))
-        bot.pipe('individuali veikla').call(extract('INDIVIDUALI VEIKLA', 'Asmuo, kurio individuali veikla toliau bus nurodoma'))  # noqa
-        bot.pipe('kita').call(extract('KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS', None))
-
-
 if __name__ == '__main__':
-    Bot('sqlite:///data/vtek.db').main(define, runx)
+    Bot('sqlite:///data/vtek.db').main(define, run)
