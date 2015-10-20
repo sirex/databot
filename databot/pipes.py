@@ -376,6 +376,15 @@ class Pipe(object):
         for row in self.rows():
             yield row.value
 
+    def last(self, key=None):
+        if key:
+            query = self.table.select().where(self.table.c.key == key).order_by(self.table.c.id.desc())
+        else:
+            query = self.table.select().order_by(self.table.c.id.desc())
+
+        row = self.bot.engine.execute(query).first()
+        return Row(row, value=loads(row['value'])) if row else None
+
     def call(self, handler):
         self.log(INFO, 'call...', end=' ')
         state = self.get_state()

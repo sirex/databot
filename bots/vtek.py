@@ -16,6 +16,10 @@ def define(bot):
     bot.define('seimo narių deklaracijų puslapiai')
     bot.define('seimo narių deklaracijos')
     bot.define('sandoriai')
+    bot.define('juridiniai')
+    bot.define('fiziniai')
+    bot.define('individuali veikla')
+    bot.define('kita')
 
 
 def run(bot):
@@ -79,13 +83,47 @@ def run(bot):
     bot.compact()
 
 
-def sandoriai(data):
-    print(data)
+def extract(kind, first_key, skip=None):
+    skip_default = {(None, None)}
+    if skip is not None:
+        skip.update(skip_default)
+    else:
+        skip = skip_default
+
+    def extractor(row):
+        for _kind, data in row.value['deklaracijos']:
+            if _kind != kind:
+                continue
+
+            if _kind == 'KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS':
+                for key, val in data:
+                    yield row.key, {'kita', key}
+                continue
+
+            item = {}
+            for key, val in data:
+                if item and key == first_key:
+                    yield row.key, item
+                    item = {}
+                if (key, val) not in skip:
+                    item[key] = val
+            if item:
+                yield row.key, item
+
+    return extractor
 
 
 def runx(bot):
+    # sandoriai = extract('SANDORIAI', 'Sandorį sudaręs asmuo', {('Sandoris', None)})
+    # row = bot.pipe('seimo narių deklaracijos').last('kęstutis glaveckas')
+    # bot.pipe('seimo narių deklaracijos')._verbose_append(sandoriai, row, None, append=False)
+
     with bot.pipe('seimo narių deklaracijos'):
-        bot.pipe('sandoriai').call(sandoriai)
+        bot.pipe('sandoriai').call(extract('SANDORIAI', 'Sandorį sudaręs asmuo', {('Sandoris', None)}))
+        bot.pipe('juridiniai').call(extract('RYŠIAI SU JURIDINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas'))
+        bot.pipe('fiziniai').call(extract('RYŠIAI SU FIZINIAIS ASMENIMIS', 'Asmuo, kurio ryšys nurodomas'))
+        bot.pipe('individuali veikla').call(extract('INDIVIDUALI VEIKLA', 'Asmuo, kurio individuali veikla toliau bus nurodoma'))  # noqa
+        bot.pipe('kita').call(extract('KITI DUOMENYS, DĖL KURIŲ GALI KILTI INTERESŲ KONFLIKTAS', None))
 
 
 if __name__ == '__main__':

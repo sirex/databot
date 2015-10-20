@@ -238,14 +238,6 @@ class Bot(object):
             pipe = pipe or self.pipes_by_name[name.replace('-', ' ')]
         return pipe
 
-    def get_last_row(self, pipe, key=None):
-        if key:
-            query = pipe.table.select().where(pipe.table.c.key == key).order_by(pipe.table.c.id.desc())
-        else:
-            query = pipe.table.select().order_by(pipe.table.c.id.desc())
-
-        return self.engine.execute(query).first()
-
     def command_select(self, args):
         import ast
 
@@ -259,9 +251,8 @@ class Bot(object):
 
         source = self.get_pipe_from_string(args.source)
         selector = html.Select(query)
-        row = self.get_last_row(source, args.key)
+        row = source.last(args.key)
         if row:
-            row = Row(row, value=loads(row.value))
             rows = keyvalueitems(selector(row))
             if args.table:
                 self.printer.print_table([Row(key=key, value=value) for key, value in rows])
@@ -309,15 +300,14 @@ class Bot(object):
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)
-        row = self.get_last_row(pipe, args.key)
+        row = pipe.last(args.key)
 
         if row:
             exclude = args.exclude.split(',') if args.exclude else None
-            value = loads(row.value)
-            self.printer.print_key_value(row.key, value, exclude=exclude)
+            self.printer.print_key_value(row.key, row.value, exclude=exclude)
             if args.in_browser:
                 with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-                    f.write(value['text'].encode('utf-8'))
+                    f.write(row.value['text'].encode('utf-8'))
                 webbrowser.open(f.name)
         else:
             print('Not found.')

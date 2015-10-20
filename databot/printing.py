@@ -38,7 +38,7 @@ class Printer(object):
         exclude = exclude or []
 
         if 'key' not in exclude:
-            if value is None or isinstance(value, (str, int)):
+            if key is None or isinstance(key, (str, int)):
                 print('- key: %s' % self.highlight(repr(key), py, formatter))
             else:
                 code = '\n\n' + textwrap.indent(pprint.pformat(key, width=self.width), '    ')
