@@ -12,3 +12,16 @@ def strip(query):
     def func(v):
         return None if v is None else v.strip()
     return call(func, query)
+
+
+def lower(query):
+    def func(v):
+        return None if v is None else v.lower()
+    return call(func, query)
+
+
+def nspace(query):
+    def func(v):
+        if v is not None:
+            return ' '.join(filter(None, map(str.strip, v.split())))
+    return call(func, query)

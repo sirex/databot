@@ -158,6 +158,9 @@ class Bot(object):
         sp.add_argument('target', type=str, help="Target pipe.")
         sp.add_argument('offset', type=int, help="Relative offset.")
 
+        sp = sps.add_parser('clean')
+        sp.add_argument('pipe', type=str, help="Clean all data from specified pipe.")
+
         sp = sps.add_parser('show')
         sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
         sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
@@ -200,6 +203,9 @@ class Bot(object):
             self.status()
         elif args.command == 'offset':
             self.command_offset(args)
+            self.status()
+        elif args.command == 'clean':
+            self.command_clean(args)
             self.status()
         elif args.command == 'show':
             self.show(args)
@@ -296,6 +302,10 @@ class Bot(object):
 
         with source:
             target.offset(args.offset)
+
+    def command_clean(self, args):
+        pipe = self.get_pipe_from_string(args.pipe)
+        pipe.clean()
 
     def show(self, args):
         pipe = self.get_pipe_from_string(args.pipe)

@@ -404,7 +404,7 @@ class Pipe(object):
         row = None
         for row in rows:
             if self.bot.args.debug:
-                self._verbose_append(handler, row, pipe)
+                self._verbose_append(handler, row, pipe, append=False)
             else:
                 try:
                     if self.bot.args.verbosity > 1:

@@ -15,11 +15,18 @@ from databot.exporters.csv import flatten_rows
 class Printer(object):
 
     def __init__(self):
-        if sys.stdin.isatty():
+        self.isatty = sys.stdin.isatty()
+        if self.isatty:
             self.height, self.width = map(int, subprocess.check_output(['stty', 'size']).split())
         else:
             self.height = 120
             self.width = 120
+
+    def highlight(self, code, *args, **kwargs):
+        if self.isatty:
+            return highlight(code, *args, **kwargs)
+        else:
+            return code
 
     def print_key_value(self, key, value, short=False, exclude=None):
         style = get_style_by_name('emacs')
@@ -31,45 +38,45 @@ class Printer(object):
         exclude = exclude or []
 
         if 'key' not in exclude:
-            if isinstance(value, str):
-                print('- key: %s' % highlight(repr(key), py, formatter))
+            if value is None or isinstance(value, (str, int)):
+                print('- key: %s' % self.highlight(repr(key), py, formatter))
             else:
                 code = '\n\n' + textwrap.indent(pprint.pformat(key, width=self.width), '    ')
                 print('- key:')
-                print(highlight(code, py, formatter))
+                print(self.highlight(code, py, formatter))
 
         if 'value' not in exclude:
             if isinstance(value, str):
-                print('  value: %s' % highlight(repr(value[:100]), py, formatter))
+                print('  value: %s' % self.highlight(repr(value[:100]), py, formatter))
             elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
                 if 'headers' not in exclude:
                     print('  headers:')
                     code = textwrap.indent(pprint.pformat(value['headers'], width=self.width), '    ')
-                    print(highlight(code, py, formatter))
+                    print(self.highlight(code, py, formatter))
                 if 'cookies' not in exclude:
                     print('  cookies:')
                     code = textwrap.indent(pprint.pformat(value.get('cookies'), width=self.width), '    ')
-                    print(highlight(code, py, formatter))
+                    print(self.highlight(code, py, formatter))
                 if 'status_code' not in exclude:
-                    print('  status_code: %s' % highlight(repr(value['status_code']), py, formatter))
+                    print('  status_code: %s' % self.highlight(repr(value['status_code']), py, formatter))
                 if 'encoding' not in exclude:
-                    print('  encoding: %s' % highlight(repr(value['encoding']), py, formatter))
+                    print('  encoding: %s' % self.highlight(repr(value['encoding']), py, formatter))
                 if 'text' not in exclude:
                     if short:
-                        print('  text: %s' % highlight(repr(value['text'][:100]), html, formatter))
+                        print('  text: %s' % self.highlight(repr(value['text'][:100]), html, formatter))
                     else:
                         print('  text:')
                         code = textwrap.indent(value['text'], '    ')
-                        print(highlight(code, html, formatter))
+                        print(self.highlight(code, html, formatter))
             elif value is None or isinstance(value, (int, float)):
-                print('  value: %s' % highlight(repr(value), py, formatter))
+                print('  value: %s' % self.highlight(repr(value), py, formatter))
             else:
                 print('  value:')
                 for key in exclude:
                     value.pop(key, None)
 
                 code = textwrap.indent(pprint.pformat(value, width=self.width), '    ')
-                print(highlight(code, py, formatter))
+                print(self.highlight(code, py, formatter))
 
     def print_table(self, rows, exclude=None, include=None):
         _rows = []
