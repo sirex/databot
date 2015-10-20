@@ -2,22 +2,20 @@ import sys
 import pathlib
 import sqlalchemy as sa
 import argparse
-import webbrowser
-import tempfile
 
 import databot.db
 import databot.pipes
 from databot.db import models
-from databot.db.utils import Row, create_row, get_or_create
-from databot.db.serializers import loads
+from databot.db.utils import create_row, get_or_create
 from databot.logging import QUIET
 from databot.printing import Printer
+from databot import commands
 
 
 class Bot(object):
 
-    def __init__(self, uri_or_engine, verbosity=QUIET):
-        self.printer = Printer()
+    def __init__(self, uri_or_engine, verbosity=QUIET, output=sys.stdout):
+        self.output = Printer(output)
         self.pipes = []
         self.pipes_by_name = {}
         self.pipes_by_id = {}
@@ -81,42 +79,6 @@ class Bot(object):
         for pipe in self.pipes:
             pipe.compact()
 
-    def log(self, level, message='', end='\n'):
-        if self.verbosity >= level:
-            print(message, end=end)
-
-    def status(self):
-        pipes = models.pipes
-        target = pipes.alias('target')
-        pipes = {t.id: t for t in self.pipes}
-        lines = []
-
-        lines.append('%5s  %6s %9s  %s' % ('id', '', 'rows', 'source'))
-        lines.append('%5s  %6s %9s  %s' % ('', 'errors', 'left', '  target'))
-        lines.append(None)
-        for source in self.pipes:
-            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source.name.replace(' ', '-')))
-
-            query = sa.select([models.state.c.target_id]).where(models.state.c.source_id == source.id)
-            for target_id, in self.engine.execute(query):
-                if target_id in pipes:
-                    target = pipes[target_id]
-                    with source:
-                        lines.append('%5s  %6s %9d    %s' % (
-                            '', target.errors.count(), target.count(), target.name.replace(' ', '-')
-                        ))
-
-            lines.append(None)
-
-        lenght = max(map(len, filter(None, lines)))
-        border = '='
-        for line in lines:
-            if line is None:
-                print(border * lenght)
-                border = '-'
-            else:
-                print(line)
-
     def main(self, define=None, run=None, argv=None):
         parser = argparse.ArgumentParser()
 
@@ -127,100 +89,26 @@ class Bot(object):
 
         sps = parser.add_subparsers(dest='command')
 
-        sp = sps.add_parser('status')
-
-        sp = sps.add_parser('run')
-        sp.add_argument('options', type=str, nargs='*', help="Run options if not specified everythig will be run.")
-        sp.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
-        sp.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
-
-        sp = sps.add_parser('select')
-        sp.add_argument('source', type=str, help="Source id, for example: 1")
-        sp.add_argument('query', type=str, help='Selector query.')
-        sp.add_argument('-k', '--key', type=str, help="Try on specific source key.")
-        sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
-
-        sp = sps.add_parser('download')
-        sp.add_argument('url', type=str)
-        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
-        sp.add_argument('-a', '--append', type=str, help="Append downloaded content to specified pipe.")
-
-        sp = sps.add_parser('skip')
-        sp.add_argument('source', type=str, help="Source pipe.")
-        sp.add_argument('target', type=str, help="Target pipe.")
-
-        sp = sps.add_parser('reset')
-        sp.add_argument('source', type=str, help="Source pipe.")
-        sp.add_argument('target', type=str, help="Target pipe.")
-
-        sp = sps.add_parser('offset')
-        sp.add_argument('source', type=str, help="Source pipe.")
-        sp.add_argument('target', type=str, help="Target pipe.")
-        sp.add_argument('offset', type=int, help="Relative offset.")
-
-        sp = sps.add_parser('clean')
-        sp.add_argument('pipe', type=str, help="Clean all data from specified pipe.")
-
-        sp = sps.add_parser('show')
-        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
-        sp.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
-        sp.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
-        sp.add_argument('-b', '--in-browser', action='store_true', help="Show value content in browser.")
-
-        sp = sps.add_parser('tail')
-        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
-        sp.add_argument('-n', type=int, dest='limit', default=10, help="Number of rows to show.")
-        sp.add_argument('-x', '--exclude', type=str, help="Exclude fields from row.")
-        sp.add_argument('-i', '--include', type=str, help="Include fields from row.")
-        sp.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
-
-        sp = sps.add_parser('export')
-        sp.add_argument('pipe', type=str, help="Pipe id, for example: 1")
-        sp.add_argument('path', type=str, help="Path CSV file to export to (will be overwritten).")
-        sp.add_argument('-x', '--exclude', type=str, help="Exclude columns.")
-
-        sp = sps.add_parser('compact')
-        sp.add_argument('pipe', type=str, nargs='?', help="Pipe id, for example: 1 or my-pipe")
+        cmgr = commands.CommandsManager(self, sps)
+        cmgr.register('run', commands.Run, run)
+        cmgr.register('status', commands.Status)
+        cmgr.register('select', commands.Select)
+        cmgr.register('download', commands.Download)
+        cmgr.register('skip', commands.Skip)
+        cmgr.register('reset', commands.Reset)
+        cmgr.register('offset', commands.Offset)
+        cmgr.register('clean', commands.Clean)
+        cmgr.register('compact', commands.Compact)
+        cmgr.register('show', commands.Show)
+        cmgr.register('tail', commands.Tail)
+        cmgr.register('export', commands.Export)
 
         self.args = args = parser.parse_args(argv)
 
         if define is not None:
             define(self)
 
-        if args.command == 'run':
-            if run is not None:
-                self.options = args.options
-                run(self)
-        elif args.command == 'select':
-            self.command_select(args)
-        elif args.command == 'download':
-            self.command_download(args)
-        elif args.command == 'skip':
-            self.command_skip(args)
-            self.status()
-        elif args.command == 'reset':
-            self.command_reset(args)
-            self.status()
-        elif args.command == 'offset':
-            self.command_offset(args)
-            self.status()
-        elif args.command == 'clean':
-            self.command_clean(args)
-            self.status()
-        elif args.command == 'show':
-            self.show(args)
-        elif args.command == 'tail':
-            self.tail(args)
-        elif args.command == 'export':
-            self.export_command(args)
-        elif args.command == 'compact':
-            if args.pipe:
-                self.get_pipe_from_string(args.pipe).compact()
-            else:
-                self.compact()
-            self.status()
-        else:
-            self.status()
+        cmgr.run(args.command, args, default='status')
 
         return self
 
@@ -229,122 +117,3 @@ class Bot(object):
             return name in self.options
         else:
             return True
-
-    def get_pipe_from_string(self, name):
-        if name.isdigit():
-            pipe = self.pipes_by_id[int(name)]
-        else:
-            pipe = self.pipes_by_name.get(name)
-            pipe = pipe or self.pipes_by_name[name.replace('-', ' ')]
-        return pipe
-
-    def command_select(self, args):
-        import ast
-
-        from databot.pipes import keyvalueitems
-        from databot.handlers import html
-
-        if args.query and args.query[0] in ('[', '{', '"', "'"):
-            query = ast.literal_eval(args.query)
-        else:
-            query = [args.query]
-
-        source = self.get_pipe_from_string(args.source)
-        selector = html.Select(query)
-        row = source.last(args.key)
-        if row:
-            rows = keyvalueitems(selector(row))
-            if args.table:
-                self.printer.print_table([Row(key=key, value=value) for key, value in rows])
-            else:
-                for key, value in rows:
-                    self.printer.print_key_value(key, value)
-        else:
-            print('Not found.')
-
-    def command_download(self, args):
-        from databot.handlers import download
-
-        exclude = args.exclude.split(',') if args.exclude else None
-        key, value = next(download.download()(Row(key=args.url, value=None)))
-        self.printer.print_key_value(key, value, exclude=exclude)
-
-        if args.append:
-            pipe = self.get_pipe_from_string(args.append)
-            pipe.append(key, value)
-
-    def command_skip(self, args):
-        source = self.get_pipe_from_string(args.source)
-        target = self.get_pipe_from_string(args.target)
-
-        with source:
-            target.skip()
-
-    def command_reset(self, args):
-        source = self.get_pipe_from_string(args.source)
-        target = self.get_pipe_from_string(args.target)
-
-        with source:
-            target.reset()
-
-    def command_offset(self, args):
-        source = self.get_pipe_from_string(args.source)
-        target = self.get_pipe_from_string(args.target)
-
-        with source:
-            target.offset(args.offset)
-
-    def command_clean(self, args):
-        pipe = self.get_pipe_from_string(args.pipe)
-        pipe.clean()
-
-    def show(self, args):
-        pipe = self.get_pipe_from_string(args.pipe)
-        row = pipe.last(args.key)
-
-        if row:
-            exclude = args.exclude.split(',') if args.exclude else None
-            self.printer.print_key_value(row.key, row.value, exclude=exclude)
-            if args.in_browser:
-                with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-                    f.write(row.value['text'].encode('utf-8'))
-                webbrowser.open(f.name)
-        else:
-            print('Not found.')
-
-    def tail(self, args):
-        pipe = self.get_pipe_from_string(args.pipe)
-        rows = self.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
-        rows = list(rows)
-        if rows:
-            exclude = args.exclude.split(',') if args.exclude else None
-            include = args.include.split(',') if args.include else None
-            if args.table:
-                rows = [Row(row, value=loads(row.value)) for row in reversed(rows)]
-                self.printer.print_table(rows, exclude=exclude, include=include)
-            else:
-                for row in reversed(rows):
-                    self.printer.print_key_value(row.key, loads(row.value), exclude=exclude)
-        else:
-            print('Not found.')
-
-    def export_command(self, args):
-        from databot.exporters import csv
-        pipe = self.get_pipe_from_string(args.pipe)
-        exclude = set(args.exclude.split(',') if args.exclude else [])
-        csv.export(args.path, pipe, exclude)
-
-    @property
-    def data(self):
-        return self.stack[-1].data
-
-    def select(self, key, value=None):
-        pipe = self.stack.pop()
-        try:
-            pipe.select(key, value)
-        finally:
-            self.stack.append(pipe)
-        return self
-
-    def dedup(self):
-        return self.stack[-1].dedup()

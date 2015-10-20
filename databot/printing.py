@@ -3,24 +3,38 @@ import pprint
 import textwrap
 import subprocess
 import texttable
+import logging
+import sqlalchemy as sa
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
+from databot.db import models
 from databot.exporters.csv import flatten_rows
 
 
 class Printer(object):
 
-    def __init__(self):
-        self.isatty = sys.stdin.isatty()
+    def __init__(self, output=None):
+        self.output = output
+        self.isatty = False if output is None else sys.stdin.isatty()
         if self.isatty:
             self.height, self.width = map(int, subprocess.check_output(['stty', 'size']).split())
         else:
             self.height = 120
             self.width = 120
+
+    def print(self, level, string):
+        if self.output:
+            print(string, file=self.output)
+
+    def debug(self, string):
+        self.print(logging.DEBUG, string)
+
+    def info(self, string):
+        self.print(logging.INFO, string)
 
     def highlight(self, code, *args, **kwargs):
         if self.isatty:
@@ -28,7 +42,7 @@ class Printer(object):
         else:
             return code
 
-    def print_key_value(self, key, value, short=False, exclude=None):
+    def key_value(self, key, value, short=False, exclude=None):
         style = get_style_by_name('emacs')
         formatter = Terminal256Formatter(style=style)
 
@@ -39,46 +53,46 @@ class Printer(object):
 
         if 'key' not in exclude:
             if key is None or isinstance(key, (str, int)):
-                print('- key: %s' % self.highlight(repr(key), py, formatter))
+                self.info('- key: %s' % self.highlight(repr(key), py, formatter))
             else:
                 code = '\n\n' + textwrap.indent(pprint.pformat(key, width=self.width), '    ')
-                print('- key:')
-                print(self.highlight(code, py, formatter))
+                self.info('- key:')
+                self.info(self.highlight(code, py, formatter))
 
         if 'value' not in exclude:
             if isinstance(value, str):
-                print('  value: %s' % self.highlight(repr(value[:100]), py, formatter))
+                self.info('  value: %s' % self.highlight(repr(value[:100]), py, formatter))
             elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
                 if 'headers' not in exclude:
-                    print('  headers:')
+                    self.info('  headers:')
                     code = textwrap.indent(pprint.pformat(value['headers'], width=self.width), '    ')
-                    print(self.highlight(code, py, formatter))
+                    self.info(self.highlight(code, py, formatter))
                 if 'cookies' not in exclude:
-                    print('  cookies:')
+                    self.info('  cookies:')
                     code = textwrap.indent(pprint.pformat(value.get('cookies'), width=self.width), '    ')
-                    print(self.highlight(code, py, formatter))
+                    self.info(self.highlight(code, py, formatter))
                 if 'status_code' not in exclude:
-                    print('  status_code: %s' % self.highlight(repr(value['status_code']), py, formatter))
+                    self.info('  status_code: %s' % self.highlight(repr(value['status_code']), py, formatter))
                 if 'encoding' not in exclude:
-                    print('  encoding: %s' % self.highlight(repr(value['encoding']), py, formatter))
+                    self.info('  encoding: %s' % self.highlight(repr(value['encoding']), py, formatter))
                 if 'text' not in exclude:
                     if short:
-                        print('  text: %s' % self.highlight(repr(value['text'][:100]), html, formatter))
+                        self.info('  text: %s' % self.highlight(repr(value['text'][:100]), html, formatter))
                     else:
-                        print('  text:')
+                        self.info('  text:')
                         code = textwrap.indent(value['text'], '    ')
-                        print(self.highlight(code, html, formatter))
+                        self.info(self.highlight(code, html, formatter))
             elif value is None or isinstance(value, (int, float)):
-                print('  value: %s' % self.highlight(repr(value), py, formatter))
+                self.info('  value: %s' % self.highlight(repr(value), py, formatter))
             else:
-                print('  value:')
+                self.info('  value:')
                 for key in exclude:
                     value.pop(key, None)
 
                 code = textwrap.indent(pprint.pformat(value, width=self.width), '    ')
-                print(self.highlight(code, py, formatter))
+                self.info(self.highlight(code, py, formatter))
 
-    def print_table(self, rows, exclude=None, include=None):
+    def table(self, rows, exclude=None, include=None):
         _rows = []
         exclude = exclude or []
         flat_rows = flatten_rows(rows)
@@ -114,4 +128,36 @@ class Printer(object):
         table = texttable.Texttable(self.width)
         table.set_deco(texttable.Texttable.HEADER)
         table.add_rows(_rows)
-        print(table.draw())
+        self.info(table.draw())
+
+    def status(self, bot):
+        pipes = models.pipes
+        target = pipes.alias('target')
+        pipes = {t.id: t for t in bot.pipes}
+        lines = []
+
+        lines.append('%5s  %6s %9s  %s' % ('id', '', 'rows', 'source'))
+        lines.append('%5s  %6s %9s  %s' % ('', 'errors', 'left', '  target'))
+        lines.append(None)
+        for source in bot.pipes:
+            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source.name.replace(' ', '-')))
+
+            query = sa.select([models.state.c.target_id]).where(models.state.c.source_id == source.id)
+            for target_id, in bot.engine.execute(query):
+                if target_id in pipes:
+                    target = pipes[target_id]
+                    with source:
+                        lines.append('%5s  %6s %9d    %s' % (
+                            '', target.errors.count(), target.count(), target.name.replace(' ', '-')
+                        ))
+
+            lines.append(None)
+
+        lenght = max(map(len, filter(None, lines)))
+        border = '='
+        for line in lines:
+            if line is None:
+                self.info(border * lenght)
+                border = '-'
+            else:
+                self.info(line)

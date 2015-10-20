@@ -118,8 +118,6 @@ class PipeErrors(object):
             yield row.value
 
     def report(self, error_or_row, message, bulk=None):
-        self.pipe.log(ERROR)
-        self.pipe.log(ERROR, message)
         now = datetime.datetime.utcnow()
         if 'retries' in error_or_row:
             error = error_or_row
@@ -183,7 +181,6 @@ class Pipe(object):
         return '<databot.Pipe[%d]: %s>' % (self.id, self.name)
 
     def __enter__(self):
-        self.log(PROGRESS, self.name)
         self.bot.stack.append(self)
         return self
 
@@ -195,15 +192,6 @@ class Pipe(object):
     def source(self):
         if self.bot.stack:
             return self.bot.stack[-1]
-
-    def log(self, level, message='', end='\n'):
-        if self.bot.stack:
-            prefix = '  ' * len(self.bot.stack)
-        elif end != '\n':
-            prefix = '%s: ' % self.name
-        else:
-            prefix = ''
-        self.bot.log(level, '%s%s' % (prefix, message), end=end)
 
     def get_state(self):
         source, target = self.source, self
@@ -221,7 +209,7 @@ class Pipe(object):
         else:
             return False
 
-    def append(self, key, value=None, conn=None, log=True, bulk=None):
+    def append(self, key, value=None, conn=None, bulk=None):
         """Append data to the pipe
 
         You can call this method in following ways::
@@ -232,16 +220,12 @@ class Pipe(object):
 
         """
         conn = conn or self.bot.engine
-        if log:
-            self.log(INFO, 'append...', end=' ')
         for key, value in keyvalueitems(key, value):
             now = datetime.datetime.utcnow()
             if bulk:
                 bulk.append({'key': key, 'value': dumps(value), 'created': now})
             else:
                 self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
-        if log:
-            self.log(INFO, 'done.')
         return self
 
     def reset(self):
@@ -284,7 +268,6 @@ class Pipe(object):
         return self
 
     def clean(self, age=None, now=None):
-        self.log(INFO, 'clean...', end=' ')
         if age:
             now = now or datetime.datetime.utcnow()
             timestamp = now - age
@@ -292,13 +275,10 @@ class Pipe(object):
         else:
             query = self.table.delete()
         self.bot.engine.execute(query)
-        self.log(INFO, 'done.')
         return self
 
     def dedup(self):
         """Delete all records with duplicate keys except ones created first."""
-        self.log(INFO, 'dedup...', end=' ')
-
         agg = (
             sa.select([self.table.c.key, sa.func.min(self.table.c.id).label('id')]).
             group_by(self.table.c.key).
@@ -319,13 +299,10 @@ class Pipe(object):
             query = sa.select([query.alias().c.id])
 
         self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
-        self.log(INFO, 'done.')
         return self
 
     def compact(self):
         """Delete all records with duplicate keys except ones created last."""
-        self.log(INFO, 'compact...', end=' ')
-
         agg = (
             sa.select([self.table.c.key, sa.func.max(self.table.c.id).label('id')]).
             group_by(self.table.c.key).
@@ -346,7 +323,6 @@ class Pipe(object):
             query = sa.select([query.alias().c.id])
 
         self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
-        self.log(INFO, 'done.')
         return self
 
     def count(self):
@@ -386,7 +362,6 @@ class Pipe(object):
         return Row(row, value=loads(row['value'])) if row else None
 
     def call(self, handler):
-        self.log(INFO, 'call...', end=' ')
         state = self.get_state()
         engine = self.bot.engine
         desc = '%s -> %s' % (self.source, self)
@@ -419,7 +394,7 @@ class Pipe(object):
                     if self.bot.args.verbosity > 1:
                         self._verbose_append(handler, row, pipe)
                     else:
-                        self.append(handler(row), log=False, bulk=pipe)
+                        self.append(handler(row), bulk=pipe)
                 except:
                     self.errors.report(row, traceback.format_exc(), errors)
             n += 1
@@ -430,12 +405,9 @@ class Pipe(object):
         if self.bot.args.verbosity > 0:
             print('%s, rows processed: %d' % (desc, n))
 
-        self.log(INFO, 'done.')
         return self
 
     def retry(self, handler):
-        self.log(INFO, 'retry...', end=' ')
-
         engine = self.bot.engine
         desc = '%s -> %s (retry)' % (self.source, self)
 
@@ -464,7 +436,7 @@ class Pipe(object):
                     if self.bot.args.verbosity > 1:
                         self._verbose_append(handler, error.row, pipe)
                     else:
-                        self.append(handler(error.row), log=False, bulk=pipe)
+                        self.append(handler(error.row), bulk=pipe)
                 except:
                     self.errors.report(error, traceback.format_exc())
                 else:
@@ -476,7 +448,6 @@ class Pipe(object):
         if self.bot.args.verbosity == 1:
             print('%s, errors retried: %d' % (desc, n))
 
-        self.log(INFO, 'done.')
         return self
 
     def _verbose_append(self, handler, row, bulk, append=True):
@@ -484,8 +455,8 @@ class Pipe(object):
         print('source: id=%d key=%r' % (row.id, row.key))
         for key, value in keyvalueitems(handler(row)):
             if append:
-                self.append(key, value, log=False, bulk=bulk)
-            self.bot.printer.print_key_value(key, value, short=True)
+                self.append(key, value, bulk=bulk)
+            self.bot.output.key_value(key, value, short=True)
 
     def export(self, path):
         csv.export(path, self)
