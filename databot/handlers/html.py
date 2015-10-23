@@ -183,6 +183,24 @@ class First(Call):
         return None
 
 
+class Subst(Call):
+
+    def __init__(self, query, subst, default=Exception):
+        self.query = query
+        self.subst = subst
+        self.default = default
+
+    def __call__(self, select, row, node):
+        value = select.render(row, node, self.query)
+
+        if self.default is Exception:
+            return self.subst[value]
+        elif isinstance(self.default, Value):
+            return self.subst.get(value, value)
+        else:
+            return self.subst.get(value, self.default)
+
+
 class Value(object):
 
     def __init__(self, value):

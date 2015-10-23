@@ -6,7 +6,6 @@ import traceback
 import tqdm
 
 from databot.db.serializers import dumps, loads
-from databot.logging import PROGRESS, INFO, ERROR
 from databot.db.utils import Row, create_row, get_or_create
 from databot.db import models
 from databot.db.windowedquery import windowed_query

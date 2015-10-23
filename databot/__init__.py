@@ -3,6 +3,7 @@ from databot.rowvalue import RowAttr
 from databot.handlers.html import Call as call  # noqa
 from databot.handlers.html import Join as join  # noqa
 from databot.handlers.html import First as first  # noqa
+from databot.handlers.html import Subst as subst  # noqa
 from databot.handlers.html import Value as value  # noqa
 
 row = RowAttr()
