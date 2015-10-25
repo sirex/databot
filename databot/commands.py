@@ -243,10 +243,14 @@ class Export(Command):
         parser.add_argument('pipe', type=str, help="Pipe id, for example: 1")
         parser.add_argument('path', type=str, help="Path CSV file to export to (will be overwritten).")
         parser.add_argument('-x', '--exclude', type=str, help="Exclude columns.")
+        parser.add_argument('-i', '--include', type=str, help="Include columns.")
+        parser.add_argument('-a', '--append', action='store_true', help="Append existing file.")
+        parser.add_argument('--no-header', dest='header', action='store_false', help="Do not write header.")
 
     def run(self, args):
         from databot.exporters import csv
 
         pipe = self.pipe(args.pipe)
         exclude = set(args.exclude.split(',') if args.exclude else [])
-        csv.export(args.path, pipe, exclude)
+        include = args.include.split(',') if args.include else None
+        csv.export(args.path, pipe, exclude=exclude, include=include, append=args.append, header=args.header)

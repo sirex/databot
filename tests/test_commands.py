@@ -224,6 +224,17 @@ class TailTests(unittest.TestCase):
             "",
         ]))
 
+    def test_include(self):
+        self.bot.define('p1').append([(1, {'a': 1, 'b': 2}), (2, {'b': 3})])
+        self.bot.main(argv=['tail', 'p1', '-t', '-i', 'a,b'])
+        self.assertEqual(self.output.getvalue(), '\n'.join([
+            " a     b ",
+            "========",
+            "1      2 ",
+            "None   3 ",
+            "",
+        ]))
+
 
 class ExportTests(unittest.TestCase):
 
@@ -231,7 +242,7 @@ class ExportTests(unittest.TestCase):
         self.output = io.StringIO()
         self.bot = Bot('sqlite:///:memory:', output=self.output)
 
-    def test_export(self):
+    def test_export_csv(self):
         self.bot.define('p1').append([(1, 'a'), (2, 'b')])
         temp = tempfile.NamedTemporaryFile(suffix='.csv', delete=False)
         self.bot.main(argv=['export', 'p1', temp.name])
@@ -242,4 +253,46 @@ class ExportTests(unittest.TestCase):
                 "2,b",
                 "",
             ]))
+        os.unlink(temp.name)
+
+    def test_include(self):
+        self.bot.define('p1').append([(1, {'a': 1, 'b': 2}), (2, {'b': 3})])
+        temp = tempfile.NamedTemporaryFile(suffix='.csv', delete=False)
+        self.bot.main(argv=['export', 'p1', temp.name, '-i', 'a,b'])
+        with open(temp.name) as f:
+            self.assertEqual(f.read(), '\n'.join([
+                "a,b",
+                "1,2",
+                ",3",
+                "",
+            ]))
+        os.unlink(temp.name)
+
+    def test_export_tsv(self):
+        self.bot.define('p1').append([(1, 'a'), (2, 'b')])
+        temp = tempfile.NamedTemporaryFile(suffix='.tsv', delete=False)
+        self.bot.main(argv=['export', 'p1', temp.name])
+        with open(temp.name) as f:
+            self.assertEqual(f.read(), '\n'.join([
+                "key\tvalue",
+                "1\ta",
+                "2\tb",
+                "",
+            ]))
+        os.unlink(temp.name)
+
+    def test_no_header_append(self):
+        self.bot.define('p1').append([(1, 'a'), (2, 'b')])
+        temp = tempfile.NamedTemporaryFile(suffix='.csv', delete=False)
+        self.bot.main(argv=['export', 'p1', temp.name, '--no-header'])
+        self.bot.main(argv=['export', 'p1', temp.name, '--no-header', '--append'])
+        with open(temp.name) as f:
+            self.assertEqual(f.read(), '\n'.join([
+                "1,a",
+                "2,b",
+                "1,a",
+                "2,b",
+                "",
+            ]))
+
         os.unlink(temp.name)
