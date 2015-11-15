@@ -84,6 +84,10 @@ class PipeDataTests(object):
     def test_rows(self):
         self.assertEqual([(row.key, row.value) for row in self.t1.data.rows()], [('1', 'a'), ('2', 'b')])
 
+    def test_exists(self):
+        self.assertTrue(self.t1.data.exists('1'))
+        self.assertFalse(self.t1.data.exists('3'))
+
 
 class AppendTests(unittest.TestCase):
     def setUp(self):
@@ -111,3 +115,15 @@ class AppendTests(unittest.TestCase):
             '\n'
             '$'
         ))
+
+    def test_only_missing(self):
+        # only_missing = False
+        self.pipe.append([1, 2, 3])
+        self.pipe.append([1, 2, 3, 4])
+        self.assertEqual(list(self.pipe.data.keys()), ['1', '2', '3', '1', '2', '3', '4'])
+
+        # only_missing = True
+        self.pipe.clean()
+        self.pipe.append([1, 2, 3], only_missing=True)
+        self.pipe.append([1, 2, 3, 4], only_missing=True)
+        self.assertEqual(list(self.pipe.data.keys()), ['1', '2', '3', '4'])

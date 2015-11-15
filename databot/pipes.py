@@ -66,6 +66,10 @@ class PipeData(object):
         for row in self.rows():
             yield row.value
 
+    def exists(self, key):
+        query = sa.select([sa.exists().where(self.table.c.key == key)])
+        return self.engine.execute(query).scalar()
+
 
 class PipeErrors(object):
     def __init__(self, pipe):
@@ -208,7 +212,7 @@ class Pipe(object):
         else:
             return False
 
-    def append(self, key, value=None, conn=None, bulk=None, progress=None, total=-1):
+    def append(self, key, value=None, conn=None, bulk=None, only_missing=False, progress=None, total=-1):
         """Append data to the pipe
 
         You can call this method in following ways::
@@ -233,8 +237,9 @@ class Pipe(object):
 
         # Append
         for key, value in rows:
-            now = datetime.datetime.utcnow()
-            bulk.append({'key': key, 'value': dumps(value), 'created': now})
+            if not only_missing or not self.data.exists(key):
+                now = datetime.datetime.utcnow()
+                bulk.append({'key': key, 'value': dumps(value), 'created': now})
 
         # Bulk insert finish
         if save_bulk:
