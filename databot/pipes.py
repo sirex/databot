@@ -208,7 +208,7 @@ class Pipe(object):
         else:
             return False
 
-    def append(self, key, value=None, conn=None, bulk=None):
+    def append(self, key, value=None, conn=None, bulk=None, progress=None, total=-1):
         """Append data to the pipe
 
         You can call this method in following ways::
@@ -219,12 +219,27 @@ class Pipe(object):
 
         """
         conn = conn or self.bot.engine
-        for key, value in keyvalueitems(key, value):
+
+        # Progress bar
+        rows = keyvalueitems(key, value)
+        if progress and self.bot.args.verbosity == 1 and not self.bot.args.debug:
+            rows = tqdm.tqdm(rows, progress, total, file=self.bot.output.output, leave=True)
+
+        # Bulk insert start
+        save_bulk = False
+        if bulk is None:
+            save_bulk = True
+            bulk = BulkInsert(conn, self.table)
+
+        # Append
+        for key, value in rows:
             now = datetime.datetime.utcnow()
-            if bulk:
-                bulk.append({'key': key, 'value': dumps(value), 'created': now})
-            else:
-                self.bot.engine.execute(self.table.insert(), key=key, value=dumps(value), created=now)
+            bulk.append({'key': key, 'value': dumps(value), 'created': now})
+
+        # Bulk insert finish
+        if save_bulk:
+            bulk.save()
+
         return self
 
     def reset(self):
@@ -369,7 +384,7 @@ class Pipe(object):
             self.retry(handler)
 
         if self.bot.args.verbosity == 1 and not self.bot.args.debug:
-            rows = tqdm.tqdm(self.rows(), desc, self.count())
+            rows = tqdm.tqdm(self.rows(), desc, self.count(), leave=True)
         else:
             rows = self.rows()
 
@@ -411,7 +426,7 @@ class Pipe(object):
         desc = '%s -> %s (retry)' % (self.source, self)
 
         if self.bot.args.verbosity == 1 and not self.bot.args.debug:
-            errors = tqdm.tqdm(self.errors(), desc, self.errors.count())
+            errors = tqdm.tqdm(self.errors(), desc, self.errors.count(), leave=True)
         else:
             errors = self.errors()
 

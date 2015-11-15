@@ -8,7 +8,6 @@ class ErrorHandler(object):
         self.error_key = error_key
 
     def __call__(self, row):
-        print(repr(self.error_key))
         if row.key == self.error_key:
             raise ValueError('Error.')
         else:

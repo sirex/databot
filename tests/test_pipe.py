@@ -1,3 +1,5 @@
+import io
+import mock
 import unittest
 import databot
 import databot.pipes
@@ -81,3 +83,31 @@ class PipeDataTests(object):
 
     def test_rows(self):
         self.assertEqual([(row.key, row.value) for row in self.t1.data.rows()], [('1', 'a'), ('2', 'b')])
+
+
+class AppendTests(unittest.TestCase):
+    def setUp(self):
+        self.output = io.StringIO()
+        self.bot = databot.Bot('sqlite:///:memory:', output=self.output)
+        self.bot.args = mock.Mock(verbosity=1, debug=False)
+        self.pipe = self.bot.define('p1')
+
+    def test_progress_bar(self):
+        self.pipe.append([1, 2, 3], progress='p1')
+        self.assertRegex(self.output.getvalue(), (
+            '^'
+            '\rp1: 0it \\[00:00, \\?it/s]'
+            '\rp1: 3it \\[00:00, [0-9.]+it/s]'
+            '\n'
+            '$'
+        ))
+
+    def test_progress_bar_with_total(self):
+        self.pipe.append([1, 2, 3], progress='p1', total=3)
+        self.assertRegex(self.output.getvalue(), (
+            '^'
+            '\rp1:   0%\\|          \\| 0/3 \\[00:00<\\?, \\?it/s]'
+            '\rp1: 100%\\|##########\\| 3/3 \\[00:00<00:00, [0-9.]+it/s]'
+            '\n'
+            '$'
+        ))
