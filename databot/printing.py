@@ -49,6 +49,8 @@ class Printer(object):
         py = get_lexer_by_name('python')
         html = get_lexer_by_name('html')
 
+        cut = self.width * 3
+
         exclude = exclude or []
 
         if 'key' not in exclude:
@@ -61,7 +63,7 @@ class Printer(object):
 
         if 'value' not in exclude:
             if isinstance(value, str):
-                self.info('  value: %s' % self.highlight(repr(value[:100]), py, formatter))
+                self.info('  value: %s' % self.highlight(repr(value[:cut]), py, formatter))
             elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
                 if 'headers' not in exclude:
                     self.info('  headers:')
@@ -77,7 +79,7 @@ class Printer(object):
                     self.info('  encoding: %s' % self.highlight(repr(value['encoding']), py, formatter))
                 if 'text' not in exclude:
                     if short:
-                        self.info('  text: %s' % self.highlight(repr(value['text'][:100]), html, formatter))
+                        self.info('  text: %s' % self.highlight(repr(value['text'][:cut]), html, formatter))
                     else:
                         self.info('  text:')
                         code = textwrap.indent(value['text'], '    ')
