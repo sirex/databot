@@ -296,3 +296,45 @@ class ExportTests(unittest.TestCase):
             ]))
 
         os.unlink(temp.name)
+
+
+class ResolveTests(unittest.TestCase):
+
+    def setUp(self):
+        self.output = io.StringIO()
+        self.bot = Bot('sqlite:///:memory:', output=self.output)
+        self.t1 = self.bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+        self.t2 = self.bot.define('p2')
+
+        rows = list(self.t1.data.rows())
+        with self.t1:
+            self.t2.errors.report(rows[0], 'Error 1')
+            self.t2.errors.report(rows[2], 'Error 2')
+
+    def test_resolve_all(self):
+        self.bot.main(argv=['resolve', 'p1', 'p2'])
+        self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
+            "   id              rows  source  ",
+            "       errors      left    target",
+            "=================================",
+            "    1                 3  p1      ",
+            "            0         3    p2    ",
+            "---------------------------------",
+            "    2                 0  p2      ",
+            "---------------------------------",
+            "",
+        ])))
+
+    def test_resolve_key(self):
+        self.bot.main(argv=['resolve', 'p1', 'p2', '3'])
+        self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
+            "   id              rows  source  ",
+            "       errors      left    target",
+            "=================================",
+            "    1                 3  p1      ",
+            "            1         3    p2    ",
+            "---------------------------------",
+            "    2                 0  p2      ",
+            "---------------------------------",
+            "",
+        ])))

@@ -20,3 +20,6 @@ class RowTests(unittest.TestCase):
 
     def test_value_multiple_items(self):
         self.assertEqual(row.value['x']['y']['z'](Row(key=1, value={'x': {'y': {'z': 42}}})), 42)
+
+    def test_value_length(self):
+        self.assertEqual(row.value['x'].length(Row(key=1, value={'x': 'abc'})), 3)

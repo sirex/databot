@@ -254,3 +254,18 @@ class Export(Command):
         exclude = set(args.exclude.split(',') if args.exclude else [])
         include = args.include.split(',') if args.include else None
         csv.export(args.path, pipe, exclude=exclude, include=include, append=args.append, header=args.header)
+
+
+class Resolve(Command):
+
+    def add_arguments(self, parser):
+        parser.add_argument('source', type=str, help="Source pipe id or name.")
+        parser.add_argument('target', type=str, help="Target pipe id or name to mark errors as resolved.")
+        parser.add_argument('key', type=str, nargs='?',
+                            help="Mark as resolve only specific key if not specified marks all errors as resolved.")
+
+    def run(self, args):
+        key = args.key or None
+        with self.pipe(args.source):
+            self.pipe(args.target).errors.resolve(key)
+        self.bot.output.status(self.bot)

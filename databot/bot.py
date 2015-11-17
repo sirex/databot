@@ -102,6 +102,7 @@ class Bot(object):
         cmgr.register('show', commands.Show)
         cmgr.register('tail', commands.Tail)
         cmgr.register('export', commands.Export)
+        cmgr.register('resolve', commands.Resolve)
 
         self.args = args = parser.parse_args(argv)
 

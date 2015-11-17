@@ -117,3 +117,13 @@ class ErrorDataTests(object):
     def test_rows(self):
         with self.t1:
             self.assertEqual([(row.key, row.value) for row in self.t2.errors.rows()], [('1', 'a'), ('3', 'c')])
+
+    def test_resolve_all(self):
+        with self.t1:
+            self.t2.errors.resolve()
+            self.assertEqual(list(self.t2.errors.keys()), [])
+
+    def test_resolve_key(self):
+        with self.t1:
+            self.t2.errors.resolve(1)
+            self.assertEqual(list(self.t2.errors.keys()), ['3'])

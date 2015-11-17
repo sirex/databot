@@ -30,3 +30,6 @@ class RowItem(Row):
 
     def __getitem__(self, key):
         return RowItem(self.attr, self.keys + (key,))
+
+    def length(self, row):
+        return len(self(row))

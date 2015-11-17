@@ -11,7 +11,8 @@ will extract all data from that index page.
 Them main ``databot`` object is a pipe. A pipe is just a database table with
 basically key and value columns. For each pipe new table is created. ``key``
 column is used to identify distinct object and ``value`` is for storing the
-data.
+data. ``key`` can't be ``null``, when adding items to a pipe all items where
+``key`` is ``null`` are skipped.
 
 So first thing we need to do is to define our pipes. In our case, we are going
 to need two pipes, ``index`` for whole HTML code of Hacker News index page and

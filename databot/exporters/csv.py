@@ -38,14 +38,17 @@ def values_to_csv(values):
     return row
 
 
-def flatten_rows(rows, exclude=None, include=None, scan_fields=1):
+def flatten_rows(rows, exclude=None, include=None, update=None, scan_fields=1):
     _rows = []
     exclude = exclude or set()
+    update = update or {}
 
     rows = iter(rows)
 
     fields = set()
     for i, row in enumerate(rows, 1):
+        for k, call in update.items():
+            row.value[k] = call(row)
         fields.update(get_fields(row.value))
         _rows.append(row)
         if i >= scan_fields:
@@ -60,6 +63,8 @@ def flatten_rows(rows, exclude=None, include=None, scan_fields=1):
         yield [c for c in cols if c not in exclude]
 
     for row in itertools.chain(_rows, rows):
+        for k, call in update.items():
+            row.value[k] = call(row)
         values = [row.key] + list(get_values(fields, row.value))
         if include:
             values = dict(zip(cols, values))
@@ -92,7 +97,7 @@ class CsvWriter(BaseWriter):
         self.writer.writerow(values_to_csv(row))
 
 
-def export(path, pipe, exclude=None, include=None, append=False, header=True):
+def export(path, pipe, exclude=None, include=None, update=None, append=False, header=True):
     path = pathlib.Path(path)
 
     if path.suffix == '.txt':
@@ -108,7 +113,7 @@ def export(path, pipe, exclude=None, include=None, append=False, header=True):
 
     with path.open(mode) as f:
         writer = Writer(f)
-        rows = flatten_rows(pipe.data.rows(), exclude, include)
+        rows = flatten_rows(pipe.data.rows(), exclude, include, update)
 
         for row in rows:
             if header:

@@ -158,6 +158,27 @@ class PipeErrors(object):
                 updated=now,
             )
 
+    def resolve(self, key=None):
+        if self.pipe.source:
+            state = self.pipe.get_state()
+            error = models.errors
+            table = self.pipe.source.table
+
+            if key is None:
+                self.engine.execute(error.delete(error.c.state_id == state.id))
+            else:
+                query = (
+                    sa.select([error.c.id]).
+                    select_from(table.join(error, table.c.id == error.c.row_id)).
+                    where(sa.and_(error.c.state_id == state.id, table.c.key == key))
+                )
+
+                if self.engine.name == 'mysql':
+                    # http://stackoverflow.com/a/45498/475477
+                    query = sa.select([query.alias().c.id])
+
+                self.engine.execute(error.delete(error.c.id.in_(query)))
+
 
 class Pipe(object):
     def __init__(self, bot, id, name, table):
@@ -237,7 +258,8 @@ class Pipe(object):
 
         # Append
         for key, value in rows:
-            if not only_missing or not self.data.exists(key):
+            # Skip all items if key is None
+            if key is not None and (not only_missing or not self.data.exists(key)):
                 now = datetime.datetime.utcnow()
                 bulk.append({'key': key, 'value': dumps(value), 'created': now})
 
@@ -421,7 +443,7 @@ class Pipe(object):
         pipe.save(post_save=True)
         errors.save()
 
-        if self.bot.args.verbosity > 0:
+        if self.bot.args.verbosity > 1:
             print('%s, rows processed: %d' % (desc, n))
 
         return self
@@ -464,7 +486,7 @@ class Pipe(object):
 
         pipe.save(post_save=True)
 
-        if self.bot.args.verbosity == 1:
+        if self.bot.args.verbosity > 1:
             print('%s, errors retried: %d' % (desc, n))
 
         return self
@@ -477,8 +499,8 @@ class Pipe(object):
                 self.append(key, value, bulk=bulk)
             self.bot.output.key_value(key, value, short=True)
 
-    def export(self, path):
-        csv.export(path, self)
+    def export(self, path, **kwargs):
+        csv.export(path, self, **kwargs)
 
     def download(self, key=None, **kwargs):
         from databot import row

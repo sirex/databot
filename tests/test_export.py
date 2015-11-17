@@ -1,6 +1,8 @@
 import unittest
+import databot
 
-from databot.exporters.csv import get_fields, get_values
+from databot.db.utils import Row
+from databot.exporters.csv import get_fields, get_values, flatten_rows
 
 
 class FlatteningTests(unittest.TestCase):
@@ -39,3 +41,15 @@ class FlatteningTests(unittest.TestCase):
             ('z',),
         ]
         self.assertEqual(get_values(fields, self.data), (1, None))
+
+    def test_update(self):
+        rows = [
+            Row(key=1, value={'text': 'abc'}),
+            Row(key=1, value={'text': 'abcde'}),
+        ]
+        update = {'size': databot.row.value['text'].length}
+        self.assertEqual(list(flatten_rows(rows, include=['key', 'size'], update=update)), [
+            ['key', 'size'],
+            [1, 3],
+            [1, 5],
+        ])
