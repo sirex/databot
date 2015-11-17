@@ -51,7 +51,8 @@ class PipeData(object):
 
     def rows(self, desc=False):
         order_by = self.table.c.id.desc() if desc else self.table.c.id
-        for row in self.engine.execute(self.table.select().order_by(order_by)):
+        query = self.table.select().order_by(order_by)
+        for row in windowed_query(self.engine, query, self.table.c.id):
             yield Row(row, value=loads(row.value))
 
     def items(self):

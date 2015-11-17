@@ -179,7 +179,7 @@ class Compact(Command):
         if args.pipe:
             self.pipe(args.pipe).compact()
         else:
-            self.compact()
+            self.bot.compact()
         self.bot.output.status(self.bot)
 
 
