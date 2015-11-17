@@ -11,7 +11,7 @@ from databot import rowvalue
 
 
 def create_html_parser(row):
-    content = row.value['text']
+    content = row.value['text'] or '<html></html>'
     parser = lxml.html.HTMLParser(encoding='utf-8')
     html = lxml.html.document_fromstring(content, parser=parser)
     html.make_links_absolute(row.key)
