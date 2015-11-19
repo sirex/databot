@@ -36,6 +36,13 @@ errors = sa.Table(
     sa.Column('updated', sa.DateTime)
 )
 
+migrations = sa.Table(
+    'databotmigrations', metadata,
+    sa.Column('id', sa.Integer, primary_key=True),
+    sa.Column('name', sa.String(255), nullable=False),
+    sa.Column('created', sa.DateTime),
+)
+
 
 def get_data_table(name, meta):
     return sa.Table(
