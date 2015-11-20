@@ -22,7 +22,7 @@ class StorageTests(object):
         t1 = self.bot.pipe('pipe 1')
         t1.append('foo', 'bar').append('a', 'b')
         data = [(row['key'], row['value']) for row in self.bot.engine.execute(t1.table.select())]
-        self.assertEqual(data, [('foo', b'"bar"'), ('a', b'"b"')])
+        self.assertEqual(data, [('foo', b'\xa3bar'), ('a', b'\xa1b')])
 
     def test_clean(self):
         t1 = self.bot.pipe('pipe 1')
