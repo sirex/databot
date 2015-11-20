@@ -1,4 +1,4 @@
-import json
+import msgpack
 
 
 def loads(value):
@@ -6,9 +6,9 @@ def loads(value):
     if value is None:
         return None
     else:
-        return json.loads(value.decode('utf-8'))
+        return msgpack.loads(value, encoding='utf-8')
 
 
 def dumps(value):
     """Convert primitive value received from database to Python object."""
-    return json.dumps(value).encode('utf-8')
+    return msgpack.dumps(value, use_bin_type=True)

@@ -10,5 +10,8 @@ setup(
         'pygments',
         'texttable',
         'cssselect',
+        'tqdm',
+        'toposort',
+        'msgpack-python',
     ],
 )
