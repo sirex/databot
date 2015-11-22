@@ -171,7 +171,7 @@ class PipeErrors(object):
                 query = (
                     sa.select([error.c.id]).
                     select_from(table.join(error, table.c.id == error.c.row_id)).
-                    where(sa.and_(error.c.state_id == state.id, table.c.key == key))
+                    where(sa.and_(error.c.state_id == state.id, table.c.key == str(key)))
                 )
 
                 if self.engine.name == 'mysql':
