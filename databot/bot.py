@@ -7,14 +7,22 @@ import databot.db
 import databot.pipes
 from databot.db import models
 from databot.db.utils import create_row, get_or_create
-from databot.logging import QUIET
+from databot.db.migrations import Migrations
 from databot.printing import Printer
 from databot import commands
 
 
 class Bot(object):
+    """
+    Attributes:
+        metadata (sqlalchemy.MetaData): sqlalchemy metadata for data tables
+            We use custom metadata just for data tables, because data tables can span multiple databases so we need
+            multiple metadatas for each database.
 
-    def __init__(self, uri_or_engine, verbosity=QUIET, output=sys.stdout):
+            All other static tables use ``models.metadata``.
+    """
+
+    def __init__(self, uri_or_engine, verbosity=0, output=sys.stdout):
         self.output = Printer(output)
         self.pipes = []
         self.pipes_by_name = {}
@@ -31,7 +39,10 @@ class Bot(object):
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.verbosity = verbosity
         self.download_delay = None
-        models.metadata.create_all(self.engine, checkfirst=True)
+
+        self.migrations = Migrations(models.metadata, self.engine, self.output, verbosity=1)
+        if self.migrations.has_initial_state():
+            self.migrations.initialize()
 
     def define(self, name, dburi=None, table=None):
         if name in self.pipes_by_name:
@@ -103,15 +114,33 @@ class Bot(object):
         cmgr.register('tail', commands.Tail)
         cmgr.register('export', commands.Export)
         cmgr.register('resolve', commands.Resolve)
+        cmgr.register('migrate', commands.Migrate)
 
         self.args = args = parser.parse_args(argv)
 
-        if define is not None:
-            define(self)
+        if args.command == 'migrate':
+            cmgr.run(args.command, args, default='status')
+        else:
+            self.check_migrations(args)
 
-        cmgr.run(args.command, args, default='status')
+            if define is not None:
+                define(self)
+
+            cmgr.run(args.command, args, default='status')
 
         return self
+
+    def check_migrations(self, args):
+        unapplied_migrations = self.migrations.unapplied()
+        if unapplied_migrations:
+            self.output.error((
+                'You need to run database migrations:\n'
+                '\n'
+                '    %s migrate\n'
+                '\n'
+                'List of unapplied migrations:\n\n  - %s\n'
+            ) % (sys.argv[0], '\n  - '.join([f.__name__ for f in unapplied_migrations])))
+            sys.exit(1)
 
     def run(self, name):
         if self.options:

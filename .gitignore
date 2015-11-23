@@ -56,3 +56,4 @@ target/
 .ropeproject/
 /db.sqlite3
 /data
+/tags

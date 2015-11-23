@@ -3,8 +3,10 @@ import io
 import unittest
 import mock
 import tempfile
+import sqlalchemy as sa
 
 from databot import Bot
+from databot.db import migrations, models
 
 
 class StatusTests(unittest.TestCase):
@@ -338,3 +340,49 @@ class ResolveTests(unittest.TestCase):
             "---------------------------------",
             "",
         ])))
+
+
+class MigrateTests(unittest.TestCase):
+
+    def setUp(self):
+        # Create tables, but do not apply any migrations
+        engine = sa.create_engine('sqlite:///:memory:')
+        models.metadata.create_all(engine, checkfirst=True)
+
+        self.output = io.StringIO()
+        self.bot = Bot(engine, output=self.output)
+        self.p1 = self.bot.define('p1')
+
+        # Rewrite migration dict for tests to always have same single migration
+        self.bot.migrations.migrations = {migrations.ValueToMsgpack: set()}
+
+        # Add a value, that should be migrated
+        self.bot.engine.execute(self.p1.table.insert().values(key='1', value=b'"a"'))
+
+    @mock.patch('sys.exit', mock.Mock())
+    def test_error_when_migrations_not_applied(self):
+        self.bot.main(argv=['status'])
+        self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
+            "You need to run database migrations:                   ",
+            "                                                       ",
+            "    /home/sirex/.venvs/databot/bin/nosetests migrate   ",
+            "                                                       ",
+            "List of unapplied migrations:                          ",
+            "                                                       ",
+            "  - ValueToMsgpack                                     ",
+            "                                                       ",
+            "   id              rows  source                        ",
+            "       errors      left    target                      ",
+            "=================================                      ",
+            "    1                 1  p1                            ",
+            "---------------------------------                      ",
+            "                                                       ",
+        ])))
+
+    def test_migrate(self):
+        self.bot.main(argv=['migrate'])
+        result = '\n'.join(map(str.rstrip, [
+            "- value to msgpack...   ",
+            "  p1                    ",
+        ]))
+        self.assertIn(result, self.output.getvalue())

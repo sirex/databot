@@ -36,6 +36,9 @@ class Printer(object):
     def info(self, string):
         self.print(logging.INFO, string)
 
+    def error(self, string):
+        self.print(logging.ERROR, string)
+
     def highlight(self, code, *args, **kwargs):
         if self.isatty:
             return highlight(code, *args, **kwargs)

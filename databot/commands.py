@@ -269,3 +269,9 @@ class Resolve(Command):
         with self.pipe(args.source):
             self.pipe(args.target).errors.resolve(key)
         self.bot.output.status(self.bot)
+
+
+class Migrate(Command):
+
+    def run(self, args):
+        self.bot.migrations.migrate()

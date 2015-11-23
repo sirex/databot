@@ -1,83 +1,197 @@
 import io
 import json
-import unittest
-import sqlalchemy as sa
+import msgpack
 
-import databot
-import databot.pipes
+from databot.db import models
+from databot.db import migrations
+from databot.printing import Printer
 
-from databot.db.migrations import get_applied_migrations, add_migration, run_migrations, iter_data_tables
-from databot.db.migrations import value_to_msgpack
-
-
-def migration_a(engine, table, output, verbosity):
-    pass
+import tests.db
 
 
-def migration_b(engine, table, output, verbosity):
-    pass
+class MigrationA(migrations.Migration):
+
+    name = 'a'
+    data_tables = True
 
 
-class MigrateTests(unittest.TestCase):
+class MigrationB(migrations.Migration):
+
+    name = 'b'
+    data_tables = True
+
+    def migrate_data_item(self, row):
+        return dict(value=row['value'])
+
+
+class Migrations(migrations.Migrations):
+
+    migrations = {
+        MigrationA: set(),
+        MigrationB: {MigrationA},
+    }
+
+
+@tests.db.usedb()
+class MigrationsTests(object):
 
     def setUp(self):
+        super().setUp()
         self.output = io.StringIO()
-        bot = databot.Bot('sqlite:///:memory:')
-        bot.define('p1')
-        self.engine = bot.engine
+        self.migrations = Migrations(self.db.meta, self.db.engine, Printer(self.output), verbosity=2)
 
-    def test_get_applied_migrations(self):
-        add_migration(self.engine, 'a')
-        self.assertEqual(get_applied_migrations(self.engine), {'a'})
+    def test_applied(self):
+        models.migrations.create(self.db.engine)
+        self.migrations.mark_applied(MigrationA.name)
+        self.assertEqual(self.migrations.applied(), {MigrationA})
 
-    def test_run_migrations(self):
-        applied = set()
-        migrations = {
-            migration_b: {migration_a},
-            migration_a: set(),
-        }
-        metadata = sa.MetaData()
-        metadata.reflect(bind=self.engine)
-        tables = list(iter_data_tables(self.engine, metadata))
-        self.assertEqual(get_applied_migrations(self.engine), set())
-        run_migrations(self.engine, tables, migrations, applied, self.output, verbosity=2)
-        self.assertEqual(get_applied_migrations(self.engine), {'migration_a', 'migration_b'})
+    def test_applied_no_migrations_table(self):
+        self.assertEqual(self.migrations.applied(), set())
+
+    def test_unapplied(self):
+        models.migrations.create(self.db.engine)
+        self.migrations.mark_applied(MigrationA.name)
+        self.assertEqual(self.migrations.unapplied(), {MigrationB})
+
+    def test_initialize(self):
+        self.migrations.metadata = models.metadata
+        self.migrations.initialize()
+        self.assertEqual(self.migrations.applied(), {MigrationA, MigrationB})
+
+    def test_migrate(self):
+        models.metadata.create_all(self.db.engine, checkfirst=True)
+        models.get_data_table('t1', self.db.meta).create(self.db.engine, checkfirst=True)
+
+        self.db.engine.execute(models.pipes.insert().values(bot='x', pipe='p1'))
+
+        self.assertEqual(self.migrations.applied(), set())
+
+        self.migrations.migrate()
+
+        self.assertEqual(self.migrations.applied(), {MigrationA, MigrationB})
         self.assertEqual(self.output.getvalue(), (
-            'Migrate migration_b...\n'
+            '- a...\n'
             '  p1\n'
-            'Migrate migration_a...\n'
+            '- b...\n'
             '  p1\n'
+            'done.\n'
         ))
 
+    def test_migrate_applied(self):
+        table = models.get_data_table('t1', self.db.meta)
+        table.create(self.db.engine, checkfirst=True)
 
-class ValueToMsgpack(unittest.TestCase):
+        self.migrations.metadata = models.metadata
+        self.migrations.initialize()
+
+        self.db.engine.execute(table.insert().values(key='1', value=b'a'))
+        self.db.engine.execute(models.pipes.insert().values(bot='x', pipe='p1'))
+
+        self.migrations.migrate()
+
+        self.assertEqual(self.output.getvalue(), (
+            '- a... (already applied)\n'
+            '- b... (already applied)\n'
+            'done.\n'
+        ))
+
+    def test_migrate_without_migrations_table(self):
+        models.metadata.create_all(self.db.engine, checkfirst=True)
+        models.migrations.drop(self.db.engine)
+        models.get_data_table('t1', self.db.meta).create(self.db.engine, checkfirst=True)
+
+        self.db.engine.execute(models.pipes.insert().values(bot='x', pipe='p1'))
+
+        self.migrations.migrations = {
+            migrations.MigrationsTable: set(),
+            MigrationA: {migrations.MigrationsTable},
+            MigrationB: {MigrationA},
+        }
+
+        self.migrations.migrate()
+
+        self.assertEqual(self.output.getvalue(), (
+            '- migrations table...\n'
+            '  creating migrations table...\n'
+            '- a...\n'
+            '  p1\n'
+            '- b...\n'
+            '  p1\n'
+            'done.\n'
+        ))
+
+    def test_migrate_with_progress_bar(self):
+        models.metadata.create_all(self.db.engine, checkfirst=True)
+
+        table = models.get_data_table('t1', self.db.meta)
+        table.create(self.db.engine, checkfirst=True)
+
+        self.db.engine.execute(table.insert().values(key='1', value=b'a'))
+        self.db.engine.execute(models.pipes.insert().values(bot='x', pipe='p1'))
+
+        self.migrations.verbosity = 1
+        self.migrations.migrate()
+
+        output = (
+            '- a...\n'
+            '  p1\n'
+            '- b...\n'
+            '  p1\n'
+        )
+        self.assertIn(output, self.output.getvalue())
+
+    def test_has_initial_state(self):
+        self.assertTrue(self.migrations.has_initial_state())
+        models.migrations.create(self.db.engine)
+        self.assertFalse(self.migrations.has_initial_state())
+
+
+@tests.db.usedb()
+class ValueToMsgpackTests(object):
 
     def setUp(self):
+        super().setUp()
         self.output = io.StringIO()
-        self.bot = databot.Bot('sqlite:///:memory:')
-        self.pipe = self.bot.define('p1')
+        self.migration = migrations.ValueToMsgpack(self.db.engine, Printer(self.output), verbosity=2)
+        self.table = models.get_data_table('t1', self.db.meta)
+        self.table.create(self.db.engine)
 
-    def test_value_to_msgpack(self):
-        value = {
+    def test_download_handler_value(self):
+        before = {
             'headers': {},
             'cookies': {},
             'status_code': 200,
             'encoding': 'utf-8',
             'text': '<html></html>',
         }
-        self.bot.engine.execute(
-            self.pipe.table.insert(),
-            key='http://example.com/',
-            value=json.dumps(value).encode(),
-        )
 
-        value_to_msgpack(self.bot.engine, self.pipe.table, self.output, verbosity=2)
-        self.assertEqual(list(self.pipe.data.items()), [
-            ('http://example.com/', {
-                'headers': {},
-                'cookies': {},
-                'status_code': 200,
-                'encoding': 'utf-8',
-                'content': b'<html></html>',
-            }),
-        ])
+        after = {
+            'headers': {},
+            'cookies': {},
+            'status_code': 200,
+            'encoding': 'utf-8',
+            'content': b'<html></html>',
+        }
+
+        self.db.engine.execute(self.table.insert(), key='http://example.com/', value=json.dumps(before).encode())
+        self.migration.migrate_data(self.table, 'p1')
+
+        (key, value), = [(row['key'], row['value']) for row in self.db.engine.execute(self.table.select())]
+        self.assertEqual(key, 'http://example.com/')
+        self.assertEqual(msgpack.loads(value, encoding='utf-8'), after)
+
+    def test_other_value(self):
+        before = {
+            'a': 1,
+        }
+
+        after = {
+            'a': 1,
+        }
+
+        self.db.engine.execute(self.table.insert(), key='http://example.com/', value=json.dumps(before).encode())
+        self.migration.migrate_data(self.table, 'p1')
+
+        (key, value), = [(row['key'], row['value']) for row in self.db.engine.execute(self.table.select())]
+        self.assertEqual(key, 'http://example.com/')
+        self.assertEqual(msgpack.loads(value, encoding='utf-8'), after)
