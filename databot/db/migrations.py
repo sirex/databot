@@ -34,7 +34,7 @@ class Migration(object):
             if self.verbosity == 1:
                 rows = tqdm.tqdm(rows, total=total, file=self.output.output)
             for row in rows:
-                self.engine.execute(table.update().values(**self.migrate_data_item(row)))
+                self.engine.execute(table.update().where(table.c.id == row['id']).values(**self.migrate_data_item(row)))
 
 
 class MigrationsTable(Migration):
@@ -89,8 +89,9 @@ class Migrations(object):
     def unapplied(self):
         return set(self.available()) - self.applied()
 
-    def mark_applied(self, name):
-        return self.engine.execute(
+    def mark_applied(self, name, conn=None):
+        conn = conn or self.engine
+        return conn.execute(
             models.migrations.insert(),
             name=name,
             created=datetime.datetime.utcnow(),
@@ -101,11 +102,13 @@ class Migrations(object):
         return sorted(inspector.get_table_names())
 
     def data_tables(self):
+        result = []
         tables = set(reflection.Inspector.from_engine(self.engine).get_table_names())
         for pipe in self.engine.execute(models.pipes.select()):
             table = 't%s' % pipe['id']
             if table in tables:
-                yield sa.Table(table, self.metadata, autoload=True, autoload_with=self.engine), pipe['pipe']
+                result.append((sa.Table(table, self.metadata, autoload=True, autoload_with=self.engine), pipe['pipe']))
+        return result
 
     def has_initial_state(self):
         """Check if we need to run initial migrations or not."""
@@ -119,17 +122,18 @@ class Migrations(object):
     def migrate(self):
         applied = self.applied()
         for Migration in self.available():
-            migration = Migration(self.engine, self.output, self.verbosity)
             if Migration not in applied:
-                self.output.info('- %s...' % migration.name)
-                migration.migrate()
-                if migration.data_tables:
-                    for table, pipe in self.data_tables():
-                        self.output.info('  %s' % pipe)
-                        migration.migrate_data_table(table)
-                        migration.migrate_data(table, pipe)
-                        applied.add(Migration)
-                self.mark_applied(migration.name)
+                self.output.info('- %s...' % Migration.name)
+                with self.engine.begin() as conn:
+                    migration = Migration(conn, self.output, self.verbosity)
+                    migration.migrate()
+                    if migration.data_tables:
+                        for table, pipe in self.data_tables():
+                            self.output.info('  %s' % pipe)
+                            migration.migrate_data_table(table)
+                            migration.migrate_data(table, pipe)
+                            applied.add(Migration)
+                    self.mark_applied(migration.name, conn)
             else:
-                self.output.info('- %s... (already applied)' % migration.name)
+                self.output.info('- %s... (already applied)' % Migration.name)
         self.output.info('done.')

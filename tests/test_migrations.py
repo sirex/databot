@@ -9,6 +9,16 @@ from databot.printing import Printer
 import tests.db
 
 
+def create_pipe(meta, engine, name, data):
+    result = engine.execute(models.pipes.insert().values(bot='test', pipe=name))
+    pipe = models.get_data_table('t%d' % tuple(result.inserted_primary_key), meta)
+    pipe.create(engine, checkfirst=True)
+    for key, value in data:
+        value = msgpack.dumps(value, use_bin_type=True)
+        engine.execute(pipe.insert().values(key=str(key), value=value))
+    return pipe
+
+
 class MigrationA(migrations.Migration):
 
     name = 'a'
@@ -60,9 +70,9 @@ class MigrationsTests(object):
 
     def test_migrate(self):
         models.metadata.create_all(self.db.engine, checkfirst=True)
-        models.get_data_table('t1', self.db.meta).create(self.db.engine, checkfirst=True)
 
-        self.db.engine.execute(models.pipes.insert().values(bot='x', pipe='p1'))
+        create_pipe(self.db.meta, self.db.engine, 'p1', [(1, 'a'), (2, 'b')])
+        create_pipe(self.db.meta, self.db.engine, 'p2', [(1, 'a'), (2, 'b')])
 
         self.assertEqual(self.migrations.applied(), set())
 
@@ -72,8 +82,10 @@ class MigrationsTests(object):
         self.assertEqual(self.output.getvalue(), (
             '- a...\n'
             '  p1\n'
+            '  p2\n'
             '- b...\n'
             '  p1\n'
+            '  p2\n'
             'done.\n'
         ))
 

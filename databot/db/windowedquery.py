@@ -1,6 +1,8 @@
 import funcy
 import sqlalchemy as sa
 
+from sqlalchemy.engine.base import Engine
+
 
 def column_windows(engine, column, windowsize):
     # Based on: https://bitbucket.org/zzzeek/sqlalchemy/wiki/UsageRecipes/WindowedRangeQuery
@@ -24,7 +26,8 @@ def offset_windows(engine, query, column, windowsize):
 
 def windowed_query(engine, query, column, windowsize=1000):
     """"Break a query into windows on a given column."""
-    if engine.name == 'postgresql':
+    name = engine.name if isinstance(engine, Engine) else engine.engine.name
+    if name == 'postgresql':
         for whereclause in column_windows(engine, column, windowsize):
             yield from list(engine.execute(query.where(whereclause).order_by(column)))
     else:
