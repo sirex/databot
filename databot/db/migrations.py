@@ -8,7 +8,6 @@ import sqlalchemy as sa
 
 from sqlalchemy.engine import reflection
 
-from databot.db import models
 from databot.db.windowedquery import windowed_query
 
 
@@ -16,7 +15,8 @@ class Migration(object):
 
     data_tables = False
 
-    def __init__(self, engine, output, verbosity):
+    def __init__(self, models, engine, output, verbosity):
+        self.models = models
         self.engine = engine
         self.output = output
         self.verbosity = verbosity
@@ -43,7 +43,7 @@ class MigrationsTable(Migration):
 
     def migrate(self):
         self.output.info('  creating migrations table...')
-        models.migrations.create(self.engine)
+        self.models.migrations.create(self.engine)
 
 
 class ValueToMsgpack(Migration):
@@ -66,12 +66,8 @@ class Migrations(object):
         ValueToMsgpack: {MigrationsTable},
     }
 
-    def __init__(self, metadata, engine, output=sys.stdout, verbosity=1):
-        """
-        Args:
-            metadata: sqlalchemy metadata for data tables
-        """
-        self.metadata = metadata
+    def __init__(self, models, engine, output=sys.stdout, verbosity=1):
+        self.models = models
         self.engine = engine
         self.output = output
         self.verbosity = verbosity
@@ -82,7 +78,7 @@ class Migrations(object):
     def applied(self):
         if 'databotmigrations' in self.table_names():
             available = {x.name: x for x in self.available()}
-            return {available[row['name']] for row in self.engine.execute(models.migrations.select())}
+            return {available[row['name']] for row in self.engine.execute(self.models.migrations.select())}
         else:
             return set()
 
@@ -92,7 +88,7 @@ class Migrations(object):
     def mark_applied(self, name, conn=None):
         conn = conn or self.engine
         return conn.execute(
-            models.migrations.insert(),
+            self.models.migrations.insert(),
             name=name,
             created=datetime.datetime.utcnow(),
         )
@@ -104,10 +100,13 @@ class Migrations(object):
     def data_tables(self):
         result = []
         tables = set(reflection.Inspector.from_engine(self.engine).get_table_names())
-        for pipe in self.engine.execute(models.pipes.select()):
+        for pipe in self.engine.execute(self.models.pipes.select()):
             table = 't%s' % pipe['id']
             if table in tables:
-                result.append((sa.Table(table, self.metadata, autoload=True, autoload_with=self.engine), pipe['pipe']))
+                result.append((
+                    sa.Table(table, self.models.metadata, autoload=True, autoload_with=self.engine),
+                    pipe['pipe'],
+                ))
         return result
 
     def has_initial_state(self):
@@ -115,7 +114,7 @@ class Migrations(object):
         return len(self.table_names()) == 0
 
     def initialize(self):
-        models.metadata.create_all(self.engine, checkfirst=True)
+        self.models.metadata.create_all(self.engine, checkfirst=True)
         for fn in self.available():
             self.mark_applied(fn.name)
 
@@ -125,7 +124,7 @@ class Migrations(object):
             if Migration not in applied:
                 self.output.info('- %s...' % Migration.name)
                 with self.engine.begin() as conn:
-                    migration = Migration(conn, self.output, self.verbosity)
+                    migration = Migration(self.models, conn, self.output, self.verbosity)
                     migration.migrate()
                     if migration.data_tables:
                         for table, pipe in self.data_tables():

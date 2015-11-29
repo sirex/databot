@@ -7,6 +7,8 @@ import sqlalchemy.exc
 import sqlalchemy.pool
 import nose.plugins.attrib
 
+from databot.db.models import Models
+
 connections = {}
 
 
@@ -17,6 +19,7 @@ class DatabaseFixture(object):
 
     def set_up(self):
         self.meta = sa.MetaData(self.engine)
+        self.models = Models(self.meta)
 
     def tear_down(self):
         self.meta.reflect()

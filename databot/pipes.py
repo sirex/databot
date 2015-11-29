@@ -7,7 +7,6 @@ import tqdm
 
 from databot.db.serializers import dumps, loads
 from databot.db.utils import Row, create_row, get_or_create
-from databot.db import models
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
@@ -76,10 +75,11 @@ class PipeErrors(object):
     def __init__(self, pipe):
         self.pipe = pipe
         self.engine = pipe.bot.engine
+        self.models = pipe.bot.models
 
     def __call__(self):
         if self.pipe.source:
-            error = models.errors.alias('error')
+            error = self.models.errors.alias('error')
             table = self.pipe.source.table.alias('table')
 
             query = (
@@ -101,7 +101,7 @@ class PipeErrors(object):
     def count(self):
         if self.pipe.source:
             state = self.pipe.get_state()
-            return self.engine.execute(models.errors.count(models.errors.c.state_id == state.id)).scalar()
+            return self.engine.execute(self.models.errors.count(self.models.errors.c.state_id == state.id)).scalar()
         else:
             return 0
 
@@ -126,11 +126,11 @@ class PipeErrors(object):
         if 'retries' in error_or_row:
             error = error_or_row
             self.engine.execute(
-                models.errors.update(sa.and_(
-                    models.errors.c.state_id == error.state_id,
-                    models.errors.c.row_id == error.row_id,
+                self.models.errors.update(sa.and_(
+                    self.models.errors.c.state_id == error.state_id,
+                    self.models.errors.c.row_id == error.row_id,
                 )).values(
-                    retries=models.errors.c.retries + 1,
+                    retries=self.models.errors.c.retries + 1,
                     traceback=message,
                     updated=datetime.datetime.utcnow(),
                 ),
@@ -150,7 +150,7 @@ class PipeErrors(object):
             row = error_or_row
             state = self.pipe.get_state()
             self.engine.execute(
-                models.errors.insert(),
+                self.models.errors.insert(),
                 state_id=state.id,
                 row_id=row.id,
                 retries=0,
@@ -162,7 +162,7 @@ class PipeErrors(object):
     def resolve(self, key=None):
         if self.pipe.source:
             state = self.pipe.get_state()
-            error = models.errors
+            error = self.models.errors
             table = self.pipe.source.table
 
             if key is None:
@@ -196,6 +196,7 @@ class Pipe(object):
         self.id = id
         self.name = name
         self.table = table
+        self.models = bot.models
         self.data = PipeData(self)
         self.errors = PipeErrors(self)
 
@@ -220,7 +221,7 @@ class Pipe(object):
 
     def get_state(self):
         source, target = self.source, self
-        return get_or_create(self.bot.engine, models.state, ['source_id', 'target_id'], dict(
+        return get_or_create(self.bot.engine, self.models.state, ['source_id', 'target_id'], dict(
             source_id=(source.id if source else None),
             target_id=target.id,
             offset=0,
@@ -272,7 +273,7 @@ class Pipe(object):
 
     def reset(self):
         state = self.get_state()
-        self.bot.engine.execute(models.state.update(models.state.c.id == state.id), offset=0)
+        self.bot.engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=0)
         return self
 
     def skip(self):
@@ -282,7 +283,7 @@ class Pipe(object):
         query = sa.select([source.c.id]).order_by(source.c.id.desc()).limit(1)
         offset = engine.execute(query).scalar()
         if offset:
-            engine.execute(models.state.update(models.state.c.id == state.id), offset=offset)
+            engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
         return self
 
     def offset(self, value=None):
@@ -306,7 +307,7 @@ class Pipe(object):
                 else:
                     return self.reset()
         if offset is not None:
-            engine.execute(models.state.update(models.state.c.id == state.id), offset=offset)
+            engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
         return self
 
     def clean(self, age=None, now=None):
@@ -418,10 +419,10 @@ class Pipe(object):
 
         def post_save():
             if row:
-                engine.execute(models.state.update(models.state.c.id == state.id), offset=row.id)
+                engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=row.id)
 
         pipe = BulkInsert(engine, self.table)
-        errors = BulkInsert(engine, models.errors)
+        errors = BulkInsert(engine, self.models.errors)
 
         if not self.bot.args.debug:
             pipe.post_save(post_save)
@@ -461,7 +462,7 @@ class Pipe(object):
         def post_save():
             nonlocal error_ids
             if error_ids:
-                engine.execute(models.errors.delete(models.errors.c.id.in_(error_ids)))
+                engine.execute(self.models.errors.delete(self.models.errors.c.id.in_(error_ids)))
                 error_ids = []
 
         pipe = BulkInsert(engine, self.table)

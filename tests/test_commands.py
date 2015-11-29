@@ -3,10 +3,12 @@ import io
 import unittest
 import mock
 import tempfile
-import sqlalchemy as sa
+# import sqlalchemy as sa
 
 from databot import Bot
-from databot.db import migrations, models
+from databot.db import migrations
+
+import tests.db
 
 
 class StatusTests(unittest.TestCase):
@@ -342,22 +344,24 @@ class ResolveTests(unittest.TestCase):
         ])))
 
 
-class MigrateTests(unittest.TestCase):
+@tests.db.usedb()
+class MigrateTests(object):
 
     def setUp(self):
+        super().setUp()
+
         # Create tables, but do not apply any migrations
-        engine = sa.create_engine('sqlite:///:memory:')
-        models.metadata.create_all(engine, checkfirst=True)
+        self.db.meta.create_all(self.db.engine, checkfirst=True)
 
         self.output = io.StringIO()
-        self.bot = Bot(engine, output=self.output)
+        self.bot = Bot(self.db.engine, output=self.output, models=self.db.models)
         self.p1 = self.bot.define('p1')
 
         # Rewrite migration dict for tests to always have same single migration
         self.bot.migrations.migrations = {migrations.ValueToMsgpack: set()}
 
         # Add a value, that should be migrated
-        self.bot.engine.execute(self.p1.table.insert().values(key='1', value=b'"a"'))
+        self.db.engine.execute(self.p1.table.insert().values(key='1', value=b'"a"'))
 
     @mock.patch('sys.exit', mock.Mock())
     def test_error_when_migrations_not_applied(self):

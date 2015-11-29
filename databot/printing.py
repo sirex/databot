@@ -11,13 +11,13 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
-from databot.db import models
 from databot.exporters.csv import flatten_rows
 
 
 class Printer(object):
 
-    def __init__(self, output=None):
+    def __init__(self, models, output=None):
+        self.models = models
         self.output = output
         self.isatty = False if output is None else sys.stdin.isatty()
         if self.isatty:
@@ -122,7 +122,7 @@ class Printer(object):
         self.info(table.draw())
 
     def status(self, bot):
-        pipes = models.pipes
+        pipes = self.models.pipes
         target = pipes.alias('target')
         pipes = {t.id: t for t in bot.pipes}
         lines = []
@@ -133,7 +133,7 @@ class Printer(object):
         for source in bot.pipes:
             lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source.name.replace(' ', '-')))
 
-            query = sa.select([models.state.c.target_id]).where(models.state.c.source_id == source.id)
+            query = sa.select([self.models.state.c.target_id]).where(self.models.state.c.source_id == source.id)
             for target_id, in bot.engine.execute(query):
                 if target_id in pipes:
                     target = pipes[target_id]

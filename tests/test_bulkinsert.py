@@ -1,7 +1,6 @@
 import sqlalchemy as sa
 import tests.db
 
-from databot.db.models import get_data_table
 from databot.bulkinsert import BulkInsert
 from databot.utils.objsize import getsize
 
@@ -9,7 +8,7 @@ from databot.utils.objsize import getsize
 @tests.db.usedb()
 class BulkInserTests(object):
     def test_bulk_insert(self):
-        table = get_data_table('t1', self.db.meta)
+        table = self.db.models.get_data_table('t1')
         self.db.meta.create_all(self.db.engine)
 
         query = lambda: [int(row[table.c.key]) for row in self.db.engine.execute(sa.select([table]))]

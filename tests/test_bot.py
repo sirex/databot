@@ -2,7 +2,6 @@ import unittest
 import sqlalchemy as sa
 
 from databot import Bot
-from databot.db import models
 
 
 class BotInitTests(unittest.TestCase):
@@ -21,7 +20,7 @@ class BotTests(unittest.TestCase):
         self.engine = self.bot.engine
 
     def test_define(self):
-        bot, execute, pipes, pipe = self.bot, self.engine.execute, models.pipes, models.pipes.c.pipe
+        bot, execute, pipes, pipe = self.bot, self.engine.execute, self.bot.models.pipes, self.bot.models.pipes.c.pipe
         bot.define('pipe')
         row = execute(pipes.select(pipe == 'pipe')).fetchone()
         self.assertEqual(row['bot'], 'databot.bot.Bot')

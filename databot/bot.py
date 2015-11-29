@@ -5,7 +5,7 @@ import argparse
 
 import databot.db
 import databot.pipes
-from databot.db import models
+from databot.db.models import Models
 from databot.db.utils import create_row, get_or_create
 from databot.db.migrations import Migrations
 from databot.printing import Printer
@@ -13,17 +13,10 @@ from databot import commands
 
 
 class Bot(object):
-    """
-    Attributes:
-        metadata (sqlalchemy.MetaData): sqlalchemy metadata for data tables
-            We use custom metadata just for data tables, because data tables can span multiple databases so we need
-            multiple metadatas for each database.
 
-            All other static tables use ``models.metadata``.
-    """
-
-    def __init__(self, uri_or_engine, verbosity=0, output=sys.stdout):
-        self.output = Printer(output)
+    def __init__(self, uri_or_engine, verbosity=0, output=sys.stdout, models=None):
+        self.models = models or Models(sa.MetaData())
+        self.output = Printer(self.models, output)
         self.pipes = []
         self.pipes_by_name = {}
         self.pipes_by_id = {}
@@ -34,13 +27,12 @@ class Bot(object):
             self.engine = sa.create_engine(uri_or_engine.format(path=self.path))
         else:
             self.engine = uri_or_engine
-        self.metadata = sa.MetaData()
         self.conn = self.engine.connect()
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.verbosity = verbosity
         self.download_delay = None
 
-        self.migrations = Migrations(models.metadata, self.engine, self.output, verbosity=1)
+        self.migrations = Migrations(self.models, self.engine, self.output, verbosity=1)
         if self.migrations.has_initial_state():
             self.migrations.initialize()
 
@@ -48,9 +40,9 @@ class Bot(object):
         if name in self.pipes_by_name:
             raise ValueError('A pipe with "%s" name is already defined.' % name)
 
-        row = get_or_create(self.engine, models.pipes, ('bot', 'pipe'), dict(bot=self.name, pipe=name))
+        row = get_or_create(self.engine, self.models.pipes, ('bot', 'pipe'), dict(bot=self.name, pipe=name))
         table_name = 't%d' % row.id
-        table = models.get_data_table(table_name, self.metadata)
+        table = self.models.get_data_table(table_name)
         table.create(self.engine, checkfirst=True)
 
         pipe = databot.pipes.Pipe(self, row.id, name, table)
@@ -64,7 +56,7 @@ class Bot(object):
         return self.pipes_by_name[name]
 
     def query_retry_pipes(self):
-        errors, state, pipes = models.errors, models.state, models.pipes
+        errors, state, pipes = self.models.errors, self.models.state, self.models.pipes
 
         error = errors.alias('error')
         source = pipes.alias('source')

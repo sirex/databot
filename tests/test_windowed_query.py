@@ -1,7 +1,6 @@
 import tests.db
 
 from databot.db.windowedquery import windowed_query
-from databot.db.models import get_data_table
 from databot.db.serializers import dumps
 
 
@@ -21,7 +20,7 @@ def populate(engine, table, keys):
 class WindowedQueryTests(object):
     def setUp(self):
         super().setUp()
-        self.table = get_data_table('t1', self.db.meta)
+        self.table = self.db.models.get_data_table('t1')
         self.db.meta.create_all()
 
     def test_windowed_query(self):
