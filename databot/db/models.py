@@ -50,7 +50,7 @@ class Models(object):
         return sa.Table(
             name, self.metadata,
             sa.Column('id', BigInteger, primary_key=True),
-            sa.Column('key', sa.Unicode(255), index=True, default='', nullable=False),
+            sa.Column('key', sa.Unicode(40), index=True, default='', nullable=False),
             sa.Column('value', sa.LargeBinary, default='', nullable=False),
             sa.Column('created', sa.DateTime, default=datetime.datetime.utcnow),
         )

@@ -7,6 +7,9 @@ import tqdm
 import sqlalchemy as sa
 import hashlib
 
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+
 from sqlalchemy.engine import reflection
 
 from databot.db.windowedquery import windowed_query
@@ -21,6 +24,7 @@ class Migration(object):
         self.engine = engine
         self.output = output
         self.verbosity = verbosity
+        self.op = Operations(MigrationContext.configure(engine))
 
     def migrate(self):
         pass
@@ -74,12 +78,25 @@ class KeyToSha1(Migration):
         return dict(key=key, value=value)
 
 
+class AlterKeyField(Migration):
+
+    name = "key to unicode(40)"
+    data_tables = True
+
+    def migrate_data_table(self, table):
+        with self.op.batch_alter_table(table.name) as op:
+            op.drop_index('ix_%s_key' % table.name)
+            op.alter_column('key', type_=sa.Unicode(40))
+        self.op.create_index('ix_%s_key' % table.name, table.name, ['key'])
+
+
 class Migrations(object):
 
     migrations = {
         MigrationsTable: set(),
         ValueToMsgpack: {MigrationsTable},
         KeyToSha1: {ValueToMsgpack},
+        AlterKeyField: {KeyToSha1},
     }
 
     def __init__(self, models, engine, output=sys.stdout, verbosity=1):

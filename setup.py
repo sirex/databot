@@ -7,6 +7,7 @@ setup(
     install_requires=[
         'lxml',
         'sqlalchemy',
+        'alembic',
         'pygments',
         'texttable',
         'cssselect',
