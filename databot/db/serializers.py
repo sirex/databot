@@ -1,4 +1,5 @@
 import msgpack
+import hashlib
 
 
 def loads(value):
@@ -12,3 +13,13 @@ def loads(value):
 def dumps(value):
     """Convert primitive value received from database to Python object."""
     return msgpack.dumps(value, use_bin_type=True)
+
+
+def serkey(key):
+    """Serialize a value to fixed size sha1 key"""
+    assert isinstance(key, (int, str, bytes, list, tuple))
+    return hashlib.sha1(dumps(key)).hexdigest()
+
+
+def serrow(key, value, **kwargs):
+    return dict(kwargs, key=serkey(key), value=dumps([key, value]))

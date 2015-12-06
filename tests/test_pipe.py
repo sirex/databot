@@ -120,10 +120,10 @@ class AppendTests(unittest.TestCase):
         # only_missing = False
         self.pipe.append([1, 2, 3])
         self.pipe.append([1, 2, 3, 4])
-        self.assertEqual(list(self.pipe.data.keys()), ['1', '2', '3', '1', '2', '3', '4'])
+        self.assertEqual(list(self.pipe.data.keys()), [1, 2, 3, 1, 2, 3, 4])
 
         # only_missing = True
         self.pipe.clean()
         self.pipe.append([1, 2, 3], only_missing=True)
         self.pipe.append([1, 2, 3, 4], only_missing=True)
-        self.assertEqual(list(self.pipe.data.keys()), ['1', '2', '3', '4'])
+        self.assertEqual(list(self.pipe.data.keys()), [1, 2, 3, 4])

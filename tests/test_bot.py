@@ -42,7 +42,7 @@ class BotTests(unittest.TestCase):
     def test_compact_full_pipe(self):
         pipe = self.bot.define('pipe')
         pipe.append([1, 1, 2, 1, 1])
-        self.assertEqual(list(pipe.data.keys()), ['1', '1', '2', '1', '1'])
+        self.assertEqual(list(pipe.data.keys()), [1, 1, 2, 1, 1])
 
         self.bot.compact()
-        self.assertEqual(list(pipe.data.keys()), ['2', '1'])
+        self.assertEqual(list(pipe.data.keys()), [2, 1])

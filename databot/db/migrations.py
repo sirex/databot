@@ -5,6 +5,7 @@ import json
 import msgpack
 import tqdm
 import sqlalchemy as sa
+import hashlib
 
 from sqlalchemy.engine import reflection
 
@@ -59,11 +60,26 @@ class ValueToMsgpack(Migration):
         return dict(value=value)
 
 
+class KeyToSha1(Migration):
+
+    name = "key to sha1"
+    data_tables = True
+
+    def migrate_data_item(self, row):
+        key = row['key']
+        value = msgpack.loads(row['value'], encoding='utf-8')
+        data = [key, value]
+        key = hashlib.sha1(msgpack.dumps(key, use_bin_type=True)).hexdigest()
+        value = msgpack.dumps(data, use_bin_type=True)
+        return dict(key=key, value=value)
+
+
 class Migrations(object):
 
     migrations = {
         MigrationsTable: set(),
         ValueToMsgpack: {MigrationsTable},
+        KeyToSha1: {ValueToMsgpack},
     }
 
     def __init__(self, models, engine, output=sys.stdout, verbosity=1):

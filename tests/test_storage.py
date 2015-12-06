@@ -1,7 +1,7 @@
 import datetime
 
 import databot
-from databot.db.serializers import dumps
+from databot.db.serializers import serrow
 
 import tests.db
 
@@ -22,7 +22,10 @@ class StorageTests(object):
         t1 = self.bot.pipe('pipe 1')
         t1.append('foo', 'bar').append('a', 'b')
         data = [(row['key'], row['value']) for row in self.bot.engine.execute(t1.table.select())]
-        self.assertEqual(data, [('foo', b'\xa3bar'), ('a', b'\xa1b')])
+        self.assertEqual(data, [
+            ('bd4339d24800a1815bb1b7382320cab96bba0cde', b'\x92\xa3foo\xa3bar'),
+            ('9eddb6860ecf7699015ffff67e3b375820a48cad', b'\x92\xa1a\xa1b'),
+        ])
 
     def test_clean(self):
         t1 = self.bot.pipe('pipe 1')
@@ -30,9 +33,9 @@ class StorageTests(object):
 
         day = datetime.timedelta(days=1)
         now = datetime.datetime(2015, 6, 1, 1, 1, 0)
-        self.bot.engine.execute(t1.table.insert(), key='1', value=dumps('a'), created=now - 1 * day)
-        self.bot.engine.execute(t1.table.insert(), key='2', value=dumps('b'), created=now - 2 * day)
-        self.bot.engine.execute(t1.table.insert(), key='3', value=dumps('c'), created=now - 3 * day)
+        self.bot.engine.execute(t1.table.insert(), serrow('1', 'a', created=now - 1 * day))
+        self.bot.engine.execute(t1.table.insert(), serrow('2', 'b', created=now - 2 * day))
+        self.bot.engine.execute(t1.table.insert(), serrow('3', 'c', created=now - 3 * day))
 
         with t1:
             self.assertEqual(t2.count(), 3)

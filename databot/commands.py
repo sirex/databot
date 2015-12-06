@@ -192,10 +192,12 @@ class Show(Command):
         parser.add_argument('-b', '--in-browser', action='store_true', help="Show value content in browser.")
 
     def run(self, args):
+        import ast
         import webbrowser
         import tempfile
 
-        row = self.pipe(args.pipe).last(args.key)
+        key = ast.literal_eval(args.key) if args.key else None
+        row = self.pipe(args.pipe).last(key)
 
         if row:
             exclude = args.exclude.split(',') if args.exclude else None
@@ -218,21 +220,20 @@ class Tail(Command):
         parser.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
 
     def run(self, args):
-        from databot.db.utils import Row
-        from databot.db.serializers import loads
+        from databot.db.utils import create_row
 
         pipe = self.pipe(args.pipe)
         rows = self.bot.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
-        rows = list(rows)
+        rows = [create_row(row) for row in reversed(list(rows))]
+
         if rows:
             exclude = args.exclude.split(',') if args.exclude else None
             include = args.include.split(',') if args.include else None
             if args.table:
-                rows = [Row(row, value=loads(row.value)) for row in reversed(rows)]
                 self.bot.output.table(rows, exclude=exclude, include=include)
             else:
-                for row in reversed(rows):
-                    self.bot.output.key_value(row.key, loads(row.value), exclude=exclude)
+                for row in rows:
+                    self.bot.output.key_value(row.key, row.value, exclude=exclude)
         else:
             print('Not found.')
 
@@ -265,7 +266,9 @@ class Resolve(Command):
                             help="Mark as resolve only specific key if not specified marks all errors as resolved.")
 
     def run(self, args):
-        key = args.key or None
+        import ast
+
+        key = ast.literal_eval(args.key) if args.key else None
         with self.pipe(args.source):
             self.pipe(args.target).errors.resolve(key)
         self.bot.output.status(self.bot)

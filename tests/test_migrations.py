@@ -205,3 +205,37 @@ class ValueToMsgpackTests(object):
         (key, value), = [(row['key'], row['value']) for row in self.db.engine.execute(self.table.select())]
         self.assertEqual(key, 'http://example.com/')
         self.assertEqual(msgpack.loads(value, encoding='utf-8'), after)
+
+
+@tests.db.usedb()
+class KeyToSha1Tests(object):
+
+    def setUp(self):
+        super().setUp()
+        self.output = io.StringIO()
+        printer = Printer(self.db.models, self.output)
+        self.migration = migrations.KeyToSha1(self.db.models, self.db.engine, printer, verbosity=2)
+        self.table = self.db.models.get_data_table('t1')
+        self.table.create(self.db.engine)
+
+    def test_other_value(self):
+        before = {
+            'key': '42',
+            'value': {'a': 1},
+        }
+
+        after = {
+            'key': 'a927369e6d62033fcd22c37b52b55451cd5e548a',
+            'value': ['42', {'a': 1}],
+        }
+
+        self.db.engine.execute(
+            self.table.insert(),
+            key=before['key'],
+            value=msgpack.dumps(before['value'], use_bin_type=True)
+        )
+        self.migration.migrate_data(self.table, 'p1')
+
+        (key, value), = [(row['key'], row['value']) for row in self.db.engine.execute(self.table.select())]
+        self.assertEqual(key, after['key'])
+        self.assertEqual(msgpack.loads(value, encoding='utf-8'), after['value'])

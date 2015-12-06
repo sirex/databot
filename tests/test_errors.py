@@ -125,5 +125,5 @@ class ErrorDataTests(object):
 
     def test_resolve_key(self):
         with self.t1:
-            self.t2.errors.resolve(1)
+            self.t2.errors.resolve('1')
             self.assertEqual(list(self.t2.errors.keys()), ['3'])

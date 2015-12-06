@@ -1,6 +1,8 @@
 import sqlalchemy as sa
 import sqlalchemy.orm.exc
 
+from databot.db.serializers import loads
+
 
 class Row(dict):
     def __init__(self, *args, **kwargs):
@@ -8,14 +10,16 @@ class Row(dict):
         self.__dict__ = self
 
 
-def create_row(row, prefix=''):
+def create_row(row):
+    key, value = loads(row['value'])
+    return Row(row, key=key, value=value)
+
+
+def strip_prefix(row, prefix):
     result = Row()
     for key, value in row.items():
-        if prefix:
-            if key.startswith(prefix):
-                result[key[len(prefix):]] = value
-        else:
-            result[key] = value
+        if key.startswith(prefix):
+            result[key[len(prefix):]] = value
     return result
 
 

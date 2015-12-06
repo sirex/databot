@@ -196,7 +196,7 @@ class ShowTests(unittest.TestCase):
         self.bot.define('p1').append([(1, 'a'), (2, 'b')])
         self.bot.main(argv=['show', 'p1'])
         self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
-            "- key: '2'  ",
+            "- key: 2  ",
             "  value: 'b'",
             "",
         ])))
@@ -205,7 +205,7 @@ class ShowTests(unittest.TestCase):
         self.bot.define('p1').append([(1, 'a'), (2, 'b')])
         self.bot.main(argv=['show', 'p1', '1'])
         self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
-            "- key: '1'  ",
+            "- key: 1  ",
             "  value: 'a'",
             "",
         ])))
@@ -330,7 +330,7 @@ class ResolveTests(unittest.TestCase):
         ])))
 
     def test_resolve_key(self):
-        self.bot.main(argv=['resolve', 'p1', 'p2', '3'])
+        self.bot.main(argv=['resolve', 'p1', 'p2', '"3"'])
         self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
             "   id              rows  source  ",
             "       errors      left    target",

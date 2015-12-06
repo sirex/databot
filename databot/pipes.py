@@ -5,8 +5,8 @@ import sqlalchemy as sa
 import traceback
 import tqdm
 
-from databot.db.serializers import dumps, loads
-from databot.db.utils import Row, create_row, get_or_create
+from databot.db.serializers import serrow, serkey
+from databot.db.utils import strip_prefix, create_row, get_or_create
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
@@ -52,7 +52,7 @@ class PipeData(object):
         order_by = self.table.c.id.desc() if desc else self.table.c.id
         query = self.table.select().order_by(order_by)
         for row in windowed_query(self.engine, query, self.table.c.id):
-            yield Row(row, value=loads(row.value))
+            yield create_row(row)
 
     def items(self):
         for row in self.rows():
@@ -67,7 +67,7 @@ class PipeData(object):
             yield row.value
 
     def exists(self, key):
-        query = sa.select([sa.exists().where(self.table.c.key == key)])
+        query = sa.select([sa.exists().where(self.table.c.key == serkey(key))])
         return self.engine.execute(query).scalar()
 
 
@@ -93,9 +93,8 @@ class PipeErrors(object):
             )
 
             for row in windowed_query(self.engine, query, table.c.id):
-                item = create_row(row, 'error_')
-                item['row'] = create_row(row, 'table_')
-                item.row.value = loads(item.row.value)
+                item = strip_prefix(row, 'error_')
+                item['row'] = create_row(strip_prefix(row, 'table_'))
                 yield item
 
     def count(self):
@@ -171,7 +170,7 @@ class PipeErrors(object):
                 query = (
                     sa.select([error.c.id]).
                     select_from(table.join(error, table.c.id == error.c.row_id)).
-                    where(sa.and_(error.c.state_id == state.id, table.c.key == str(key)))
+                    where(sa.and_(error.c.state_id == state.id, table.c.key == serkey(key)))
                 )
 
                 if self.engine.name == 'mysql':
@@ -263,7 +262,7 @@ class Pipe(object):
             # Skip all items if key is None
             if key is not None and (not only_missing or not self.data.exists(key)):
                 now = datetime.datetime.utcnow()
-                bulk.append({'key': key, 'value': dumps(value), 'created': now})
+                bulk.append(serrow(key, value, created=now))
 
         # Bulk insert finish
         if save_bulk:
@@ -381,7 +380,7 @@ class Pipe(object):
             table = self.source.table
             query = table.select(table.c.id > self.get_state().offset).order_by(table.c.id)
             for row in windowed_query(self.bot.engine, query, table.c.id):
-                yield Row(row, value=loads(row['value']))
+                yield create_row(row)
 
     def items(self):
         for row in self.rows():
@@ -397,12 +396,12 @@ class Pipe(object):
 
     def last(self, key=None):
         if key:
-            query = self.table.select().where(self.table.c.key == key).order_by(self.table.c.id.desc())
+            query = self.table.select().where(self.table.c.key == serkey(key)).order_by(self.table.c.id.desc())
         else:
             query = self.table.select().order_by(self.table.c.id.desc())
 
         row = self.bot.engine.execute(query).first()
-        return Row(row, value=loads(row['value'])) if row else None
+        return create_row(row) if row else None
 
     def call(self, handler):
         state = self.get_state()
