@@ -14,5 +14,8 @@ setup(
         'tqdm',
         'toposort',
         'msgpack-python',
+        'funcy',
+        'beautifulsoup4',
+        'requests',
     ],
 )
