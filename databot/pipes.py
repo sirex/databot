@@ -439,7 +439,7 @@ class Pipe(object):
         else:
             query = self.table.select().order_by(self.table.c.id.desc())
 
-        row = self.bot.engine.execute(query).first()
+        row = self.engine.execute(query).first()
         return create_row(row) if row else None
 
     def call(self, handler):

@@ -32,6 +32,11 @@ class MultiDB(object):
             p2.call(handler)
             self.assertFalse(p2.is_filled())
 
+    def test_last(self):
+        p1 = self.bot.pipe('p1')
+
+        self.assertEqual(p1.last().value, 'c')
+
     def test_skip(self):
         p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
 
