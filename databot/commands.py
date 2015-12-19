@@ -41,10 +41,10 @@ class Command(object):
         return pipe
 
     def debug(self, value):
-        self.bot.printing.output.debug(value)
+        self.bot.output.debug(value)
 
     def info(self, value):
-        self.bot.printing.output.info(value)
+        self.bot.output.info(value)
 
 
 class Run(Command):

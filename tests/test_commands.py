@@ -47,6 +47,13 @@ class SelectTests(unittest.TestCase):
             '  value: None\n'
         ))
 
+    def test_not_found(self):
+        self.bot.define('p1')
+        self.bot.main(argv=['select', 'p1', '-k', 'missing', 'div:text'])
+        self.assertEqual(self.output.getvalue(), (
+            'Not found.\n'
+        ))
+
 
 class DownloadTests(unittest.TestCase):
 
