@@ -11,8 +11,8 @@ will extract all data from that index page.
 Them main ``databot`` object is a pipe. A pipe is just a database table with
 basically key and value columns. For each pipe new table is created. ``key``
 column is used to identify distinct object and ``value`` is for storing the
-data. ``key`` can't be ``null``, when adding items to a pipe all items where
-``key`` is ``null`` are skipped.
+data. ``key`` can't be ``None``, when adding items to a pipe all items where
+``key`` is ``None`` are skipped.
 
 So first thing we need to do is to define our pipes. In our case, we are going
 to need two pipes, ``index`` for whole HTML code of Hacker News index page and
@@ -340,3 +340,25 @@ offset to ``'-1'`` and then ``run`` your script with ``-d`` flag::
 
 This will run only the last row and results will not be stored, since ``-d``
 flag is present.
+
+
+Multi database support
+======================
+
+If you are using SQLite as your database backend, all data of all pipes are
+stored in single file. This file can grow really big. You can split some pipes
+into different databases. To do that, you just need to specify different
+database connection string, when defining pipes:
+
+.. code-block:: python
+
+    def define(bot):
+        bot.define('external', 'sqlite:///external.db')
+        bot.define('internal')
+
+
+Now you can use ``external`` pipe same way as internal and data will live in
+external database.
+
+Multiple different bots, can access same external pipe and use or update it's
+data.

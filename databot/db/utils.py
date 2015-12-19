@@ -73,3 +73,10 @@ def get_or_create(engine, model, fields, data):
     else:
         engine.execute(model.insert(), **data)
         return get_or_none(engine, model, *params)
+
+
+def get_engine(uri_or_engine, path=''):
+    if isinstance(uri_or_engine, str):
+        return sa.create_engine(uri_or_engine.format(path=path))
+    else:
+        return uri_or_engine

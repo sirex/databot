@@ -1,23 +1,13 @@
 import databot
+import databot.testing
 
 import tests.db
-
-
-class ErrorHandler(object):
-    def __init__(self, error_key):
-        self.error_key = error_key
-
-    def __call__(self, row):
-        if row.key == self.error_key:
-            raise ValueError('Error.')
-        else:
-            yield row.key, row.value.upper()
 
 
 @tests.db.usedb()
 class ErrorHandlingTests(object):
     def test_main(self):
-        t2 = ErrorHandler('2')
+        t2 = databot.testing.ErrorHandler('2')
 
         bot = databot.Bot(self.db.engine)
         bot.define('t1')
@@ -38,7 +28,7 @@ class ErrorHandlingTests(object):
             self.assertEqual(list(bot.pipe('t2').errors.keys()), ['2'])
             self.assertEqual(list(bot.pipe('t2').data.items()), [('1', 'A'), ('3', 'C')])
 
-        t2.error_key = None
+        t2.error_keys = set()
         bot.main(argv=['-v0', 'run', '--retry'])
         with bot.pipe('t1'):
             bot.pipe('t2').call(t2)

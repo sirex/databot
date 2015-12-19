@@ -6,7 +6,7 @@ import argparse
 import databot.db
 import databot.pipes
 from databot.db.models import Models
-from databot.db.utils import strip_prefix, get_or_create
+from databot.db.utils import strip_prefix, get_or_create, get_engine
 from databot.db.migrations import Migrations
 from databot.printing import Printer
 from databot import commands
@@ -23,10 +23,7 @@ class Bot(object):
         self.stack = []
         self.options = []
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
-        if isinstance(uri_or_engine, str):
-            self.engine = sa.create_engine(uri_or_engine.format(path=self.path))
-        else:
-            self.engine = uri_or_engine
+        self.engine = get_engine(uri_or_engine, self.path)
         self.conn = self.engine.connect()
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.verbosity = verbosity
@@ -36,16 +33,45 @@ class Bot(object):
         if self.migrations.has_initial_state():
             self.migrations.initialize()
 
-    def define(self, name, dburi=None, table=None):
+    def define(self, name, uri_or_engine=None, table=None):
         if name in self.pipes_by_name:
             raise ValueError('A pipe with "%s" name is already defined.' % name)
 
-        row = get_or_create(self.engine, self.models.pipes, ('bot', 'pipe'), dict(bot=self.name, pipe=name))
-        table_name = 't%d' % row.id
-        table = self.models.get_data_table(table_name)
-        table.create(self.engine, checkfirst=True)
+        if uri_or_engine is not None:
+            samedb = False
+            engine = get_engine(uri_or_engine, self.path)
+            models = Models(sa.MetaData())
+            migrations = Migrations(models, engine, self.output, verbosity=1)
+            unapplied_migrations = migrations.unapplied()
+            if unapplied_migrations:
+                self.output.error('\n'.join([
+                    "External database '%s' from '%s' pipe has unapplied migrations.\n" % (engine.url, name),
+                    "List of unapplied migrations:\n\n  - %s\n" % (
+                        '\n  - '.join([f.__name__ for f in unapplied_migrations])
+                    ),
+                ]))
+                sys.exit(1)
 
-        pipe = databot.pipes.Pipe(self, row.id, name, table)
+            internal = get_or_create(self.engine, self.models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
+            external = get_or_create(engine, models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
+
+            table_id = internal.id
+            table_name = 't%d' % external.id
+
+        else:
+            samedb = True
+            engine = self.engine
+            models = self.models
+
+            internal = get_or_create(engine, models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
+
+            table_id = internal.id
+            table_name = 't%d' % internal.id
+
+        table = models.get_data_table(table_name)
+        table.create(engine, checkfirst=True)
+
+        pipe = databot.pipes.Pipe(self, table_id, name, table, engine, samedb)
         self.pipes.append(pipe)
         self.pipes_by_name[name] = pipe
         self.pipes_by_id[pipe.id] = pipe
@@ -112,8 +138,8 @@ class Bot(object):
 
         if args.command == 'migrate':
             cmgr.run(args.command, args, default='status')
-        else:
-            self.check_migrations(args)
+        elif args.command or define:
+            self.check_migrations(self.migrations)
 
             if define is not None:
                 define(self)
@@ -122,8 +148,8 @@ class Bot(object):
 
         return self
 
-    def check_migrations(self, args):
-        unapplied_migrations = self.migrations.unapplied()
+    def check_migrations(self, migrations):
+        unapplied_migrations = migrations.unapplied()
         if unapplied_migrations:
             self.output.error((
                 'You need to run database migrations:\n'

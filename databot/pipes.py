@@ -6,7 +6,7 @@ import traceback
 import tqdm
 
 from databot.db.serializers import serrow, serkey
-from databot.db.utils import strip_prefix, create_row, get_or_create
+from databot.db.utils import strip_prefix, create_row, get_or_create, Row
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
@@ -23,7 +23,9 @@ def wrapper(handler, wrap):
 
 
 def keyvalueitems(key, value=None):
-    if isinstance(key, collections.Iterable) and not isinstance(key, (str, bytes)):
+    if isinstance(key, tuple) and value is None and len(key) == 2:
+        return [key]
+    elif isinstance(key, collections.Iterable) and not isinstance(key, (str, bytes)):
         items = iter(key)
     else:
         return [(key, value)]
@@ -43,7 +45,7 @@ class PipeData(object):
     def __init__(self, pipe):
         self.pipe = pipe
         self.table = pipe.table
-        self.engine = pipe.bot.conn.engine
+        self.engine = pipe.engine
 
     def count(self):
         return self.engine.execute(self.table.count()).scalar()
@@ -74,33 +76,46 @@ class PipeData(object):
 class PipeErrors(object):
     def __init__(self, pipe):
         self.pipe = pipe
-        self.engine = pipe.bot.engine
-        self.models = pipe.bot.models
+        self.bot = pipe.bot
 
     def __call__(self):
         if self.pipe.source:
-            error = self.models.errors.alias('error')
-            table = self.pipe.source.table.alias('table')
+            state = self.pipe.get_state()
 
-            query = (
-                sa.select([error, table], use_labels=True).
-                select_from(
-                    error.
-                    join(table, error.c.row_id == table.c.id)
-                ).
-                where(error.c.state_id == self.pipe.get_state().id).
-                order_by(error.c.id)
-            )
+            if self.pipe.samedb and self.pipe.source.samedb:
+                error = self.bot.models.errors.alias('error')
+                table = self.pipe.source.table.alias('table')
 
-            for row in windowed_query(self.engine, query, table.c.id):
-                item = strip_prefix(row, 'error_')
-                item['row'] = create_row(strip_prefix(row, 'table_'))
-                yield item
+                query = (
+                    sa.select([error, table], use_labels=True).
+                    select_from(
+                        error.
+                        join(table, error.c.row_id == table.c.id)
+                    ).
+                    where(error.c.state_id == state.id).
+                    order_by(error.c.id)
+                )
+
+                for row in windowed_query(self.bot.engine, query, table.c.id):
+                    item = strip_prefix(row, 'error_')
+                    item['row'] = create_row(strip_prefix(row, 'table_'))
+                    yield item
+
+            else:
+                errors = self.bot.models.errors
+                table = self.pipe.source.table
+                query = errors.select(errors.c.state_id == state.id)
+                for error in windowed_query(self.bot.engine, query, errors.c.id):
+                    query = table.select(table.c.id == error['row_id'])
+                    row = self.pipe.source.engine.execute(query).first()
+                    if row:
+                        yield Row(error, row=create_row(row))
 
     def count(self):
         if self.pipe.source:
+            error = self.bot.models.errors
             state = self.pipe.get_state()
-            return self.engine.execute(self.models.errors.count(self.models.errors.c.state_id == state.id)).scalar()
+            return self.bot.engine.execute(error.count(error.c.state_id == state.id)).scalar()
         else:
             return 0
 
@@ -124,12 +139,12 @@ class PipeErrors(object):
         now = datetime.datetime.utcnow()
         if 'retries' in error_or_row:
             error = error_or_row
-            self.engine.execute(
-                self.models.errors.update(sa.and_(
-                    self.models.errors.c.state_id == error.state_id,
-                    self.models.errors.c.row_id == error.row_id,
+            self.bot.engine.execute(
+                self.bot.models.errors.update(sa.and_(
+                    self.bot.models.errors.c.state_id == error.state_id,
+                    self.bot.models.errors.c.row_id == error.row_id,
                 )).values(
-                    retries=self.models.errors.c.retries + 1,
+                    retries=self.bot.models.errors.c.retries + 1,
                     traceback=message,
                     updated=datetime.datetime.utcnow(),
                 ),
@@ -148,8 +163,8 @@ class PipeErrors(object):
         else:
             row = error_or_row
             state = self.pipe.get_state()
-            self.engine.execute(
-                self.models.errors.insert(),
+            self.bot.engine.execute(
+                self.bot.models.errors.insert(),
                 state_id=state.id,
                 row_id=row.id,
                 retries=0,
@@ -161,27 +176,33 @@ class PipeErrors(object):
     def resolve(self, key=None):
         if self.pipe.source:
             state = self.pipe.get_state()
-            error = self.models.errors
+            error = self.bot.models.errors
             table = self.pipe.source.table
 
             if key is None:
-                self.engine.execute(error.delete(error.c.state_id == state.id))
-            else:
+                self.bot.engine.execute(error.delete(error.c.state_id == state.id))
+            elif self.pipe.samedb and self.pipe.source.samedb:
                 query = (
                     sa.select([error.c.id]).
                     select_from(table.join(error, table.c.id == error.c.row_id)).
                     where(sa.and_(error.c.state_id == state.id, table.c.key == serkey(key)))
                 )
 
-                if self.engine.name == 'mysql':
+                if self.bot.engine.name == 'mysql':
                     # http://stackoverflow.com/a/45498/475477
                     query = sa.select([query.alias().c.id])
 
-                self.engine.execute(error.delete(error.c.id.in_(query)))
+                self.bot.engine.execute(error.delete(error.c.id.in_(query)))
+            else:
+                query = table.select(table.c.key == serkey(key))
+                row_ids = {row['id'] for row in self.pipe.source.engine.execute(query)}
+                if row_ids:
+                    query = error.delete(sa.and_(error.c.state_id == state.id, error.c.row_id.in_(row_ids)))
+                    self.bot.engine.execute(query)
 
 
 class Pipe(object):
-    def __init__(self, bot, id, name, table):
+    def __init__(self, bot, id, name, table, engine, samedb=True):
         """
 
         Parameters:
@@ -196,6 +217,8 @@ class Pipe(object):
         self.name = name
         self.table = table
         self.models = bot.models
+        self.engine = engine
+        self.samedb = samedb
         self.data = PipeData(self)
         self.errors = PipeErrors(self)
 
@@ -220,7 +243,7 @@ class Pipe(object):
 
     def get_state(self):
         source, target = self.source, self
-        return get_or_create(self.bot.engine, self.models.state, ['source_id', 'target_id'], dict(
+        return get_or_create(self.bot.engine, self.bot.models.state, ['source_id', 'target_id'], dict(
             source_id=(source.id if source else None),
             target_id=target.id,
             offset=0,
@@ -228,9 +251,10 @@ class Pipe(object):
 
     def is_filled(self):
         if self.source:
+            table = self.source.table
             state = self.get_state()
-            query = self.source.table.select(self.source.table.c.id > state.offset).limit(1)
-            return len(self.bot.engine.execute(query).fetchall()) > 0
+            query = table.select(table.c.id > state.offset).limit(1)
+            return len(self.source.engine.execute(query).fetchall()) > 0
         else:
             return False
 
@@ -240,11 +264,12 @@ class Pipe(object):
         You can call this method in following ways::
 
             append(key, value)
+            append((key, value))
             append([key, key, key])
             append([(key, value), (key, value), (key, value)])
 
         """
-        conn = conn or self.bot.engine
+        conn = conn or self.engine
 
         # Progress bar
         rows = keyvalueitems(key, value)
@@ -277,18 +302,31 @@ class Pipe(object):
 
     def skip(self):
         state = self.get_state()
-        engine = self.bot.engine
         source = self.source.table
         query = sa.select([source.c.id]).order_by(source.c.id.desc()).limit(1)
-        offset = engine.execute(query).scalar()
+        offset = self.source.engine.execute(query).scalar()
         if offset:
-            engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
+            self.bot.engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
         return self
 
     def offset(self, value=None):
+        """Move cursor to the specified offset.
+
+        For example, let say you have 5 items in your pipe:
+
+            [-----]
+
+        Then you will get following state after calling offset:
+
+            offset(1)   [*----]
+            offset(-1)  [****-]
+            offset(3)   [***--]
+            offset(10)  [*****]
+            offset(0)   [-----]
+
+        """
         state = self.get_state()
         source = self.source.table
-        engine = self.bot.engine
 
         offset = None
 
@@ -299,14 +337,14 @@ class Pipe(object):
             else:
                 query = query.where(source.c.id < state.offset).order_by(source.c.id.desc())
             query = query.limit(1).offset(abs(value) - 1)
-            offset = engine.execute(query).scalar()
+            offset = self.source.engine.execute(query).scalar()
             if offset is None:
                 if value > 0:
                     return self.skip()
                 else:
                     return self.reset()
         if offset is not None:
-            engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
+            self.bot.engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=offset)
         return self
 
     def clean(self, age=None, now=None):
@@ -316,7 +354,7 @@ class Pipe(object):
             query = self.table.delete(self.table.c.created <= timestamp)
         else:
             query = self.table.delete()
-        self.bot.engine.execute(query)
+        self.engine.execute(query)
         return self
 
     def dedup(self):
@@ -336,11 +374,11 @@ class Pipe(object):
             )))
         )
 
-        if self.bot.engine.name == 'mysql':
+        if self.engine.name == 'mysql':
             # http://stackoverflow.com/a/45498/475477
             query = sa.select([query.alias().c.id])
 
-        self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
+        self.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         return self
 
     def compact(self):
@@ -360,18 +398,19 @@ class Pipe(object):
             )))
         )
 
-        if self.bot.engine.name == 'mysql':
+        if self.engine.name == 'mysql':
             # http://stackoverflow.com/a/45498/475477
             query = sa.select([query.alias().c.id])
 
-        self.bot.engine.execute(self.table.delete(self.table.c.id.in_(query)))
+        self.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         return self
 
     def count(self):
         """How much items left to process."""
         if self.source:
             state = self.get_state()
-            return self.bot.engine.execute(self.source.table.count(self.source.table.c.id > state.offset)).scalar()
+            table = self.source.table
+            return self.source.engine.execute(table.count(table.c.id > state.offset)).scalar()
         else:
             return 0
 
@@ -379,7 +418,7 @@ class Pipe(object):
         if self.source:
             table = self.source.table
             query = table.select(table.c.id > self.get_state().offset).order_by(table.c.id)
-            for row in windowed_query(self.bot.engine, query, table.c.id):
+            for row in windowed_query(self.source.engine, query, table.c.id):
                 yield create_row(row)
 
     def items(self):
@@ -405,7 +444,6 @@ class Pipe(object):
 
     def call(self, handler):
         state = self.get_state()
-        engine = self.bot.engine
         desc = '%s -> %s' % (self.source, self)
 
         if self.bot.args.retry:
@@ -418,10 +456,10 @@ class Pipe(object):
 
         def post_save():
             if row:
-                engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=row.id)
+                self.bot.engine.execute(self.models.state.update(self.models.state.c.id == state.id), offset=row.id)
 
-        pipe = BulkInsert(engine, self.table)
-        errors = BulkInsert(engine, self.models.errors)
+        pipe = BulkInsert(self.engine, self.table)
+        errors = BulkInsert(self.bot.engine, self.bot.models.errors)
 
         if not self.bot.args.debug:
             pipe.post_save(post_save)
@@ -450,7 +488,6 @@ class Pipe(object):
         return self
 
     def retry(self, handler):
-        engine = self.bot.engine
         desc = '%s -> %s (retry)' % (self.source, self)
 
         if self.bot.args.verbosity == 1 and not self.bot.args.debug:
@@ -461,10 +498,10 @@ class Pipe(object):
         def post_save():
             nonlocal error_ids
             if error_ids:
-                engine.execute(self.models.errors.delete(self.models.errors.c.id.in_(error_ids)))
+                self.bot.engine.execute(self.models.errors.delete(self.models.errors.c.id.in_(error_ids)))
                 error_ids = []
 
-        pipe = BulkInsert(engine, self.table)
+        pipe = BulkInsert(self.engine, self.table)
         pipe.post_save(post_save)
 
         n = 0

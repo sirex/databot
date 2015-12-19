@@ -3,10 +3,11 @@ import io
 import unittest
 import mock
 import tempfile
-# import sqlalchemy as sa
+import sqlalchemy as sa
 
 from databot import Bot
 from databot.db import migrations
+from databot.db.models import Models
 
 import tests.db
 
@@ -357,13 +358,11 @@ class MigrateTests(object):
         self.bot = Bot(self.db.engine, output=self.output, models=self.db.models)
         self.p1 = self.bot.define('p1')
 
-        # Rewrite migration dict for tests to always have same single migration
-        self.bot.migrations.migrations = {migrations.ValueToMsgpack: set()}
-
         # Add a value, that should be migrated
         self.db.engine.execute(self.p1.table.insert().values(key='1', value=b'"a"'))
 
     @mock.patch('sys.exit', mock.Mock())
+    @mock.patch('databot.db.migrations.Migrations.migrations', {migrations.ValueToMsgpack: set()})
     def test_error_when_migrations_not_applied(self):
         self.bot.main(argv=['status'])
         self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
@@ -383,6 +382,7 @@ class MigrateTests(object):
             "                                                       ",
         ])))
 
+    @mock.patch('databot.db.migrations.Migrations.migrations', {migrations.ValueToMsgpack: set()})
     def test_migrate(self):
         self.bot.main(argv=['migrate'])
         result = '\n'.join(map(str.rstrip, [
@@ -390,3 +390,45 @@ class MigrateTests(object):
             "  p1                    ",
         ]))
         self.assertIn(result, self.output.getvalue())
+
+
+@tests.db.usedb()
+class MigrateExternalDBTests(object):
+
+    def setUp(self):
+        super().setUp()
+
+        self.output = io.StringIO()
+
+        engine = sa.create_engine('sqlite:///:memory:')
+        models = Models(sa.MetaData())
+
+        # Create tables, but do not apply any migrations
+        models.metadata.create_all(engine, checkfirst=True)
+
+        self.bot1 = Bot(engine, output=self.output, models=models)
+        self.bot1.define('p1')
+
+    @mock.patch('sys.exit', mock.Mock())
+    @mock.patch('databot.db.migrations.Migrations.migrations', {migrations.ValueToMsgpack: set()})
+    def test_external_db_error_when_migrations_not_applied(self):
+        bot2 = Bot(self.db.engine, output=self.output, models=self.db.models)
+        bot2.define('p1', self.bot1.engine)
+        bot2.define('p2')
+        bot2.main(argv=['status'])
+        self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
+            "External database 'sqlite:///:memory:' from 'p1' pipe has unapplied migrations.",
+            "                                                                               ",
+            "List of unapplied migrations:                                                  ",
+            "                                                                               ",
+            "  - ValueToMsgpack                                                             ",
+            "                                                                               ",
+            "   id              rows  source                                                ",
+            "       errors      left    target                                              ",
+            "=================================                                              ",
+            "    1                 0  p1                                                    ",
+            "---------------------------------                                              ",
+            "    2                 0  p2                                                    ",
+            "---------------------------------                                              ",
+            "                                                                               ",
+        ])))
