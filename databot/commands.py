@@ -228,7 +228,7 @@ class Tail(Command):
         from databot.db.utils import create_row
 
         pipe = self.pipe(args.pipe)
-        rows = self.bot.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
+        rows = pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
         rows = [create_row(row) for row in reversed(list(rows))]
 
         if rows:
