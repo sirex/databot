@@ -67,7 +67,7 @@ class Printer(object):
         if 'value' not in exclude:
             if isinstance(value, str):
                 self.info('  value: %s' % self.highlight(repr(value[:cut]), py, formatter))
-            elif isinstance(value, dict) and 'status_code' in value and 'text' in value:
+            elif isinstance(value, dict) and 'status_code' in value and ('text' in value or 'content' in value):
                 if 'headers' not in exclude:
                     self.info('  headers:')
                     code = textwrap.indent(pprint.pformat(value['headers'], width=self.width), '    ')
@@ -80,12 +80,19 @@ class Printer(object):
                     self.info('  status_code: %s' % self.highlight(repr(value['status_code']), py, formatter))
                 if 'encoding' not in exclude:
                     self.info('  encoding: %s' % self.highlight(repr(value['encoding']), py, formatter))
-                if 'text' not in exclude:
+                if 'text' not in exclude and 'text' in value:
                     if short:
                         self.info('  text: %s' % self.highlight(repr(value['text'][:cut]), html, formatter))
                     else:
                         self.info('  text:')
                         code = textwrap.indent(value['text'], '    ')
+                        self.info(self.highlight(code, html, formatter))
+                if 'content' not in exclude and 'content' in value:
+                    if short:
+                        self.info('  content: %s' % self.highlight(repr(value['content'][:cut]), html, formatter))
+                    else:
+                        self.info('  content:')
+                        code = textwrap.indent(value['content'].decode(), '    ')
                         self.info(self.highlight(code, html, formatter))
             elif value is None or isinstance(value, (int, float)):
                 self.info('  value: %s' % self.highlight(repr(value), py, formatter))
@@ -152,3 +159,19 @@ class Printer(object):
                 border = '-'
             else:
                 self.info(line)
+
+    def errors(self, errors, exclude=None):
+        style = get_style_by_name('emacs')
+        formatter = Terminal256Formatter(style=style)
+
+        pytb = get_lexer_by_name('py3tb')
+
+        for err in errors:
+            self.key_value(err.row.key, err.row.value, exclude=exclude)
+            tb = err.traceback
+            tb = self.highlight(tb, pytb, formatter)
+            tb = textwrap.indent(tb, '  ')
+            self.info(tb)
+            self.info('  Created: %s' % err.created.strftime('%Y-%m-%d %H:%M:%S'))
+            self.info('  Updated: %s' % err.updated.strftime('%Y-%m-%d %H:%M:%S'))
+            self.info('  Retries: %s' % err.retries)

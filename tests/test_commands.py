@@ -4,6 +4,7 @@ import unittest
 import mock
 import tempfile
 import sqlalchemy as sa
+import freezegun
 
 from databot import Bot
 from databot.db import migrations
@@ -438,4 +439,44 @@ class MigrateExternalDBTests(object):
             "    2                 0  p2                                                    ",
             "---------------------------------                                              ",
             "                                                                               ",
+        ])))
+
+
+class ErrorsTests(unittest.TestCase):
+
+    def setUp(self):
+        self.output = io.StringIO()
+        self.bot = Bot('sqlite:///:memory:', output=self.output)
+        self.t1 = self.bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+        self.t2 = self.bot.define('p2')
+        self.maxDiff = None
+
+    @freezegun.freeze_time('2015-12-20 15:33:05')
+    def test_resolve_all(self):
+        traceback = [
+            '  Traceback (most recent call last):                          ',
+            '    File "databot/databot/pipes.py", line 498, in call        ',
+            '      self.append(handler(row), bulk=pipe)                    ',
+            '    File "databot/databot/pipes.py", line 296, in append      ',
+            '      rows = keyvalueitems(key, value)                        ',
+            '    File "databot/databot/pipes.py", line 34, in keyvalueitems',
+            '      item = next(items)                                      ',
+            '    File "databot/databot/testing.py", line 9, in __call__    ',
+            '      raise ValueError(\'Error.\')                            ',
+            '  ValueError: Error.                                          ',
+        ]
+
+        self.bot.main(argv=['-v0', 'run'])
+        with self.t1:
+            self.t2.errors.report(self.t1.last(), '\n'.join(map(str.rstrip, traceback)))
+
+        self.bot.main(argv=['errors', 'p1', 'p2'])
+        self.assertEqual(self.output.getvalue(), '\n'.join(map(str.rstrip, [
+            "- key: '3'                    ",
+            "  value: 'c'                  ",
+        ] + ['  ' + line for line in traceback] + [
+            "  Created: 2015-12-20 15:33:05",
+            "  Updated: 2015-12-20 15:33:05",
+            "  Retries: 0                  ",
+            "                              ",
         ])))

@@ -1,3 +1,8 @@
+import funcy
+
+from databot import parsevalue
+
+
 class CommandsManager(object):
 
     def __init__(self, bot, sps):
@@ -278,3 +283,22 @@ class Migrate(Command):
 
     def run(self, args):
         self.bot.migrations.migrate()
+
+
+class Errors(Command):
+
+    def add_arguments(self, parser):
+        parser.add_argument('source', type=str, help="Source pipe id or name.")
+        parser.add_argument('target', type=str, help="Target pipe id or name.")
+        parser.add_argument('key', type=str, nargs='?',
+                            help="Show errors for specific key only, if not specified show last error.")
+        parser.add_argument('-n', type=int, dest='limit', default=1, help="Number of errors to show.")
+        parser.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
+
+    def run(self, args):
+        key = parsevalue.parse(args.key)
+        exclude = args.exclude.split(',') if args.exclude else None
+        with self.pipe(args.source):
+            errors = self.pipe(args.target).errors(key, reverse=True)
+            errors = funcy.take(args.limit, errors)
+            self.bot.output.errors(errors, exclude)

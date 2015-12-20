@@ -17,5 +17,6 @@ setup(
         'funcy',
         'beautifulsoup4',
         'requests',
+        'freezegun',
     ],
 )

@@ -73,6 +73,46 @@ class MultiDB(object):
 
         self.assertEqual(list(p2.data.items()), [(1, 'A'), (3, 'C'), (2, 'B')])
 
+    def test_errors_with_key(self):
+        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+
+        with p1:
+            p2.call(databot.testing.ErrorHandler(2))
+            errors = [err.row.value for err in p2.errors(2)]
+            self.assertEqual(errors, ['b'])
+
+    def test_errors_with_missing_key(self):
+        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+
+        with p1:
+            p2.call(databot.testing.ErrorHandler(2))
+            errors = [err.row.value for err in p2.errors(42)]
+            self.assertEqual(errors, [])
+
+    def test_errors_reversed(self):
+        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+
+        with p1:
+            p2.call(databot.testing.ErrorHandler(2, 3))
+
+            # Without reverse
+            errors = [err.row.value for err in p2.errors(reverse=False)]
+            self.assertEqual(errors, ['b', 'c'])
+
+            # Reverse
+            errors = [err.row.value for err in p2.errors(reverse=True)]
+            self.assertEqual(errors, ['c', 'b'])
+
+    def test_errors_last(self):
+        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+
+        with p1:
+            p2.call(databot.testing.ErrorHandler(1, 2, 3))
+
+            self.assertEqual(p2.errors.last().row.key, 3)
+            self.assertEqual(p2.errors.last(1).row.key, 1)
+            self.assertEqual(p2.errors.last(42), None)
+
     def test_errors_resolve_all(self):
         p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
 
@@ -128,6 +168,34 @@ class InternalExternalTests(MultiDB):
         self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
         self.bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
         self.bot.define('p2', external.engine)
+
+
+@tests.db.usedb()
+class BothInternalTests(MultiDB):
+
+    def setUp(self):
+        super().setUp()
+
+        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
+        self.bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+        self.bot.define('p2')
+
+
+@tests.db.usedb()
+class BothExternalTests(MultiDB):
+
+    def setUp(self):
+        super().setUp()
+
+        external1 = databot.Bot('sqlite:///:memory:')
+        external1.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+
+        external2 = databot.Bot('sqlite:///:memory:')
+        external2.define('p2')
+
+        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
+        self.bot.define('p1', external1.engine)
+        self.bot.define('p2', external2.engine)
 
 
 @tests.db.usedb()

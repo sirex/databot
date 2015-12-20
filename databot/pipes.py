@@ -78,22 +78,40 @@ class PipeErrors(object):
         self.pipe = pipe
         self.bot = pipe.bot
 
-    def __call__(self):
+    def __call__(self, key=None, reverse=False):
         if self.pipe.source:
             state = self.pipe.get_state()
+            error = self.bot.models.errors.alias('error')
+            table = self.pipe.source.table.alias('table')
 
+            # Filter by key if provided
+            if key is not None:
+                row = self.pipe.source.last(key)
+                if row is None:
+                    return
+                where = sa.and_(
+                    error.c.state_id == state.id,
+                    error.c.row_id == row.id,
+                )
+            else:
+                where = error.c.state_id == state.id
+
+            # Ordering
+            if reverse:
+                order_by = error.c.id.desc()
+            else:
+                order_by = error.c.id
+
+            # Query if all tables stored in same database
             if self.pipe.samedb and self.pipe.source.samedb:
-                error = self.bot.models.errors.alias('error')
-                table = self.pipe.source.table.alias('table')
-
                 query = (
                     sa.select([error, table], use_labels=True).
                     select_from(
                         error.
                         join(table, error.c.row_id == table.c.id)
                     ).
-                    where(error.c.state_id == state.id).
-                    order_by(error.c.id)
+                    where(where).
+                    order_by(order_by)
                 )
 
                 for row in windowed_query(self.bot.engine, query, table.c.id):
@@ -101,15 +119,18 @@ class PipeErrors(object):
                     item['row'] = create_row(strip_prefix(row, 'table_'))
                     yield item
 
+            # Query if some tables are stored in external database
             else:
-                errors = self.bot.models.errors
-                table = self.pipe.source.table
-                query = errors.select(errors.c.state_id == state.id)
-                for error in windowed_query(self.bot.engine, query, errors.c.id):
-                    query = table.select(table.c.id == error['row_id'])
+                query = error.select(where).order_by(order_by)
+                for err in windowed_query(self.bot.engine, query, error.c.id):
+                    query = table.select(table.c.id == err['row_id'])
                     row = self.pipe.source.engine.execute(query).first()
                     if row:
-                        yield Row(error, row=create_row(row))
+                        yield Row(err, row=create_row(row))
+
+    def last(self, key=None):
+        for err in self(key, reverse=True):
+            return err
 
     def count(self):
         if self.pipe.source:
