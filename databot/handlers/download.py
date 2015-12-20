@@ -11,7 +11,7 @@ class DownloadErrror(Exception):
 
 def dump_response(response):
     if response.headers['Content-Type'] == 'text/html':
-        soup = bs4.BeautifulSoup(response.content)
+        soup = bs4.BeautifulSoup(response.content, 'lxml')
         text = response.content.decode(soup.original_encoding)
     else:
         text = response.text

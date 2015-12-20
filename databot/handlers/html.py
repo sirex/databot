@@ -20,7 +20,7 @@ def create_html_parser(row):
 
 def create_bs4_parser(row):
     content = row.value['text']
-    return BeautifulSoup(content)
+    return BeautifulSoup(content, 'lxml')
 
 
 class Select(object):
