@@ -9,8 +9,18 @@ import freezegun
 from databot import Bot
 from databot.db import migrations
 from databot.db.models import Models
+from databot.commands import Command
+from databot.exceptions import PipeNameError
 
 import tests.db
+
+
+class CommandPipeTests(unittest.TestCase):
+
+    def test_pipe_name_error(self):
+        command = Command(Bot('sqlite:///:memory:'))
+        self.assertRaises(PipeNameError, command.pipe, '42')
+        self.assertRaises(PipeNameError, command.pipe, 'zz')
 
 
 class StatusTests(unittest.TestCase):

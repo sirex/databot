@@ -1,0 +1,2 @@
+class PipeNameError(Exception):
+    pass

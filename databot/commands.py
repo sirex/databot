@@ -1,6 +1,7 @@
 import funcy
 
 from databot import parsevalue
+from databot.exceptions import PipeNameError
 
 
 class CommandsManager(object):
@@ -39,11 +40,14 @@ class Command(object):
 
     def pipe(self, name):
         if name.isdigit():
-            pipe = self.bot.pipes_by_id[int(name)]
+            pipe = self.bot.pipes_by_id.get(int(name))
         else:
             pipe = self.bot.pipes_by_name.get(name)
-            pipe = pipe or self.bot.pipes_by_name[name.replace('-', ' ')]
-        return pipe
+            pipe = pipe or self.bot.pipes_by_name.get(name.replace('-', ' '))
+        if pipe is None:
+            raise PipeNameError("Pipe '%s' not found." % name)
+        else:
+            return pipe
 
     def debug(self, value):
         self.bot.output.debug(value)
