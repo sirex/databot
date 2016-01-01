@@ -370,3 +370,40 @@ Interactive shell
 You can access your databot object using interactive shell::
 
     $ ./hackernews.py sh
+
+
+Manual access to the data
+=========================
+
+Small example below demonstrates how to access pipe data manually, without
+using ``databot`` library:
+
+.. code-block:: python
+
+  import msgpack
+  import sqlalchemy as sa
+
+
+  def get_table(engine, db, name):
+      pipe = db.tables['databotpipes']
+      query = sa.select([pipe.c.id], pipe.c.pipe == name)
+      table_id = engine.execute(query).scalar()
+      return db.tables['t%d' % table_id]
+
+
+  def query_rows(engine, table):
+      query = sa.select([table.c.value])
+      for row in engine.execute(query):
+          yield msgpack.loads(row.value, encoding='utf-8')
+
+
+  def main():
+      dbpath = '/path/to/data.db'
+      engine = sa.create_engine('sqlite:///%s' % dbpath)
+      db = sa.MetaData()
+      db.reflect(bind=engine)
+
+      for row in query_rows(engine, get_table(engine, db, 'mypipe')):
+          print(row)
+
+As you see data storage format is pretty simple.
