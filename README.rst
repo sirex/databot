@@ -362,3 +362,11 @@ external database.
 
 Multiple different bots, can access same external pipe and use or update it's
 data.
+
+
+Interactive shell
+=================
+
+You can access your databot object using interactive shell::
+
+    $ ./hackernews.py sh
