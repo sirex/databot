@@ -18,5 +18,6 @@ setup(
         'beautifulsoup4',
         'requests',
         'freezegun',
+        'unidecode',
     ],
 )

@@ -306,3 +306,23 @@ class Errors(Command):
             errors = self.pipe(args.target).errors(key, reverse=True)
             errors = funcy.take(args.limit, errors)
             self.bot.output.errors(errors, exclude)
+
+
+class Shell(Command):
+
+    def run(self, args):
+        import IPython
+        import funcy
+
+        from databot.shell import ShellHelper
+
+        bot = self.bot  # noqa
+        pipe = ShellHelper(self.bot)  # noqa
+        take = funcy.compose(list, funcy.take)  # noqa
+
+        IPython.embed(header='\n'.join([
+            'Available objects and functions:',
+            '  bot - databot.Bot instance',
+            '  pipe - helper for accessing pipe instances, type `pipe.<TAB>` to access a pipe',
+            '  take - takes n items from an iterable, example: take(10, pipe.mypipe.data.values())',
+        ]))
