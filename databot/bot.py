@@ -15,16 +15,16 @@ from databot import commands
 class Bot(object):
 
     def __init__(self, uri_or_engine, verbosity=0, output=sys.stdout, models=None):
-        self.models = models or Models(sa.MetaData())
+        self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
+        self.engine = get_engine(uri_or_engine, self.path)
+        self.models = models or Models(sa.MetaData(self.engine))
         self.output = Printer(self.models, output)
+        self.conn = self.engine.connect()
         self.pipes = []
         self.pipes_by_name = {}
         self.pipes_by_id = {}
         self.stack = []
         self.options = []
-        self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
-        self.engine = get_engine(uri_or_engine, self.path)
-        self.conn = self.engine.connect()
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.verbosity = verbosity
         self.download_delay = None
