@@ -371,6 +371,16 @@ You can access your databot object using interactive shell::
 
     $ ./hackernews.py sh
 
+Renaming pipes
+==============
+
+Since pipes are defined both on database and in code, you can't just rename it
+in code. Renaming bot just in code will create new pipe with new name, leaving
+old as is.
+
+To rename it in database you need to execute following command::
+
+    $ ./hackernews.py rename 'old name' 'new name'
 
 Manual access to the data
 =========================

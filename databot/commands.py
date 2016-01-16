@@ -1,3 +1,4 @@
+import sqlalchemy as sa
 import funcy
 
 from databot import parsevalue
@@ -326,3 +327,15 @@ class Shell(Command):
             '  pipe - helper for accessing pipe instances, type `pipe.<TAB>` to access a pipe',
             '  take - takes n items from an iterable, example: take(10, pipe.mypipe.data.values())',
         ]))
+
+
+class Rename(Command):
+
+    def add_arguments(self, parser):
+        parser.add_argument('old', type=str, help="Old pipe name.")
+        parser.add_argument('new', type=str, help="New pipe name.")
+
+    def run(self, args):
+        pipes = self.bot.models.pipes
+        pipe_id = sa.select([pipes.c.id], pipes.c.pipe == args.old).execute().scalar()
+        pipes.update().where(pipes.c.id == pipe_id).values(pipe=args.new).execute()

@@ -490,3 +490,29 @@ class ErrorsTests(unittest.TestCase):
             "  Retries: 0                  ",
             "                              ",
         ])))
+
+
+class RenameTests(unittest.TestCase):
+
+    def test_rename(self):
+        output = io.StringIO()
+        bot = Bot('sqlite:///:memory:', output=output)
+        bot.define('p1')
+        bot.define('p2')
+        bot.main(argv=['rename', 'p1', 'pp'])
+
+        output = io.StringIO()
+        bot = Bot('sqlite:///:memory:', output=output)
+        bot.define('pp')
+        bot.define('p2')
+        bot.main(argv=['status'])
+
+        self.assertEqual(output.getvalue(), (
+            '   id              rows  source\n'
+            '       errors      left    target\n'
+            '=================================\n'
+            '    1                 0  pp\n'
+            '---------------------------------\n'
+            '    2                 0  p2\n'
+            '---------------------------------\n'
+        ))

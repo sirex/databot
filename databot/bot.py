@@ -135,6 +135,7 @@ class Bot(object):
         cmgr.register('migrate', commands.Migrate)
         cmgr.register('errors', commands.Errors)
         cmgr.register('sh', commands.Shell)
+        cmgr.register('rename', commands.Rename)
 
         self.args = args = parser.parse_args(argv)
 
