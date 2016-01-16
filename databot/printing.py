@@ -87,6 +87,10 @@ class Printer(object):
                         self.info('  content:')
                         code = textwrap.indent(value['content'].decode(), '    ')
                         self.info(self.highlight(code, html, formatter))
+                special = {'headers', 'cookies', 'status_code', 'encoding', 'content'}
+                for k, v in value.items():
+                    if k not in exclude and k not in special:
+                        self.info('  %s: %s' % (k, self.highlight(repr(v), py, formatter)))
             elif value is None or isinstance(value, (int, float)):
                 self.info('  value: %s' % self.highlight(repr(value), py, formatter))
             else:
