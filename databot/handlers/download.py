@@ -1,5 +1,4 @@
 import time
-import bs4
 import requests
 
 from databot.recursive import call
@@ -10,18 +9,12 @@ class DownloadErrror(Exception):
 
 
 def dump_response(response):
-    if response.headers['Content-Type'] == 'text/html':
-        soup = bs4.BeautifulSoup(response.content, 'lxml')
-        text = response.content.decode(soup.original_encoding)
-    else:
-        text = response.text
-
     return {
         'headers': dict(response.headers),
         'cookies': dict(response.cookies),
         'status_code': response.status_code,
         'encoding': response.encoding,
-        'text': text,
+        'content': response.content,
     }
 
 
@@ -41,7 +34,7 @@ def download(url, delay=None, update=None, **kwargs):
             yield _url, value
         else:
             raise DownloadErrror('Error while downloading %s, returned status code was %s, response content:\n\n%s' % (
-                _url, response.status_code, response.text,
+                _url, response.status_code, response.content,
             ))
 
     return func

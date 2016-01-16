@@ -90,6 +90,19 @@ class AlterKeyField(Migration):
         self.op.create_index('ix_%s_key' % table.name, table.name, ['key'])
 
 
+class TextToContent(Migration):
+
+    name = "text to content"
+    data_tables = True
+
+    def migrate_data_item(self, row):
+        key, value = msgpack.loads(row['value'], encoding='utf-8')
+        if isinstance(value, dict) and 'text' in value and 'status_code' in value:
+            value['content'] = value.pop('text')
+        value = msgpack.dumps([key, value], use_bin_type=True)
+        return dict(value=value)
+
+
 class Migrations(object):
 
     migrations = {
@@ -97,6 +110,7 @@ class Migrations(object):
         ValueToMsgpack: {MigrationsTable},
         KeyToSha1: {ValueToMsgpack},
         AlterKeyField: {KeyToSha1},
+        TextToContent: {AlterKeyField},
     }
 
     def __init__(self, models, engine, output=sys.stdout, verbosity=1):

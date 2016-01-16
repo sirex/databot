@@ -51,7 +51,7 @@ class SelectTests(unittest.TestCase):
         self.bot = Bot('sqlite:///:memory:', output=self.output)
 
     def test_select(self):
-        self.bot.define('p1').append('http://example.com/', {'text': '<div>value</div>'})
+        self.bot.define('p1').append('http://example.com/', {'content': b'<div>value</div>'})
         self.bot.main(argv=['select', 'p1', 'div:text'])
         self.assertEqual(self.output.getvalue(), (
             '- key: \'value\'\n'
@@ -92,7 +92,7 @@ class DownloadTests(unittest.TestCase):
             "    {}",
             "  status_code: 200",
             "  encoding: 'utf-8'",
-            "  text:",
+            "  content:",
             "    <div>It works!</div>",
             "",
         ]))

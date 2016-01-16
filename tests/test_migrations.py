@@ -239,3 +239,47 @@ class KeyToSha1Tests(object):
         (key, value), = [(row['key'], row['value']) for row in self.db.engine.execute(self.table.select())]
         self.assertEqual(key, after['key'])
         self.assertEqual(msgpack.loads(value, encoding='utf-8'), after['value'])
+
+
+@tests.db.usedb()
+class TextToContentTests(object):
+
+    def setUp(self):
+        super().setUp()
+        self.output = io.StringIO()
+        printer = Printer(self.db.models, self.output)
+        self.migration = migrations.TextToContent(self.db.models, self.db.engine, printer, verbosity=2)
+        self.table = self.db.models.get_data_table('t1')
+        self.table.create(self.db.engine)
+
+    def test_migration(self):
+        before = [
+            'http://example.com/',
+            {
+                'headers': {},
+                'cookies': {},
+                'status_code': 200,
+                'encoding': 'utf-8',
+                'text': b'<html></html>',
+            }
+        ]
+
+        after = [
+            'http://example.com/',
+            {
+                'headers': {},
+                'cookies': {},
+                'status_code': 200,
+                'encoding': 'utf-8',
+                'content': b'<html></html>',
+            }
+        ]
+
+
+        self.db.engine.execute(
+            self.table.insert(), value=msgpack.dumps(before, use_bin_type=True)
+        )
+        self.migration.migrate_data(self.table, 'p1')
+
+        value, = [row['value'] for row in self.db.engine.execute(self.table.select())]
+        self.assertEqual(msgpack.loads(value, encoding='utf-8'), after)

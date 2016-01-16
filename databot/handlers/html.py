@@ -11,7 +11,11 @@ from databot import rowvalue
 
 
 def create_html_parser(row):
-    content = row.value['text'] or '<html></html>'
+    content = row.value['content'] or b'<html></html>'
+
+    soup = BeautifulSoup(content, 'lxml')
+    content = content.decode(soup.original_encoding)
+
     parser = lxml.html.HTMLParser(encoding='utf-8')
     html = lxml.html.document_fromstring(content, parser=parser)
     html.make_links_absolute(row.key)
@@ -19,7 +23,7 @@ def create_html_parser(row):
 
 
 def create_bs4_parser(row):
-    content = row.value['text']
+    content = row.value['content']
     return BeautifulSoup(content, 'lxml')
 
 

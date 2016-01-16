@@ -52,12 +52,12 @@ If you execute script without any arguments it just show the status of all
 pipes. Now it's time to add some data to our pipes. Firs we need to add the HTML
 code of index page. You can do that using following command::
 
-    $ ./hackernews.py download 'https://news.ycombinator.com/' -a index -x text
+    $ ./hackernews.py download 'https://news.ycombinator.com/' -a index -x content
 
 What just happened? Here we instructed *databot* to download
 ``https://news.ycombinator.com/`` page and append it's content to ``index``
 pipe. Since ``download`` command prints whole downloaded content, additionally
-we specified ``-x text`` to not print downloaded content.
+we specified ``-x content`` to not print downloaded content.
 
 Now let's check the status output::
 
@@ -74,12 +74,12 @@ Now let's check the status output::
 We see, that one item was added to our ``index`` pipe. We can see content of
 last added item in pipe using ``show`` command::
 
-    $ ./hackernews.py show index -x text
+    $ ./hackernews.py show index -x content
 
-Again, we used ``-x text`` for the same reasons as with ``download`` command. If
+Again, we used ``-x content`` for the same reasons as with ``download`` command. If
 you want to see content of a specific item, you can add ``key`` argument::
 
-    $ ./hackernews.py show index 'https://news.ycombinator.com/' -x text
+    $ ./hackernews.py show index 'https://news.ycombinator.com/' -x content
 
 Now we need to extract news titles from downloaded HTML code. For this we need
 to specified CSS selector or XPath query. We can check what our selector returns

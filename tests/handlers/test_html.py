@@ -10,10 +10,10 @@ class HtmlCssSelectTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': (
-            '<p id="a">value-a</p>'
-            '<p id="b">value-b</p>'
-            '<p id="c">value-c</p>'
+        value = {'content': (
+            b'<p id="a">value-a</p>'
+            b'<p id="b">value-b</p>'
+            b'<p id="c">value-c</p>'
         )}
         self.row, = bot.define('a').append(key, value).data.rows()
 
@@ -55,11 +55,11 @@ class HtmlCssSelectTailTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div>',
             '  <a href="#">link</a>t1<br>t2<br>t3',
             '</div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_tail_select(self):
@@ -71,7 +71,7 @@ class CallbackTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '<div>value</div>'}
+        value = {'content': b'<div>value</div>'}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_direct(self):
@@ -87,9 +87,9 @@ class MixedQueriesTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><p><span><b>value</b></span></p></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -101,7 +101,7 @@ class ComplexListTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<table>',
             '  <tr>',
             '    <td>1</td>',
@@ -112,7 +112,7 @@ class ComplexListTests(unittest.TestCase):
             '    <td>2</td>',
             '  </tr>',
             '</table>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -124,9 +124,9 @@ class SingleElementTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><a name="1">a</a><a name="2">b</a></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -138,9 +138,9 @@ class InlineCallTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><a name="1">a</a><a name="2">b</a></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -152,9 +152,9 @@ class AbsoluteCssSelectorTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><h2>heading</h2><a name="1">a</a><a name="2">b</a></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -166,9 +166,9 @@ class ValueTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><h2>heading</h2><a name="1">a</a><a name="2">b</a></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -180,12 +180,12 @@ class JoinTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div>',
             '  <div id="nr1"><a name="1">a</a><a name="2">b</a></div>',
             '  <div id="nr2"><a name="3">c</a><a name="4">d</a></div>',
             '</div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_mixed_query(self):
@@ -200,9 +200,9 @@ class FirstTests(unittest.TestCase):
     def setUp(self):
         bot = databot.Bot('sqlite:///:memory:')
         key = 'http://exemple.com'
-        value = {'text': '\n'.join([
+        value = {'content': '\n'.join([
             '<div><a name="1">a</a><a name="2"></a></div>',
-        ])}
+        ]).encode('utf-8')}
         self.row, = bot.define('a').append(key, value).data.rows()
 
     def test_missing(self):

@@ -19,5 +19,6 @@ setup(
         'requests',
         'freezegun',
         'unidecode',
+        'mock',
     ],
 )
