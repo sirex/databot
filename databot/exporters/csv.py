@@ -42,9 +42,12 @@ def values_to_csv(values):
 def updated_rows(rows, update=None):
     update = update or {}
     for row in rows:
-        for k, call in update.items():
-            row.value[k] = call(row)
-        yield row
+        if callable(update):
+            yield update(row)
+        else:
+            for k, call in update.items():
+                row.value[k] = call(row)
+            yield row
 
 
 def detect_fields(rows):
