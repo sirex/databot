@@ -5,6 +5,8 @@ import functools
 import pathlib
 import funcy
 
+from databot.db.utils import Row
+
 
 def get_fields(data, field=()):
     fields = []
@@ -43,7 +45,7 @@ def updated_rows(rows, update=None):
     update = update or {}
     for row in rows:
         if callable(update):
-            yield update(row)
+            yield Row(key=None, value=update(row))
         else:
             for k, call in update.items():
                 row.value[k] = call(row)
@@ -58,7 +60,10 @@ def detect_fields(rows):
 
 
 def flatten_rows(rows, exclude=None, include: list=None, update=None, scan_fields=1):
-    exclude = exclude or set()
+    if callable(update) and include is None and exclude is None:
+        exclude = {'key'}
+    else:
+        exclude = exclude or set()
 
     if include:
         cols = ['key'] + [c for c in include if c != 'key']

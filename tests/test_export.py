@@ -54,6 +54,30 @@ class FlatteningTests(unittest.TestCase):
             [1, 5],
         ])
 
+    def test_update_without_include(self):
+        rows = [
+            Row(key=1, value={'text': 'abc'}),
+            Row(key=1, value={'text': 'abcde'}),
+        ]
+        update = {'size': databot.row.value['text'].length}
+        self.assertEqual(list(flatten_rows(rows, update=update)), [
+            ['key', 'size', 'text'],
+            [1, 3, 'abc'],
+            [1, 5, 'abcde'],
+        ])
+
+    def test_callable_update(self):
+        rows = [
+            Row(key=1, value={'text': 'abc'}),
+            Row(key=1, value={'text': 'abcde'}),
+        ]
+        update = lambda row: {'size': len(row.value['text'])}
+        self.assertEqual(list(flatten_rows(rows, update=update)), [
+            ['size'],
+            [3],
+            [5],
+        ])
+
     def test_include(self):
         rows = [
             Row(key=1, value={'a': 1}),
