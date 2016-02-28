@@ -12,6 +12,7 @@ from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
 from databot.exporters.csv import flatten_rows
+from databot.handlers.download import get_content
 
 
 class Printer(object):
@@ -85,7 +86,7 @@ class Printer(object):
                         self.info('  content: %s' % self.highlight(repr(value['content'][:cut]), html, formatter))
                     else:
                         self.info('  content:')
-                        code = textwrap.indent(value['content'].decode(), '    ')
+                        code = textwrap.indent(get_content(value), '    ')
                         self.info(self.highlight(code, html, formatter))
                 special = {'headers', 'cookies', 'status_code', 'encoding', 'content'}
                 for k, v in value.items():

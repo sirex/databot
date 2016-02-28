@@ -1,5 +1,6 @@
 import time
 import requests
+import bs4
 
 from databot.recursive import call
 
@@ -38,3 +39,12 @@ def download(url, delay=None, update=None, **kwargs):
             ))
 
     return func
+
+
+def get_content(data):
+    content_type = data.get('headers', {}).get('Content-Type')
+    if content_type == 'text/html':
+        soup = bs4.BeautifulSoup(data['content'], 'lxml')
+        return data['content'].decode(soup.original_encoding)
+    else:
+        return data['content']

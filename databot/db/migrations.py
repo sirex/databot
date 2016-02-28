@@ -6,6 +6,7 @@ import msgpack
 import tqdm
 import sqlalchemy as sa
 import hashlib
+import bs4
 
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
@@ -103,6 +104,22 @@ class TextToContent(Migration):
         return dict(value=value)
 
 
+class FixContentEncoding(Migration):
+
+    name = "fix content encoding"
+    data_tables = True
+
+    def migrate_data_item(self, row):
+        key, value = msgpack.loads(row['value'], encoding='utf-8')
+        if isinstance(value, dict) and 'content' in value and 'status_code' in value:
+            content_type = value.get('headers', {}).get('Content-Type')
+            if isinstance(value['content'], str) and content_type == 'text/html':
+                soup = bs4.BeautifulSoup(value['content'].encode(), 'lxml')
+                value['content'] = value['content'].encode(soup.original_encoding)
+        value = msgpack.dumps([key, value], use_bin_type=True)
+        return dict(value=value)
+
+
 class Migrations(object):
 
     migrations = {
@@ -111,6 +128,7 @@ class Migrations(object):
         KeyToSha1: {ValueToMsgpack},
         AlterKeyField: {KeyToSha1},
         TextToContent: {AlterKeyField},
+        FixContentEncoding: {TextToContent},
     }
 
     def __init__(self, models, engine, output=sys.stdout, verbosity=1):

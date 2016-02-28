@@ -70,7 +70,10 @@ class Run(Command):
     def run(self, args):
         if self.func is not None:
             self.bot.options = args.options
-            self.func(self.bot)
+            try:
+                self.func(self.bot)
+            except KeyboardInterrupt:
+                pass
 
 
 class Status(Command):
@@ -214,7 +217,7 @@ class Show(Command):
             self.bot.output.key_value(row.key, row.value, exclude=exclude)
             if args.in_browser:
                 with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-                    f.write(row.value['text'].encode('utf-8'))
+                    f.write(row.value['content'])
                 webbrowser.open(f.name)
         else:
             print('Not found.')
