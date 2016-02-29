@@ -1,6 +1,7 @@
 import time
 import requests
 import bs4
+import cgi
 
 from databot.recursive import call
 
@@ -12,7 +13,7 @@ class DownloadErrror(Exception):
 def dump_response(response):
     return {
         'headers': dict(response.headers),
-        'cookies': dict(response.cookies),
+        'cookies': response.cookies.get_dict(),
         'status_code': response.status_code,
         'encoding': response.encoding,
         'content': response.content,
@@ -42,7 +43,8 @@ def download(url, delay=None, update=None, **kwargs):
 
 
 def get_content(data):
-    content_type = data.get('headers', {}).get('Content-Type')
+    content_type_header = data.get('headers', {}).get('Content-Type', '')
+    content_type, params = cgi.parse_header(content_type_header)
     if content_type == 'text/html':
         soup = bs4.BeautifulSoup(data['content'], 'lxml')
         return data['content'].decode(soup.original_encoding)
