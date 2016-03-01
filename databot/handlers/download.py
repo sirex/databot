@@ -45,8 +45,10 @@ def download(url, delay=None, update=None, **kwargs):
 def get_content(data):
     content_type_header = data.get('headers', {}).get('Content-Type', '')
     content_type, params = cgi.parse_header(content_type_header)
-    if content_type == 'text/html':
+    if content_type in ('text/html', 'text/xml'):
         soup = bs4.BeautifulSoup(data['content'], 'lxml')
         return data['content'].decode(soup.original_encoding)
+    elif content_type.startswith('text/'):
+        return data['content'].decode(data['encoding'])
     else:
         return data['content']
