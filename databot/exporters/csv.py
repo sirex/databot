@@ -41,14 +41,23 @@ def values_to_csv(values):
     return row
 
 
+def _force_dict(value):
+    if isinstance(value, dict):
+        return value
+    else:
+        return {'value': value}
+
+
 def updated_rows(rows, update=None):
     update = update or {}
     for row in rows:
         if callable(update):
-            yield Row(key=None, value=update(row))
+            yield Row(key=None, value=_force_dict(update(row)))
         else:
+            value = _force_dict(row.value)
             for k, call in update.items():
-                row.value[k] = call(row)
+                value[k] = call(row)
+            row.value = value
             yield row
 
 

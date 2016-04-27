@@ -88,3 +88,25 @@ class FlatteningTests(unittest.TestCase):
             [1, None],
             [None, 2],
         ])
+
+    def test_include_value(self):
+        rows = [
+            Row(key=1, value='a'),
+            Row(key=2, value='b'),
+        ]
+        self.assertEqual(list(flatten_rows(rows, include=['key', 'value'])), [
+            ['key', 'value'],
+            [1, 'a'],
+            [2, 'b'],
+        ])
+
+    def test_value(self):
+        rows = [
+            Row(key=1, value='a'),
+            Row(key=2, value='b'),
+        ]
+        self.assertEqual(list(flatten_rows(rows)), [
+            ['key', 'value'],
+            [1, 'a'],
+            [2, 'b'],
+        ])
