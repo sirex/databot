@@ -1,7 +1,6 @@
 import os
 import io
 import sys
-import unittest
 import mock
 import tempfile
 import sqlalchemy as sa
@@ -13,8 +12,6 @@ from databot.db import migrations
 from databot.db.models import Models
 from databot.commands import Command
 from databot.exceptions import PipeNameError
-
-import tests.db
 
 
 def test_pipe_name_error(bot):

@@ -1,232 +1,236 @@
+import pytest
 import databot
 import databot.pipes
 import databot.testing
-
-import tests.db
 
 
 def handler(row):
     return row.key, row.value.upper()
 
 
-class MultiDB(object):
+def external_internal(db):
+    external = databot.Bot('sqlite:///:memory:')
+    external.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
 
-    def test_call(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+    internal = db.Bot().main(argv=['-v0', 'run'])
+    internal.define('p1', external.engine)
+    internal.define('p2')
 
-        with p1:
-            p2.call(handler)
+    return internal
 
-        self.assertEqual(list(p2.data.items()), [(1, 'A'), (2, 'B'), (3, 'C')])
 
-    def test_data(self):
-        p1 = self.bot.pipe('p1')
+def internal_external(db):
+    external = databot.Bot('sqlite:///:memory:')
+    external.define('p2')
 
-        self.assertEqual(list(p1.data.items()), [(1, 'a'), (2, 'b'), (3, 'c')])
+    internal = db.Bot().main(argv=['-v0', 'run'])
+    internal.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    internal.define('p2', external.engine)
 
-    def test_is_filled(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+    return internal
 
-        with p1:
-            self.assertTrue(p2.is_filled())
-            p2.call(handler)
-            self.assertFalse(p2.is_filled())
 
-    def test_last(self):
-        p1 = self.bot.pipe('p1')
+def both_internal(db):
+    bot = db.Bot().main(argv=['-v0', 'run'])
+    bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    bot.define('p2')
+    return bot
 
-        self.assertEqual(p1.last().value, 'c')
 
-    def test_skip(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+def both_external(db):
+    external1 = databot.Bot('sqlite:///:memory:')
+    external1.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
 
-        with p1:
-            self.assertEqual(p2.count(), 3)
-            self.assertEqual(p2.skip().count(), 0)
+    external2 = databot.Bot('sqlite:///:memory:')
+    external2.define('p2')
 
-    def test_offset(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+    internal = db.Bot().main(argv=['-v0', 'run'])
+    internal.define('p1', external1.engine)
+    internal.define('p2', external2.engine)
 
-        with p1:
-            self.assertEqual(p2.count(), 3)
-            self.assertEqual(p2.offset(1).count(), 2)
+    return internal
 
-    def test_errors(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
 
-        handler = databot.testing.ErrorHandler(2)
+@pytest.fixture(params=[
+    external_internal,
+    internal_external,
+    both_internal,
+    both_external,
+])
+def bot(request, db):
+    return request.param(db)
 
-        with p1:
-            p2.call(handler)
-            self.assertEqual(p2.errors.count(), 1)
-            self.assertEqual(list(p2.errors.keys()), [2])
 
-        self.assertEqual(list(p2.data.items()), [(1, 'A'), (3, 'C')])
+def test_call(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        handler = databot.testing.ErrorHandler(None)
+    with p1:
+        p2.call(handler)
 
-        self.bot.main(argv=['-v0', 'run', '--retry'])
+    assert list(p2.data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
 
-        with p1:
-            p2.call(handler)
-            self.assertEqual(p2.errors.count(), 0)
 
-        self.assertEqual(list(p2.data.items()), [(1, 'A'), (3, 'C'), (2, 'B')])
+def test_data(bot):
+    p1 = bot.pipe('p1')
 
-    def test_errors_with_key(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+    assert list(p1.data.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
 
-        with p1:
-            p2.call(databot.testing.ErrorHandler(2))
-            errors = [err.row.value for err in p2.errors(2)]
-            self.assertEqual(errors, ['b'])
 
-    def test_errors_with_missing_key(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+def test_is_filled(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        with p1:
-            p2.call(databot.testing.ErrorHandler(2))
-            errors = [err.row.value for err in p2.errors(42)]
-            self.assertEqual(errors, [])
+    with p1:
+        assert p2.is_filled() is True
+        p2.call(handler)
+        assert p2.is_filled() is False
 
-    def test_errors_reversed(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
 
-        with p1:
-            p2.call(databot.testing.ErrorHandler(2, 3))
+def test_last(bot):
+    p1 = bot.pipe('p1')
 
-            # Without reverse
-            errors = [err.row.value for err in p2.errors(reverse=False)]
-            self.assertEqual(errors, ['b', 'c'])
+    assert p1.last().value == 'c'
 
-            # Reverse
-            errors = [err.row.value for err in p2.errors(reverse=True)]
-            self.assertEqual(errors, ['c', 'b'])
 
-    def test_errors_last(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+def test_skip(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        with p1:
-            p2.call(databot.testing.ErrorHandler(1, 2, 3))
+    with p1:
+        assert p2.count() == 3
+        assert p2.skip().count() == 0
 
-            self.assertEqual(p2.errors.last().row.key, 3)
-            self.assertEqual(p2.errors.last(1).row.key, 1)
-            self.assertEqual(p2.errors.last(42), None)
 
-    def test_errors_resolve_all(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+def test_offset(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        handler = databot.testing.ErrorHandler(2, 3)
+    with p1:
+        assert p2.count() == 3
+        assert p2.offset(1).count() == 2
 
-        with p1:
-            p2.call(handler)
-            self.assertEqual(p2.errors.count(), 2)
-            self.assertEqual(list(p2.errors.keys()), [2, 3])
 
-            p2.errors.resolve()
-            self.assertEqual(p2.errors.count(), 0)
-            self.assertEqual(list(p2.errors.keys()), [])
+def test_errors(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    def test_errors_resolve_key(self):
-        p1, p2 = self.bot.pipe('p1'), self.bot.pipe('p2')
+    handler = databot.testing.ErrorHandler(2)
 
-        handler = databot.testing.ErrorHandler(2, 3)
+    with p1:
+        p2.call(handler)
+        assert p2.errors.count() == 1
+        assert list(p2.errors.keys()) == [2]
 
-        with p1:
-            p2.call(handler)
-            self.assertEqual(p2.errors.count(), 2)
-            self.assertEqual(list(p2.errors.keys()), [2, 3])
+    assert list(p2.data.items()) == [(1, 'A'), (3, 'C')]
 
-            p2.errors.resolve(2)
-            self.assertEqual(p2.errors.count(), 1)
-            self.assertEqual(list(p2.errors.keys()), [3])
+    handler = databot.testing.ErrorHandler(None)
 
+    bot.main(argv=['-v0', 'run', '--retry'])
 
-@tests.db.usedb()
-class ExternalInternalTests(MultiDB):
+    with p1:
+        p2.call(handler)
+        assert p2.errors.count() == 0
 
-    def setUp(self):
-        super().setUp()
+    assert list(p2.data.items()) == [(1, 'A'), (3, 'C'), (2, 'B')]
 
-        external = databot.Bot('sqlite:///:memory:')
-        external.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
 
-        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        self.bot.define('p1', external.engine)
-        self.bot.define('p2')
+def test_errors_with_key(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
+    with p1:
+        p2.call(databot.testing.ErrorHandler(2))
+        errors = [err.row.value for err in p2.errors(2)]
+        assert errors == ['b']
 
-@tests.db.usedb()
-class InternalExternalTests(MultiDB):
 
-    def setUp(self):
-        super().setUp()
+def test_errors_with_missing_key(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        external = databot.Bot('sqlite:///:memory:')
-        external.define('p2')
+    with p1:
+        p2.call(databot.testing.ErrorHandler(2))
+        errors = [err.row.value for err in p2.errors(42)]
+        assert errors == []
 
-        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        self.bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
-        self.bot.define('p2', external.engine)
 
+def test_errors_reversed(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-@tests.db.usedb()
-class BothInternalTests(MultiDB):
+    with p1:
+        p2.call(databot.testing.ErrorHandler(2, 3))
 
-    def setUp(self):
-        super().setUp()
+        # Without reverse
+        errors = [err.row.value for err in p2.errors(reverse=False)]
+        assert errors == ['b', 'c']
 
-        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        self.bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
-        self.bot.define('p2')
+        # Reverse
+        errors = [err.row.value for err in p2.errors(reverse=True)]
+        assert errors == ['c', 'b']
 
 
-@tests.db.usedb()
-class BothExternalTests(MultiDB):
+def test_errors_last(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    def setUp(self):
-        super().setUp()
+    with p1:
+        p2.call(databot.testing.ErrorHandler(1, 2, 3))
 
-        external1 = databot.Bot('sqlite:///:memory:')
-        external1.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+        assert p2.errors.last().row.key == 3
+        assert p2.errors.last(1).row.key == 1
+        assert p2.errors.last(42) is None
 
-        external2 = databot.Bot('sqlite:///:memory:')
-        external2.define('p2')
 
-        self.bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        self.bot.define('p1', external1.engine)
-        self.bot.define('p2', external2.engine)
+def test_errors_resolve_all(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
+    handler = databot.testing.ErrorHandler(2, 3)
 
-@tests.db.usedb()
-class MultidbDefineTests(object):
+    with p1:
+        p2.call(handler)
+        assert p2.errors.count() == 2
+        assert list(p2.errors.keys()) == [2, 3]
 
-    def test_missing_pipe_name(self):
-        external = databot.Bot('sqlite:///:memory:')
-        external.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+        p2.errors.resolve()
+        assert p2.errors.count() == 0
+        assert list(p2.errors.keys()) == []
 
-        bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        bot.define('pp', external.engine)
-        bot.define('p2')
 
-        pp, p2 = bot.pipe('pp'), bot.pipe('p2')
+def test_errors_resolve_key(bot):
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        with pp:
-            self.assertEqual(p2.count(), 0)
+    handler = databot.testing.ErrorHandler(2, 3)
 
-    def test_external_write(self):
-        external = databot.Bot('sqlite:///:memory:')
-        external.define('p1')
+    with p1:
+        p2.call(handler)
+        assert p2.errors.count() == 2
+        assert list(p2.errors.keys()) == [2, 3]
 
-        bot = databot.Bot(self.db.engine, models=self.db.models).main(argv=['-v0', 'run'])
-        bot.define('p1', external.engine)
-        bot.define('p2').append([(1, 'a'), (2, 'b'), (3, 'c')])
+        p2.errors.resolve(2)
+        assert p2.errors.count() == 1
+        assert list(p2.errors.keys()) == [3]
 
-        p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-        with p2:
-            p1.call(handler)
+def test_missing_pipe_name(db):
+    external = databot.Bot('sqlite:///:memory:')
+    external.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
 
-        self.assertEqual(list(p1.data.items()), [(1, 'A'), (2, 'B'), (3, 'C')])
-        self.assertEqual(list(p2.data.items()), [(1, 'a'), (2, 'b'), (3, 'c')])
-        self.assertEqual(list(external.pipe('p1').data.items()), [(1, 'A'), (2, 'B'), (3, 'C')])
+    bot = db.Bot().main(argv=['-v0', 'run'])
+    bot.define('pp', external.engine)
+    bot.define('p2')
+
+    pp, p2 = bot.pipe('pp'), bot.pipe('p2')
+
+    with pp:
+        assert p2.count() is 0
+
+
+def test_external_write(db):
+    external = databot.Bot('sqlite:///:memory:')
+    external.define('p1')
+
+    bot = db.Bot().main(argv=['-v0', 'run'])
+    bot.define('p1', external.engine)
+    bot.define('p2').append([(1, 'a'), (2, 'b'), (3, 'c')])
+
+    p1, p2 = bot.pipe('p1'), bot.pipe('p2')
+
+    with p2:
+        p1.call(handler)
+
+    assert list(p1.data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
+    assert list(p2.data.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
+    assert list(external.pipe('p1').data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]

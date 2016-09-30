@@ -84,7 +84,7 @@ def db(request):
     DbClass = request.param
     try:
         db = DbClass()
-    except sqlalchemy.exc.OperationalError as e:
+    except (sqlalchemy.exc.OperationalError, ImportError) as e:
         pytest.skip(str(e))
     else:
         request.addfinalizer(db.finalize)

@@ -1,2 +1,2 @@
-test: ; nosetests -v --with-coverage --cover-erase --cover-package=databot tests
-ftest: ; nosetests -a !slowdb -v --with-coverage --cover-erase --cover-package=databot tests
+# pip install pytest pytest-mock pytest-cov
+test: ; py.test -vvxra --tb=native --cov-report=term-missing --cov=databot tests
