@@ -1,68 +1,67 @@
-import unittest
-import databot
+import pytest
 
 
-class TestBot(databot.Bot):
-    def init(self):
-        self.define('pipe 1')
-        self.define('pipe 2')
+@pytest.fixture
+def t1(bot):
+    return bot.define('pipe 1').append([('1', 'a'), ('2', 'b')])
 
 
-class ContextTests(unittest.TestCase):
-    def setUp(self):
-        self.bot = TestBot('sqlite:///:memory:')
-        self.bot.init()
-
-    def test_context(self):
-        self.assertTrue(self.bot.pipe('pipe 1').source is None)
-        self.assertTrue(self.bot.pipe('pipe 2').source is None)
-
-        with self.bot.pipe('pipe 1'):
-            self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 1')
-            self.assertEqual(self.bot.pipe('pipe 2').source.name, 'pipe 1')
-
-            with self.bot.pipe('pipe 2'):
-                self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 2')
-
-            self.assertEqual(self.bot.pipe('pipe 1').source.name, 'pipe 1')
-            self.assertEqual(self.bot.pipe('pipe 2').source.name, 'pipe 1')
-
-        self.assertTrue(self.bot.pipe('pipe 1').source is None)
-        self.assertTrue(self.bot.pipe('pipe 2').source is None)
+@pytest.fixture
+def t2(bot):
+    return bot.define('pipe 2')
 
 
-class DataTests(unittest.TestCase):
-    def setUp(self):
-        self.bot = TestBot('sqlite:///:memory:')
-        self.t1 = self.bot.define('pipe 1').append([('1', 'a'), ('2', 'b')])
-        self.t2 = self.bot.define('pipe 2')
+def test_context(bot, t1, t2):
+    assert bot.pipe('pipe 1').source is None
+    assert bot.pipe('pipe 2').source is None
 
-    def test_count_with_context(self):
-        self.assertEqual(self.t2.count(), 0)
+    with bot.pipe('pipe 1'):
+        assert bot.pipe('pipe 1').source.name == 'pipe 1'
+        assert bot.pipe('pipe 2').source.name == 'pipe 1'
 
-    def test_count_without_context(self):
-        with self.t1:
-            self.assertEqual(self.t2.count(), 2)
+        with bot.pipe('pipe 2'):
+            assert bot.pipe('pipe 1').source.name == 'pipe 2'
 
-    def test_is_filled_with_source(self):
-        with self.t1:
-            self.assertEqual(self.t2.is_filled(), True)
+        assert bot.pipe('pipe 1').source.name == 'pipe 1'
+        assert bot.pipe('pipe 2').source.name == 'pipe 1'
 
-    def test_is_filled_without_source(self):
-        self.assertEqual(self.t2.is_filled(), False)
+    assert bot.pipe('pipe 1').source is None
+    assert bot.pipe('pipe 2').source is None
 
-    def test_keys(self):
-        with self.t1:
-            self.assertEqual(list(self.t2.keys()), ['1', '2'])
 
-    def test_values(self):
-        with self.t1:
-            self.assertEqual(list(self.t2.values()), ['a', 'b'])
+def test_count_with_context(t2):
+    assert t2.count() is 0
 
-    def test_items(self):
-        with self.t1:
-            self.assertEqual(list(self.t2.items()), [('1', 'a'), ('2', 'b')])
 
-    def test_rows(self):
-        with self.t1:
-            self.assertEqual([(row.key, row.value) for row in self.t2.rows()], [('1', 'a'), ('2', 'b')])
+def test_count_without_context(t1, t2):
+    with t1:
+        assert t2.count() == 2
+
+
+def test_is_filled_with_source(t1, t2):
+    with t1:
+        assert t2.is_filled() is True
+
+
+def test_is_filled_without_source(t1, t2):
+    assert t2.is_filled() is False
+
+
+def test_keys(t1, t2):
+    with t1:
+        assert list(t2.keys()) == ['1', '2']
+
+
+def test_values(t1, t2):
+    with t1:
+        assert list(t2.values()) == ['a', 'b']
+
+
+def test_items(t1, t2):
+    with t1:
+        assert list(t2.items()) == [('1', 'a'), ('2', 'b')]
+
+
+def test_rows(t1, t2):
+    with t1:
+        assert [(row.key, row.value) for row in t2.rows()] == [('1', 'a'), ('2', 'b')]

@@ -13,7 +13,7 @@ class DownloadErrror(Exception):
 def dump_response(response):
     return {
         'headers': dict(response.headers),
-        'cookies': response.cookies.get_dict(),
+        'cookies': response.cookies if isinstance(response.cookies, dict) else response.cookies.get_dict(),
         'status_code': response.status_code,
         'encoding': response.encoding,
         'content': response.content,
