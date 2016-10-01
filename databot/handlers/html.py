@@ -149,16 +149,36 @@ class Select(object):
         return result
 
 
+def func(skipna=False):
+    def wrapper(func):
+
+        # Modified version of func
+        def f(value, *args, **kwargs):
+            if skipna:
+                return None if value is None else func(value, *args, **kwargs)
+            else:
+                return func(value, *args, **kwargs)
+
+        def decorator(query, *args, **kwargs):
+            return Call(f, query, *args, **kwargs)
+
+        return decorator
+
+    return wrapper
+
+
 class Call(object):
 
-    def __init__(self, callables, query):
+    def __init__(self, callables, query, *args, **kwargs):
         self.query = query
         self.callables = callables if isinstance(callables, tuple) else (callables,)
+        self.args = args
+        self.kwargs = kwargs
 
     def __call__(self, select, row, node):
         value = select.render(row, node, self.query)
         for call in self.callables:
-            value = call(value)
+            value = call(value, *self.args, **self.kwargs)
         return value
 
 

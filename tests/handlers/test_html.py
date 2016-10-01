@@ -166,3 +166,9 @@ def test_first_empty_string(Html):
     row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
     select = html.Select(databot.first('a[name="2"]:text', 'a[name="1"]:text'))
     assert select(row) == 'a'
+
+
+def test_func(Html):
+    length = databot.func()(len)
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    assert html.Select(length(['a']))(row) == 2
