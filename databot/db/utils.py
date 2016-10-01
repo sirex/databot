@@ -83,7 +83,7 @@ def get_engine(uri_or_engine, path=''):
         if len(spl) > 1 and spl[0] in ('sqlite', 'postgresql', 'mysql'):
             return sa.create_engine(uri_or_engine.format(path=path))
         else:
-            filename = pathlib.Path(path) / uri_or_engine
+            filename = pathlib.Path(uri_or_engine)
             return sa.create_engine('sqlite:///%s' % filename)
     else:
         return uri_or_engine

@@ -597,6 +597,8 @@ class Pipe(object):
         delay : int
             Amount of seconds to delay between requests.
 
+            By default delay is `bot.download_delay`.
+
         """
         kwargs.setdefault('delay', self.bot.download_delay)
 
