@@ -1,26 +1,52 @@
-from databot import row
+import operator
+import databot
 from databot.db.utils import Row
 
 
 def test_row():
-    assert row(Row(key=1, value=2)) == {'key': 1, 'value': 2}
+    row = Row(key=1, value=2)
+    assert databot.row(row) == {'key': 1, 'value': 2}
 
 
 def test_key():
-    assert row.key(Row(key=1, value=2)) == 1
+    row = Row(key=1, value=2)
+    assert databot.row.key(row) == 1
 
 
 def test_value():
-    assert row.value(Row(key=1, value=2)) == 2
+    row = Row(key=1, value=2)
+    assert databot.row.value(row) == 2
 
 
 def test_value_item():
-    assert row.value['x'](Row(key=1, value={'x': 3, 'y': 4})) == 3
+    row = Row(key=1, value={'x': 3, 'y': 4})
+    assert databot.row.value['x'](row) == 3
 
 
 def test_value_multiple_items():
-    assert row.value['x']['y']['z'](Row(key=1, value={'x': {'y': {'z': 42}}})) == 42
+    row = Row(key=1, value={'x': {'y': {'z': 42}}})
+    assert databot.row.value['x']['y']['z'](row) == 42
 
 
-def test_value_length():
-    assert row.value['x'].length(Row(key=1, value={'x': 'abc'})) == 3
+def test_value_function():
+    row = Row(key=1, value={'x': 'abc'})
+    assert databot.row.value.x(len)(row) == 3
+    assert databot.row.value.x(str.upper)(row) == 'ABC'
+    assert databot.row.value(list)(row) == ['x']
+    assert databot.row.value(list)[0](str.upper)(row) == 'X'
+
+
+def test_value_function_arguments():
+    def getitem(value, key, default):
+        return value.get(key, default)
+
+    row = Row(key=1, value={'x': 'abc'})
+    assert databot.row.value(getitem, 'y', 'zz')(row) == 'zz'
+
+
+def test_value_attr():
+    row = Row(key=1, value={'x': 3, 'y': 4})
+    assert databot.row.value.x(row) == 3
+
+    row = Row(key=1, value={'x': {'y': {'z': 42}}})
+    assert databot.row.value.x.y.z(row) == 42
