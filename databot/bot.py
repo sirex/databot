@@ -14,7 +14,7 @@ from databot import commands
 
 class Bot(object):
 
-    def __init__(self, uri_or_engine, verbosity=0, output=sys.stdout, models=None):
+    def __init__(self, uri_or_engine, *, debug=False, retry=False, verbosity=0, output=sys.stdout, models=None):
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
         self.models = models or Models(sa.MetaData(self.engine))
@@ -26,6 +26,8 @@ class Bot(object):
         self.stack = []
         self.options = []
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
+        self.debug = debug
+        self.retry = retry
         self.verbosity = verbosity
         self.download_delay = None
 
@@ -137,7 +139,9 @@ class Bot(object):
         cmgr.register('sh', commands.Shell)
         cmgr.register('rename', commands.Rename)
 
-        self.args = args = parser.parse_args(argv)
+        args = parser.parse_args(argv)
+
+        self.verbosity = args.verbosity
 
         if args.command == 'migrate':
             cmgr.run(args.command, args, default='status')

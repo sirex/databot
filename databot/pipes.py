@@ -294,7 +294,7 @@ class Pipe(object):
 
         # Progress bar
         rows = keyvalueitems(key, value)
-        if progress and self.bot.args.verbosity == 1 and not self.bot.args.debug:
+        if progress and self.bot.verbosity == 1 and not self.bot.debug:
             rows = tqdm.tqdm(rows, progress, total, file=self.bot.output.output, leave=True)
 
         # Bulk insert start
@@ -467,10 +467,10 @@ class Pipe(object):
         state = self.get_state()
         desc = '%s -> %s' % (self.source, self)
 
-        if self.bot.args.retry:
+        if self.bot.retry:
             self.retry(handler)
 
-        if self.bot.args.verbosity == 1 and not self.bot.args.debug:
+        if self.bot.verbosity == 1 and not self.bot.debug:
             rows = tqdm.tqdm(self.rows(), desc, self.count(), leave=True)
         else:
             rows = self.rows()
@@ -482,17 +482,17 @@ class Pipe(object):
         pipe = BulkInsert(self.engine, self.table)
         errors = BulkInsert(self.bot.engine, self.bot.models.errors)
 
-        if not self.bot.args.debug:
+        if not self.bot.debug:
             pipe.post_save(post_save)
 
         n = 0
         row = None
         for row in rows:
-            if self.bot.args.debug:
+            if self.bot.debug:
                 self._verbose_append(handler, row, pipe, append=False)
             else:
                 try:
-                    if self.bot.args.verbosity > 1:
+                    if self.bot.verbosity > 1:
                         self._verbose_append(handler, row, pipe)
                     else:
                         self.append(handler(row), bulk=pipe)
@@ -503,7 +503,7 @@ class Pipe(object):
         pipe.save(post_save=True)
         errors.save()
 
-        if self.bot.args.verbosity > 1:
+        if self.bot.verbosity > 1:
             print('%s, rows processed: %d' % (desc, n))
 
         return self
@@ -511,7 +511,7 @@ class Pipe(object):
     def retry(self, handler):
         desc = '%s -> %s (retry)' % (self.source, self)
 
-        if self.bot.args.verbosity == 1 and not self.bot.args.debug:
+        if self.bot.verbosity == 1 and not self.bot.debug:
             errors = tqdm.tqdm(self.errors(), desc, self.errors.count(), leave=True)
         else:
             errors = self.errors()
@@ -528,12 +528,12 @@ class Pipe(object):
         n = 0
         error_ids = []
         for error in errors:
-            if self.bot.args.debug:
+            if self.bot.debug:
                 self._verbose_append(handler, error.row, pipe, append=False)
                 error_ids.append(error.id)
             else:
                 try:
-                    if self.bot.args.verbosity > 1:
+                    if self.bot.verbosity > 1:
                         self._verbose_append(handler, error.row, pipe)
                     else:
                         self.append(handler(error.row), bulk=pipe)
@@ -545,7 +545,7 @@ class Pipe(object):
 
         pipe.save(post_save=True)
 
-        if self.bot.args.verbosity > 1:
+        if self.bot.verbosity > 1:
             print('%s, errors retried: %d' % (desc, n))
 
         return self

@@ -68,6 +68,9 @@ class Run(Command):
         parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
 
     def run(self, args):
+        self.bot.debug = args.debug
+        self.bot.retry = args.retry
+
         if self.func is not None:
             self.bot.options = args.options
             try:

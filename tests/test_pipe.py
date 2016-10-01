@@ -88,7 +88,8 @@ def test_exists(t1):
 
 @pytest.fixture
 def p2(bot):
-    bot.args = mock.Mock(verbosity=1, debug=False)
+    bot.verbosity = 1
+    bot.debug = False
     return bot.define('p2')
 
 
