@@ -4,6 +4,7 @@ import bs4
 import cgi
 
 from databot.recursive import call
+from databot.db.utils import Row
 
 
 class DownloadErrror(Exception):
@@ -20,23 +21,31 @@ def dump_response(response):
     }
 
 
-def download(url, delay=None, update=None, **kwargs):
+def download(urlexpr, delay=None, update=None, **kwargs):
     update = update or {}
 
     def func(row):
+        nonlocal kwargs
+
         if delay is not None:
             time.sleep(delay)
-        kw = call(kwargs, row)
-        _url = url(row)
-        response = requests.get(_url, **kw)
+
+        if isinstance(row, Row):
+            kwargs = call(kwargs, row)
+            url = urlexpr(row)
+        else:
+            url = row
+
+        response = requests.get(url, **kwargs)
+
         if response.status_code == 200:
             value = dump_response(response)
             for k, fn in update.items():
                 value[k] = fn(row)
-            yield _url, value
+            yield url, value
         else:
             raise DownloadErrror('Error while downloading %s, returned status code was %s, response content:\n\n%s' % (
-                _url, response.status_code, response.content,
+                url, response.status_code, response.content,
             ))
 
     return func

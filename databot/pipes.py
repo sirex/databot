@@ -5,6 +5,7 @@ import sqlalchemy as sa
 import traceback
 import tqdm
 
+import databot
 from databot.db.serializers import serrow, serkey
 from databot.db.utils import strip_prefix, create_row, get_or_create, Row
 from databot.db.windowedquery import windowed_query
@@ -284,10 +285,11 @@ class Pipe(object):
 
         You can call this method in following ways::
 
+            append(key)
             append(key, value)
             append((key, value))
-            append([key, key, key])
-            append([(key, value), (key, value), (key, value)])
+            append([key, key, ...])
+            append([(key, value), (key, value), ...])
 
         """
         conn = conn or self.engine
@@ -441,6 +443,8 @@ class Pipe(object):
             query = table.select(table.c.id > self.get_state().offset).order_by(table.c.id)
             for row in windowed_query(self.source.engine, query, table.c.id):
                 yield create_row(row)
+        else:
+            raise RuntimeError('Unknown source pipe. Use `with source: target.rows()`.')
 
     def items(self):
         for row in self.rows():
@@ -561,11 +565,51 @@ class Pipe(object):
     def export(self, path, **kwargs):
         csv.export(path, self, **kwargs)
 
-    def download(self, key=None, **kwargs):
-        from databot import row
-        key = key or row.key
+    def download(self, urls=None, **kwargs):
+        """Download list of URLs and store downloaded content into a pipe.
+
+        Parameters
+        ----------
+        urls : None or str or list or callable or databot.rowvalue.Row
+            List of URLs to download.
+
+            URL's can be provided in following ways:
+
+            - `str` - string containing single URL.
+
+            - `list` - list of strings where each string is a URL.
+
+            - `None` - takes URLs from connected pipe's key field.
+
+            - `databot.rowvalue.Row` - takes URLs from a specified location in a row.
+
+              For example, code below will take all rows from `a` pipe and will take URL from `a.row.value.url`, which
+              is `http://example.com`.
+
+              .. code-block:: python
+
+                 import databot
+
+                 bot = databot.Bot()
+                 a = bot.define('a').append([(1, {'url': 'http://example.com'})])
+                 bot.define('b').download(a.row.value.url)
+
+        delay : int
+            Amount of seconds to delay between requests.
+
+        """
         kwargs.setdefault('delay', self.bot.download_delay)
-        return self.call(download.download(key, **kwargs))
+
+        if isinstance(urls, str):
+            urls = [urls]
+
+        if isinstance(urls, list):
+            fetch = download.download(urls, **kwargs)
+            return self.append(next(fetch(url)) for url in urls)
+
+        else:
+            urls = urls or databot.row.key
+            return self.call(download.download(urls, **kwargs))
 
     def select(self, key, value=None):
         return self.call(html.Select(key, value))

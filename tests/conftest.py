@@ -6,6 +6,7 @@ import sqlalchemy.exc
 import sqlalchemy.pool
 import pytest
 import databot
+import requests_mock
 
 from databot.db.models import Models
 
@@ -101,3 +102,9 @@ def sqlite(request):
 @pytest.fixture
 def bot():
     return databot.Bot('sqlite:///:memory:', output=io.StringIO())
+
+
+@pytest.yield_fixture
+def requests():
+    with requests_mock.mock() as mock:
+        yield mock

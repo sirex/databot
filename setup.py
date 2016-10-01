@@ -21,4 +21,10 @@ setup(
         'unidecode',
         'mock',
     ],
+    tests_require=[
+        'pytest',
+        'pytest-cov',
+        'pytest-mock',
+        'requests-mock',
+    ],
 )
