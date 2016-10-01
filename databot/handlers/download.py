@@ -1,5 +1,4 @@
 import time
-import requests
 import bs4
 import cgi
 
@@ -21,7 +20,7 @@ def dump_response(response):
     }
 
 
-def download(urlexpr, delay=None, update=None, **kwargs):
+def download(session, urlexpr, delay=None, update=None, **kwargs):
     update = update or {}
 
     def func(row):
@@ -36,7 +35,7 @@ def download(urlexpr, delay=None, update=None, **kwargs):
         else:
             url = row
 
-        response = requests.get(url, **kwargs)
+        response = session.get(url, **kwargs)
 
         if response.status_code == 200:
             value = dump_response(response)

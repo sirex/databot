@@ -132,7 +132,7 @@ class Download(Command):
         from databot.handlers import download
 
         exclude = args.exclude.split(',') if args.exclude else None
-        key, value = next(download.download(row.key)(Row(key=args.url, value=None)))
+        key, value = next(download.download(self.bot.requests, row.key)(Row(key=args.url, value=None)))
         self.bot.output.key_value(key, value, exclude=exclude)
 
         if args.append:

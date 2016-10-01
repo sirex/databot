@@ -54,15 +54,8 @@ def test_select_not_found(bot):
     )
 
 
-def test_download(mocker, bot):
-    resp = mock.Mock()
-    resp.status_code = 200
-    resp.encoding = 'utf-8'
-    resp.headers = {'Content-Type': 'text/html'}
-    resp.content = b'<div>It works!</div>'
-    resp.cookies = {}
-    mocker.patch('requests.get').return_value = resp
-
+def test_download(bot, requests):
+    requests.get('http://example.com/', text='<div>It works!</div>', headers={'Content-Type': 'text/html'})
     bot.main(argv=['download', 'http://example.com/'])
     assert bot.output.output.getvalue() == '\n'.join([
         "- key: 'http://example.com/'",

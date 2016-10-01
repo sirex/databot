@@ -604,12 +604,12 @@ class Pipe(object):
             urls = [urls]
 
         if isinstance(urls, list):
-            fetch = download.download(urls, **kwargs)
+            fetch = download.download(self.bot.requests, urls, **kwargs)
             return self.append(next(fetch(url)) for url in urls)
 
         else:
             urls = urls or databot.row.key
-            return self.call(download.download(urls, **kwargs))
+            return self.call(download.download(self.bot.requests, urls, **kwargs))
 
     def select(self, key, value=None):
         return self.call(html.Select(key, value))

@@ -2,6 +2,7 @@ import sys
 import pathlib
 import sqlalchemy as sa
 import argparse
+import requests
 
 import databot.db
 import databot.pipes
@@ -30,6 +31,7 @@ class Bot(object):
         self.retry = retry
         self.verbosity = verbosity
         self.download_delay = None
+        self.requests = requests.Session()
 
         self.migrations = Migrations(self.models, self.engine, self.output, verbosity=1)
         if self.migrations.has_initial_state():
