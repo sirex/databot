@@ -15,7 +15,8 @@ from databot import commands
 
 class Bot(object):
 
-    def __init__(self, uri_or_engine, *, debug=False, retry=False, verbosity=0, output=sys.stdout, models=None):
+    def __init__(self, uri_or_engine='sqlite:///:memory:', *,
+                 debug=False, retry=False, verbosity=0, output=sys.stdout, models=None):
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
         self.models = models or Models(sa.MetaData(self.engine))

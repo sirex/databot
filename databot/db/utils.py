@@ -1,3 +1,4 @@
+import pathlib
 import sqlalchemy as sa
 import sqlalchemy.orm.exc
 
@@ -77,6 +78,12 @@ def get_or_create(engine, model, fields, data):
 
 def get_engine(uri_or_engine, path=''):
     if isinstance(uri_or_engine, str):
-        return sa.create_engine(uri_or_engine.format(path=path))
+        spl = uri_or_engine.split(':', 1)
+        spl = spl[0].split('+', 1) if len(spl) > 1 and '+' in spl[0] else spl
+        if len(spl) > 1 and spl[0] in ('sqlite', 'postgresql', 'mysql'):
+            return sa.create_engine(uri_or_engine.format(path=path))
+        else:
+            filename = pathlib.Path(path) / uri_or_engine
+            return sa.create_engine('sqlite:///%s' % filename)
     else:
         return uri_or_engine

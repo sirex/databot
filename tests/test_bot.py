@@ -5,7 +5,16 @@ from databot import Bot
 
 
 def test_init():
-    Bot('sqlite:///:memory:')
+    assert str(Bot('sqlite:///:memory:').engine.url) == 'sqlite:///:memory:'
+
+
+def test_init_no_args():
+    assert str(Bot().engine.url) == 'sqlite:///:memory:'
+
+
+def test_init_path(tmpdir):
+    path = str(tmpdir.join('data.db'))
+    assert str(Bot(path).engine.url) == 'sqlite:///%s' % path
 
 
 def test_init_with_engine_instance():
