@@ -33,6 +33,7 @@ class Bot(object):
         self.verbosity = verbosity
         self.download_delay = None
         self.requests = requests.Session()
+        self.commands = self._register_commands(commands.CommandsManager(self))
 
         self.migrations = Migrations(self.models, self.engine, self.output, verbosity=1)
         if self.migrations.has_initial_state():
@@ -113,18 +114,7 @@ class Bot(object):
         for pipe in self.pipes:
             pipe.compact()
 
-    def main(self, define=None, run=None, argv=None):
-        parser = argparse.ArgumentParser()
-
-        # Vorbosity levels:
-        # 0 - no output
-        # 1 - show progress bar
-        parser.add_argument('-v', '--verbosity', type=int, default=1)
-
-        sps = parser.add_subparsers(dest='command')
-
-        cmgr = commands.CommandsManager(self, sps)
-        cmgr.register('run', commands.Run, run)
+    def _register_commands(self, cmgr):
         cmgr.register('status', commands.Status)
         cmgr.register('select', commands.Select)
         cmgr.register('download', commands.Download)
@@ -141,6 +131,21 @@ class Bot(object):
         cmgr.register('errors', commands.Errors)
         cmgr.register('sh', commands.Shell)
         cmgr.register('rename', commands.Rename)
+        return cmgr
+
+    def main(self, define=None, run=None, argv=None):
+        parser = argparse.ArgumentParser()
+
+        # Vorbosity levels:
+        # 0 - no output
+        # 1 - show progress bar
+        parser.add_argument('-v', '--verbosity', type=int, default=1)
+
+        sps = parser.add_subparsers(dest='command')
+
+        cmgr = commands.CommandsManager(self, sps)
+        cmgr.register('run', commands.Run, run)
+        self._register_commands(cmgr)
 
         args = parser.parse_args(argv)
 

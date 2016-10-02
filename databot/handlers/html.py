@@ -40,28 +40,75 @@ class Select(object):
         else:
             return [(self.render(row, self.html, self.key), self.render(row, self.html, self.value))]
 
-    def render(self, row, html, value):
+    def render(self, row, html, value, many=False, single=True):
+        """Process provided value in given context.
+
+        How `value` will be processed depends on `value` type.
+
+        Parameters
+        ==========
+        value : None or Call or databot.rowvalue.Row or callable or dict or list or tuple or str
+
+        row : databot.rowvalue.Row
+
+        html : lxml.etree.Element
+
+        many : bool
+            Indicates, that multiple values can be returned.
+
+            If many is False, only single value will be returned, if there is no matching elements or more that one
+            element, ValueError will be raised.
+
+        single : bool
+            Indicates if values should be processed individually or all at once.
+
+            This argument mainly has effect, when many is True. If many is True and single is True, then all matching
+            values should be processed separately. If many is True and single is False, then list of values should be
+            processed as list.
+
+            For example, here `number` process valus one by one:
+
+            .. code-block:: python
+
+                @databot.func()
+                def number(value):
+                    return int(value)
+
+                selector = Select([number('a@name')])
+
+            And here, all values will be processed at once:
+
+                @databot.func()
+                def number(values):
+                    return list(map(int, values))
+
+                selector = html.Select(number(['a@name']))
+
+        """
         if value is None:
             return None
         elif isinstance(value, Call):
-            return value(self, row, html)
+            return value(self, row, html, many, single)
         elif isinstance(value, rowvalue.Row):
             return value(row)
         elif callable(value):
             return value(row, html)
         elif isinstance(value, dict):
-            return {k: self.render(row, html, v) for k, v in sorted(value.items())}
+            return {k: self.render(row, html, v, many, single) for k, v in sorted(value.items())}
         elif isinstance(value, list):
             if len(value) == 2:
                 query, value = value
-                return [self.render(row, node, value) for node in self.select(html, query)]
+                nodes = self.render(row, html, query, many=True, single=False)
+                return [self.render(row, node, value) for node in nodes]
             else:
-                return self.select(html, value[0])
+                return self.render(row, html, value[0], many=True, single=True)
         elif isinstance(value, tuple):
-            return tuple([self.render(row, html, v) for v in value])
+            return tuple([self.render(row, html, v, many, single) for v in value])
         else:
             result = self.select(html, value)
-            if len(result) == 0:
+            if many:
+                return result
+            elif len(result) == 0:
                 if value.endswith('?'):
                     return None
                 else:
@@ -159,8 +206,8 @@ def func(skipna=False):
             else:
                 return func(value, *args, **kwargs)
 
-        def decorator(query, *args, **kwargs):
-            return Call(f, query, *args, **kwargs)
+        def decorator(__query__, *args, **kwargs):
+            return Call(f, __query__, *args, **kwargs)
 
         return decorator
 
@@ -169,16 +216,19 @@ def func(skipna=False):
 
 class Call(object):
 
-    def __init__(self, callables, query, *args, **kwargs):
-        self.query = query
-        self.callables = callables if isinstance(callables, tuple) else (callables,)
+    def __init__(self, __callables__, __query__, *args, **kwargs):
+        self.query = __query__
+        self.callables = __callables__ if isinstance(__callables__, tuple) else (__callables__,)
         self.args = args
         self.kwargs = kwargs
 
-    def __call__(self, select, row, node):
-        value = select.render(row, node, self.query)
+    def __call__(self, select, row, node, many=False, single=True):
+        value = select.render(row, node, self.query, many, single)
         for call in self.callables:
-            value = call(value, *self.args, **self.kwargs)
+            if many and single:
+                value = [call(v, *self.args, **self.kwargs) for v in value]
+            else:
+                value = call(value, *self.args, **self.kwargs)
         return value
 
 
@@ -187,10 +237,10 @@ class Join(Call):
     def __init__(self, *queries):
         self.queries = queries
 
-    def __call__(self, select, row, node):
+    def __call__(self, select, row, node, many=False, single=True):
         result = []
         for query in self.queries:
-            result.extend(select.render(row, node, query))
+            result.extend(select.render(row, node, query, many, single))
         return result
 
 
@@ -199,9 +249,9 @@ class First(Call):
     def __init__(self, *queries):
         self.queries = queries
 
-    def __call__(self, select, row, node):
+    def __call__(self, select, row, node, many=False, single=True):
         for query in self.queries:
-            value = select.render(row, node, query)
+            value = select.render(row, node, query, many, single)
             if value:
                 return value
         return None
@@ -214,8 +264,8 @@ class Subst(Call):
         self.subst = subst
         self.default = default
 
-    def __call__(self, select, row, node):
-        value = select.render(row, node, self.query)
+    def __call__(self, select, row, node, many=False, single=True):
+        value = select.render(row, node, self.query, many, single)
 
         if self.default is Exception:
             return self.subst[value]
@@ -232,3 +282,47 @@ class Value(object):
 
     def __call__(self, row, node):
         return self.value
+
+
+@func()
+def text(nodes, strip=True, exclude=None):
+    # Recursively extract all texts
+    def extract(nodes):
+        texts = []
+        for node in nodes:
+            if node.tag is lxml.etree.Comment:
+                continue
+            if node.tag in ('script', 'style', 'head'):
+                continue
+            if node in exclude_nodes:
+                continue
+
+            texts.append(node.text)
+            texts.extend(extract(node.getchildren()))
+            texts.append(node.tail)
+            if node.tag in ('p', 'h1', 'h2', 'h3', 'h4', 'h5'):
+                texts.append('\n')
+        return texts
+
+    nodes = nodes if isinstance(nodes, list) else [nodes]
+
+    # Find all nodes to be excluded
+    exclude_nodes = []
+    if exclude:
+        selector = Select(None)
+        for node in nodes:
+            for query in exclude:
+                exclude_nodes.extend(selector.select(node, query))
+
+    # Join all texts into one single text string
+    text = ' '.join(filter(None, extract(nodes)))
+
+    # Strip all repeated whitespaces, but preserve newlines.
+    if strip:
+        lines = []
+        for line in text.splitlines():
+            words = [w.strip() for w in line.split()]
+            lines.append(' '.join(filter(None, words)))
+        text = '\n\n'.join(filter(None, lines))
+
+    return text

@@ -172,3 +172,52 @@ def test_func(Html):
     length = databot.func()(len)
     row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
     assert html.Select(length(['a']))(row) == 2
+
+
+def test_url(Html):
+    row = Html([
+        '<div>',
+        '<a href="http://example.com/?id=1">a</a>',
+        '<a href="http://example.com/">b</a>',
+        '</div>',
+    ])
+    selector = html.Select([
+        'a', databot.url('@href', query='id'),
+    ])
+    assert selector(row) == ['http://example.com/?id=1', None]
+
+
+def test_tuple(Html):
+    row = Html(['<div class="a">foobar</div>'])
+    selector = html.Select(databot.row.key, ':content')
+    assert selector(row) == [('http://exemple.com', 'foobar')]
+
+
+def test_func_on_list_prefix(Html):
+    @databot.func()
+    def skip(nodes):
+        return nodes[1:]
+
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select([skip('a'), '@name'])
+    assert selector(row) == ['2']
+
+
+def test_func_inside_list(Html):
+    @databot.func()
+    def number(value):
+        return int(value)
+
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select([number('a@name')])
+    assert selector(row) == [1, 2]
+
+
+def test_func_outside_list(Html):
+    @databot.func()
+    def number(values):
+        return list(map(int, values))
+
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select(number(['a@name']))
+    assert selector(row) == [1, 2]

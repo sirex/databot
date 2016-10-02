@@ -14,6 +14,7 @@ def test_url_query():
     assert url('http://example.com?b=2&a=1') == 'http://example.com?a=1&b=2'
     assert url('http://example.com?b=2&a=1', query='a') == 'http://example.com?a=1'
     assert url('http://example.com?b=2&a=1', query=['a']) == 'http://example.com?a=1'
+    assert url('http://example.com', query='a') is None
 
 
 def test_url_fragment():

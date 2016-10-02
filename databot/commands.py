@@ -7,17 +7,21 @@ from databot.exceptions import PipeNameError
 
 class CommandsManager(object):
 
-    def __init__(self, bot, sps):
+    def __init__(self, bot, sps=None):
         self.bot = bot
         self.sps = sps
         self.commands = {}
 
+    def __getattr__(self, key):
+        return self.commands[key].call
+
     def register(self, name, Cmd, *args, **kwargs):
         assert name not in self.commands
-        parser = self.sps.add_parser(name)
         command = Cmd(self.bot)
         command.init(*args, **kwargs)
-        command.add_arguments(parser)
+        if self.sps:
+            parser = self.sps.add_parser(name)
+            command.add_arguments(parser)
         self.commands[name] = command
 
     def run(self, name, args, default=None):
@@ -96,27 +100,42 @@ class Select(Command):
     def run(self, args):
         import ast
 
-        from databot.pipes import keyvalueitems
-        from databot.handlers import html
-        from databot.db.utils import Row
+        source = self.pipe(args.source)
 
         if args.query and args.query[0] in ('[', '{', '"', "'"):
             query = ast.literal_eval(args.query)
         else:
             query = [args.query]
 
-        source = self.pipe(args.source)
-        selector = html.Select(query)
-        row = source.last(args.key)
-        if row:
-            rows = keyvalueitems(selector(row))
-            if args.table:
-                self.bot.output.table([Row(key=key, value=value) for key, value in rows])
-            else:
-                for key, value in rows:
-                    self.bot.output.key_value(key, value)
+        self.call(source, query, key=args.key, table=args.table)
+
+    def call(self, source, query, key=None, table=False, raw=False):
+        from databot.pipes import keyvalueitems
+        from databot.handlers import html
+        from databot.db.utils import Row
+
+        if isinstance(query, tuple) and len(query) == 2:
+            selector = html.Select(query[0], query[1])
         else:
-            self.info('Not found.')
+            selector = html.Select(query)
+        row = source.last(key)
+        if raw:
+            if row:
+                rows = keyvalueitems(selector(row))
+                return [Row(key=key, value=value) for key, value in rows if key]
+            else:
+                return []
+        else:
+            if row:
+                rows = keyvalueitems(selector(row))
+                if table:
+                    self.bot.output.table([Row(key=key, value=value) for key, value in rows if key])
+                else:
+                    for key, value in rows:
+                        if key:
+                            self.bot.output.key_value(key, value)
+            else:
+                self.info('Not found.')
 
 
 class Download(Command):

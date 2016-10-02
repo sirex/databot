@@ -1,5 +1,4 @@
 import re
-import mock
 import pytest
 import databot
 import databot.pipes
@@ -128,3 +127,8 @@ def test_only_missing(p2):
     p2.append([1, 2, 3], only_missing=True)
     p2.append([1, 2, 3, 4], only_missing=True)
     assert list(p2.data.keys()) == [1, 2, 3, 4]
+
+
+def test_append_none(bot):
+    pipe = bot.define('p1').append([None, 1, None, 2, 3])
+    assert list(pipe.data.keys()) == [1, 2, 3]

@@ -17,7 +17,7 @@ def dumps(value):
 
 def serkey(key):
     """Serialize a value to fixed size sha1 key"""
-    assert isinstance(key, (int, str, bytes, list, tuple))
+    assert isinstance(key, (int, str, bytes, list, tuple)), '%s: %s' % (type(key), repr(key))
     return hashlib.sha1(dumps(key)).hexdigest()
 
 
