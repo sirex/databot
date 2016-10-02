@@ -16,7 +16,7 @@ from databot import commands
 class Bot(object):
 
     def __init__(self, uri_or_engine='sqlite:///:memory:', *,
-                 debug=False, retry=False, verbosity=0, output=sys.stdout, models=None):
+                 debug=False, retry=False, limit=0, verbosity=0, output=sys.stdout, models=None):
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
         self.models = models or Models(sa.MetaData(self.engine))
@@ -30,6 +30,7 @@ class Bot(object):
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.debug = debug
         self.retry = retry
+        self.limit = limit
         self.verbosity = verbosity
         self.download_delay = None
         self.requests = requests.Session()
@@ -48,15 +49,18 @@ class Bot(object):
             engine = get_engine(uri_or_engine, self.path)
             models = Models(sa.MetaData())
             migrations = Migrations(models, engine, self.output, verbosity=1)
-            unapplied_migrations = migrations.unapplied()
-            if unapplied_migrations:
-                self.output.error('\n'.join([
-                    "External database '%s' from '%s' pipe has unapplied migrations.\n" % (engine.url, name),
-                    "List of unapplied migrations:\n\n  - %s\n" % (
-                        '\n  - '.join([f.__name__ for f in unapplied_migrations])
-                    ),
-                ]))
-                sys.exit(1)
+            if migrations.has_initial_state():
+                migrations.initialize()
+            else:
+                unapplied_migrations = migrations.unapplied()
+                if unapplied_migrations:
+                    self.output.error('\n'.join([
+                        "External database '%s' from '%s' pipe has unapplied migrations.\n" % (engine.url, name),
+                        "List of unapplied migrations:\n\n  - %s\n" % (
+                            '\n  - '.join([f.__name__ for f in unapplied_migrations])
+                        ),
+                    ]))
+                    sys.exit(1)
 
             internal = get_or_create(self.engine, self.models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
             external = get_or_create(engine, models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
@@ -159,7 +163,10 @@ class Bot(object):
             if define is not None:
                 define(self)
 
-            cmgr.run(args.command, args, default='status')
+            try:
+                cmgr.run(args.command, args, default='status')
+            except KeyboardInterrupt:
+                pass
 
         return self
 

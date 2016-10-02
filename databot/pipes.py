@@ -475,7 +475,8 @@ class Pipe(object):
             self.retry(handler)
 
         if self.bot.verbosity == 1 and not self.bot.debug:
-            rows = tqdm.tqdm(self.rows(), desc, self.count(), leave=True)
+            total = self.count()
+            rows = tqdm.tqdm(self.rows(), desc, total, leave=True)
         else:
             rows = self.rows()
 
@@ -491,7 +492,11 @@ class Pipe(object):
 
         n = 0
         row = None
+        interrupt = None
         for row in rows:
+            if self.bot.limit and n > self.bot.limit:
+                break
+
             if self.bot.debug:
                 self._verbose_append(handler, row, pipe, append=False)
             else:
@@ -500,6 +505,9 @@ class Pipe(object):
                         self._verbose_append(handler, row, pipe)
                     else:
                         self.append(handler(row), bulk=pipe)
+                except KeyboardInterrupt as e:
+                    interrupt = e
+                    break
                 except:
                     self.errors.report(row, traceback.format_exc(), errors)
             n += 1
@@ -510,13 +518,17 @@ class Pipe(object):
         if self.bot.verbosity > 1:
             print('%s, rows processed: %d' % (desc, n))
 
+        if interrupt:
+            raise interrupt
+
         return self
 
     def retry(self, handler):
         desc = '%s -> %s (retry)' % (self.source, self)
 
         if self.bot.verbosity == 1 and not self.bot.debug:
-            errors = tqdm.tqdm(self.errors(), desc, self.errors.count(), leave=True)
+            total = self.errors.count()
+            errors = tqdm.tqdm(self.errors(), desc, total, leave=True)
         else:
             errors = self.errors()
 
@@ -530,8 +542,12 @@ class Pipe(object):
         pipe.post_save(post_save)
 
         n = 0
+        interrupt = None
         error_ids = []
         for error in errors:
+            if self.bot.limit and n > self.bot.limit:
+                break
+
             if self.bot.debug:
                 self._verbose_append(handler, error.row, pipe, append=False)
                 error_ids.append(error.id)
@@ -541,6 +557,9 @@ class Pipe(object):
                         self._verbose_append(handler, error.row, pipe)
                     else:
                         self.append(handler(error.row), bulk=pipe)
+                except KeyboardInterrupt as e:
+                    interrupt = e
+                    break
                 except:
                     self.errors.report(error, traceback.format_exc())
                 else:
@@ -551,6 +570,9 @@ class Pipe(object):
 
         if self.bot.verbosity > 1:
             print('%s, errors retried: %d' % (desc, n))
+
+        if interrupt:
+            raise interrupt
 
         return self
 

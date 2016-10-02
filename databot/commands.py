@@ -70,10 +70,12 @@ class Run(Command):
         parser.add_argument('options', type=str, nargs='*', help="Run options if not specified everythig will be run.")
         parser.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
         parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
+        parser.add_argument('-n', '--limit', type=int, default=0, help="Limit number of iteratios for all pipes.")
 
     def run(self, args):
         self.bot.debug = args.debug
         self.bot.retry = args.retry
+        self.bot.limit = args.limit
 
         if self.func is not None:
             self.bot.options = args.options
