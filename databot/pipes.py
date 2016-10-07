@@ -73,6 +73,27 @@ class PipeData(object):
         query = sa.select([sa.exists().where(self.table.c.key == serkey(key))])
         return self.engine.execute(query).scalar()
 
+    def getall(self, key, reverse=False):
+        order_by = self.table.c.id.desc() if reverse else self.table.c.id
+        query = self.table.select().where(self.table.c.key == serkey(key)).order_by(order_by)
+        for row in windowed_query(self.engine, query, self.table.c.id):
+            yield create_row(row)
+
+    def get(self, key, default=Exception):
+        try:
+            row = next(self.getall(key))
+        except StopIteration:
+            if default is Exception:
+                raise ValueError('%r not found.' % key)
+            else:
+                return default
+        try:
+            next(self.getall(key))
+        except StopIteration:
+            return row
+        else:
+            raise ValueError('%r returned more that one row.' % key)
+
 
 class PipeErrors(object):
     def __init__(self, pipe):

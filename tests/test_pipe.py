@@ -85,6 +85,24 @@ def test_exists(t1):
     assert t1.data.exists('3') is False
 
 
+def test_data_get(t1):
+    assert t1.data.get('1').value == 'a'
+    assert t1.data.get('zz', None) is None
+    with pytest.raises(ValueError):
+        t1.data.get('zz')
+
+
+def test_data_get_more_than_one_error(db):
+    pipe = db.Bot().define('pipe').append([('1', 'a'), ('1', 'b')])
+    with pytest.raises(ValueError):
+        pipe.data.get('1')
+
+
+def test_data_getall(db):
+    pipe = db.Bot().define('pipe').append([('1', 'a'), ('1', 'b')])
+    assert [x.value for x in pipe.data.getall('1')] == ['a', 'b']
+
+
 @pytest.fixture
 def p2(bot):
     bot.verbosity = 1
