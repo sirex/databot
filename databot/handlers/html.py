@@ -299,9 +299,9 @@ def text(nodes, strip=True, exclude=None):
 
             texts.append(node.text)
             texts.extend(extract(node.getchildren()))
-            texts.append(node.tail)
-            if node.tag in ('p', 'h1', 'h2', 'h3', 'h4', 'h5'):
+            if node.tag in ('p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5'):
                 texts.append('\n')
+            texts.append(node.tail)
         return texts
 
     nodes = nodes if isinstance(nodes, list) else [nodes]

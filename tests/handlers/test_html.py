@@ -221,3 +221,14 @@ def test_func_outside_list(Html):
     row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
     selector = html.Select(number(['a@name']))
     assert selector(row) == [1, 2]
+
+
+def test_text(Html):
+    row = Html(['<div><p>p1</p>p2<br>p3<br>p4</div>'])
+    selector = html.Select(databot.text('div'))
+    assert selector(row).splitlines() == [
+        'p1', '',
+        'p2', '',
+        'p3', '',
+        'p4'
+    ]
