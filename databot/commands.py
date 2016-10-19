@@ -88,6 +88,9 @@ class Run(Command):
 class Status(Command):
 
     def run(self, args):
+        self.call()
+
+    def call(self):
         self.bot.output.status(self.bot)
 
 
@@ -230,20 +233,25 @@ class Show(Command):
 
     def run(self, args):
         import ast
-        import webbrowser
-        import tempfile
 
         # XXX: https://trello.com/c/fP9v43dF/57-pataisyti-literal-eval-naudojima
-        if args.key and args.key[0] in ('[', '{', '"', "'"):
+        if isinstance(args.key, str) and (args.key[0] in ('[', '{', '"', "'") or args.key.isnumeric()):
             key = ast.literal_eval(args.key)
         else:
             key = args.key or None
-        row = self.pipe(args.pipe).last(key)
+
+        self.call(self.pipe(args.pipe), key, exclude=args.exclude, in_browser=args.in_browser)
+
+    def call(self, pipe, key=None, exclude=None, in_browser=False):
+        import webbrowser
+        import tempfile
+
+        row = pipe.last(key)
 
         if row:
-            exclude = args.exclude.split(',') if args.exclude else None
+            exclude = exclude.split(',') if exclude else None
             self.bot.output.key_value(row.key, row.value, exclude=exclude)
-            if args.in_browser:
+            if in_browser:
                 with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
                     f.write(row.value['content'])
                 webbrowser.open(f.name)
@@ -261,16 +269,18 @@ class Tail(Command):
         parser.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
 
     def run(self, args):
+        self.call(self.pipe(args.pipe), limit=args.limit, table=args.table, exclude=args.exclude, include=args.include)
+
+    def call(self, pipe, limit=10, table=False, include=None, exclude=None):
         from databot.db.utils import create_row
 
-        pipe = self.pipe(args.pipe)
-        rows = pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(args.limit))
+        rows = pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(limit))
         rows = [create_row(row) for row in reversed(list(rows))]
 
         if rows:
-            exclude = args.exclude.split(',') if args.exclude else None
-            include = args.include.split(',') if args.include else None
-            if args.table:
+            exclude = exclude.split(',') if exclude else None
+            include = include.split(',') if include else None
+            if table:
                 self.bot.output.table(rows, exclude=exclude, include=include)
             else:
                 for row in rows:
