@@ -233,7 +233,11 @@ class Show(Command):
         import webbrowser
         import tempfile
 
-        key = ast.literal_eval(args.key) if args.key else None
+        # XXX: https://trello.com/c/fP9v43dF/57-pataisyti-literal-eval-naudojima
+        if args.key and args.key[0] in ('[', '{', '"', "'"):
+            key = ast.literal_eval(args.key)
+        else:
+            key = args.key or None
         row = self.pipe(args.pipe).last(key)
 
         if row:
