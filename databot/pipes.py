@@ -80,15 +80,16 @@ class PipeData(object):
             yield create_row(row)
 
     def get(self, key, default=Exception):
+        rows = self.getall(key)
         try:
-            row = next(self.getall(key))
+            row = next(rows)
         except StopIteration:
             if default is Exception:
                 raise ValueError('%r not found.' % key)
             else:
                 return default
         try:
-            next(self.getall(key))
+            next(rows)
         except StopIteration:
             return row
         else:
