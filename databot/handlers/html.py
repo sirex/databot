@@ -8,14 +8,11 @@ from cssselect.xpath import ExpressionError
 from bs4 import BeautifulSoup
 
 from databot import rowvalue
+from databot.handlers.download import get_content
 
 
 def create_html_parser(row):
-    content = row.value['content'] or b'<html></html>'
-
-    soup = BeautifulSoup(content, 'lxml')
-    content = content.decode(soup.original_encoding)
-
+    content = get_content(row.value)
     parser = lxml.html.HTMLParser(encoding='utf-8')
     html = lxml.html.document_fromstring(content, parser=parser)
     html.make_links_absolute(row.key)

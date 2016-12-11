@@ -86,7 +86,7 @@ class Printer(object):
                         self.info('  content: %s' % self.highlight(repr(value['content'][:cut]), html, formatter))
                     else:
                         self.info('  content:')
-                        code = textwrap.indent(get_content(value, 'ignore').decode('utf-8'), '    ')
+                        code = textwrap.indent(get_content(value, 'ignore'), '    ')
                         self.info(self.highlight(code, html, formatter))
                 special = {'headers', 'cookies', 'status_code', 'encoding', 'content'}
                 for k, v in value.items():
