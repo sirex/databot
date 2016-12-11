@@ -1,8 +1,11 @@
+import io
+
 import pytest
 import databot
 
 from databot.db.utils import Row
 from databot.exporters.csv import get_fields, get_values, flatten_rows
+from databot.exporters import jsonl
 
 
 @pytest.fixture
@@ -121,4 +124,24 @@ def test_value(data):
         ['key', 'value'],
         [1, 'a'],
         [2, 'b'],
+    ]
+
+
+def test_jsonl(bot):
+    pipe = bot.define('p1').append([('1', 'a'), ('2', 'b')])
+    stream = io.StringIO()
+    jsonl.export(stream, pipe)
+    assert stream.getvalue().splitlines() == [
+        '{"key": "1", "value": "a"}',
+        '{"key": "2", "value": "b"}',
+    ]
+
+
+def test_jsonl_dict(bot):
+    pipe = bot.define('p1').append([('1', {'a': 2}), ('2', {'b': 3})])
+    stream = io.StringIO()
+    jsonl.export(stream, pipe)
+    assert stream.getvalue().splitlines() == [
+        '{"key": "1", "a": 2}',
+        '{"key": "2", "b": 3}',
     ]

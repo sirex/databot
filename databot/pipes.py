@@ -11,7 +11,7 @@ from databot.db.utils import strip_prefix, create_row, get_or_create, Row
 from databot.db.windowedquery import windowed_query
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
-from databot.exporters import csv
+from databot.exporters import csv, jsonl
 
 
 def wrapper(handler, wrap):
@@ -607,7 +607,10 @@ class Pipe(object):
             self.bot.output.key_value(key, value, short=True)
 
     def export(self, path, **kwargs):
-        csv.export(path, self, **kwargs)
+        if path.endswith('.jsonl'):
+            jsonl.export(path, self, **kwargs)
+        else:
+            csv.export(path, self, **kwargs)
 
     def download(self, urls=None, **kwargs):
         """Download list of URLs and store downloaded content into a pipe.
