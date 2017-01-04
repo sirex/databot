@@ -246,15 +246,25 @@ class PipeErrors(object):
 
 
 class Pipe(object):
-    def __init__(self, bot, id, name, table, engine, samedb=True):
+    def __init__(self, bot, id, name, table, engine, samedb=True, compression=None):
         """
 
-        Parameters:
-        - bot: databot.Bot
-        - id: int, primary key of this pipe from databot.db.models.pipes.id
-        - name: str, human readable pipe identifier
-        - table: sqlalchemy.Table, a table where data is stored
+        Parameters
+        ----------
+        bot : databot.Bot
+        id : int
+            Primary key of this pipe from ``databot.db.models.pipes.id``.
+        name : str
+            Human readable pipe identifier.
+        table: sqlalchemy.Table
+            A table where data is stored.
+        engine : sqlalchemy.Engine
+        samedb : bool
+            Identifies if this pipe is stored in same database as other pipes of ``bot``.
 
+            If a pipe is stored in an external database, some queries will be executed in a bit different way.
+        compression : databot.db.models.Compression, optional
+            Data compression algorithm.
         """
         self.bot = bot
         self.id = id
@@ -263,6 +273,7 @@ class Pipe(object):
         self.models = bot.models
         self.engine = engine
         self.samedb = samedb
+        self.compression = compression
         self.data = PipeData(self)
         self.errors = PipeErrors(self)
 
@@ -449,6 +460,14 @@ class Pipe(object):
 
         self.engine.execute(self.table.delete(self.table.c.id.in_(query)))
         return self
+
+    def compress(self):
+        total = engine.execute(table.count()).scalar()
+        rows = windowed_query(engine, table.select(), table.c.id)
+        if self.verbosity == 1:
+            rows = tqdm.tqdm(rows, total=total, file=self.output.output)
+        for row in rows:
+            self.engine.execute(table.update().where(table.c.id == row['id']).values(**self.migrate_data_item(row)))
 
     def count(self):
         """How much items left to process."""

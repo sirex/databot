@@ -40,7 +40,18 @@ class Bot(object):
         if self.migrations.has_initial_state():
             self.migrations.initialize()
 
-    def define(self, name, uri_or_engine=None, table=None):
+    def define(self, name, uri_or_engine=None, compression=None):
+        """Defines new pipe for storing data.
+
+        Parameters
+        ----------
+        name : str
+            Pipe name.
+        uri_or_engine : str or sqlalchemy.Engine
+            Database engine if this pipe used external database (other than defined in bot).
+        compression : databot.db.models.Compression, optional
+            Default compression for data values.
+        """
         if name in self.pipes_by_name:
             raise ValueError('A pipe with "%s" name is already defined.' % name)
 
@@ -62,8 +73,9 @@ class Bot(object):
                     ]))
                     sys.exit(1)
 
-            internal = get_or_create(self.engine, self.models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
-            external = get_or_create(engine, models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
+            defaults = dict(bot=self.name, pipe=name)
+            internal = get_or_create(self.engine, self.models.pipes, ('pipe',), defaults)
+            external = get_or_create(engine, models.pipes, ('pipe',), defaults)
 
             table_id = internal.id
             table_name = 't%d' % external.id
@@ -73,7 +85,8 @@ class Bot(object):
             engine = self.engine
             models = self.models
 
-            internal = get_or_create(engine, models.pipes, ('pipe',), dict(bot=self.name, pipe=name))
+            defaults = dict(bot=self.name, pipe=name)
+            internal = get_or_create(engine, models.pipes, ('pipe',), defaults)
 
             table_id = internal.id
             table_name = 't%d' % internal.id

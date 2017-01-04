@@ -120,6 +120,15 @@ class FixContentEncoding(Migration):
         return dict(value=value)
 
 
+class DataCompression(Migration):
+
+    name = "data compression"
+    data_tables = True
+
+    def migrate_data_table(self, table):
+        self.op.add_column(table.name, sa.Column('compression', sa.SmallInteger, nullable=True))
+
+
 class Migrations(object):
 
     migrations = {
@@ -129,6 +138,7 @@ class Migrations(object):
         AlterKeyField: {KeyToSha1},
         TextToContent: {AlterKeyField},
         FixContentEncoding: {TextToContent},
+        DataCompression: {FixContentEncoding},
     }
 
     def __init__(self, models, engine, output=sys.stdout, verbosity=1):

@@ -1,3 +1,4 @@
+import enum
 import datetime
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql, mysql, sqlite
@@ -6,6 +7,10 @@ BigInteger = sa.BigInteger()
 BigInteger = BigInteger.with_variant(postgresql.BIGINT(), 'postgresql')
 BigInteger = BigInteger.with_variant(mysql.BIGINT(), 'mysql')
 BigInteger = BigInteger.with_variant(sqlite.INTEGER(), 'sqlite')
+
+
+class Compression(enum.Enum):
+    gzip = 1
 
 
 class Models(object):
@@ -53,4 +58,5 @@ class Models(object):
             sa.Column('key', sa.Unicode(40), index=True, default='', nullable=False),
             sa.Column('value', sa.LargeBinary, default='', nullable=False),
             sa.Column('created', sa.DateTime, default=datetime.datetime.utcnow),
+            sa.Column('compression', sa.Integer, nullable=True),  # see Compression enum for possible values
         )
