@@ -194,10 +194,10 @@ class Bot(object):
             self.output.error((
                 'You need to run database migrations:\n'
                 '\n'
-                '    %s migrate\n'
+                '    databot %s migrate\n'
                 '\n'
                 'List of unapplied migrations:\n\n  - %s\n'
-            ) % (sys.argv[0], '\n  - '.join([f.__name__ for f in unapplied_migrations])))
+            ) % (self.engine.url, '\n  - '.join([f.__name__ for f in unapplied_migrations])))
             sys.exit(1)
 
     def run(self, name):
