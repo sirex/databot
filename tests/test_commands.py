@@ -365,6 +365,10 @@ def test_external_db_error_when_migrations_not_applied(mocker, db):
     assert bot2.output.output.getvalue() == '\n'.join(map(str.rstrip, [
         "External database 'sqlite:///:memory:' from 'p1' pipe has unapplied migrations.",
         "                                                                               ",
+        "You need to run database migrations:                                           ",
+        "                                                                               ",
+        "    databot sqlite:///:memory: migrate                                         ",
+        "                                                                               ",
         "List of unapplied migrations:                                                  ",
         "                                                                               ",
         "  - ValueToMsgpack                                                             ",

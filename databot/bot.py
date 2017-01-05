@@ -65,8 +65,11 @@ class Bot(object):
             else:
                 unapplied_migrations = migrations.unapplied()
                 if unapplied_migrations:
+                    dburl = uri_or_engine if isinstance(uri_or_engine, str) else engine.url
                     self.output.error('\n'.join([
-                        "External database '%s' from '%s' pipe has unapplied migrations.\n" % (engine.url, name),
+                        "External database '%s' from '%s' pipe has unapplied migrations.\n" % (dburl, name),
+                        'You need to run database migrations:\n',
+                        '    databot %s migrate\n' % dburl,
                         "List of unapplied migrations:\n\n  - %s\n" % (
                             '\n  - '.join([f.__name__ for f in unapplied_migrations])
                         ),

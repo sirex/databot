@@ -91,6 +91,7 @@ class Status(Command):
         self.call()
 
     def call(self):
+        """Show status of all pipes."""
         self.bot.output.status(self.bot)
 
 
@@ -260,6 +261,20 @@ class Show(Command):
         self.call(self.pipe(args.pipe), key, exclude=args.exclude, in_browser=args.in_browser)
 
     def call(self, pipe, key=None, exclude=None, in_browser=False):
+        """Show content of a record in a pipe.
+
+        Parameters
+        ----------
+        pipe : databot.pipes.Pipe
+        key : str, optional
+            Use specific key from pipe. If not specified last entry will be shown.
+        exclude : List[str], optional
+            Exclude specified fields from output.
+        in_browser : boolean, optional
+            If this is a downloaded page, show it in your default web browser.
+
+        """
+
         import webbrowser
         import tempfile
 

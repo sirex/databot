@@ -27,4 +27,9 @@ setup(
         'pytest-mock',
         'requests-mock',
     ],
+    entry_points={
+        'console_scripts': [
+            'databot = databot.main:main',
+        ],
+    },
 )
