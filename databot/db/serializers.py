@@ -28,6 +28,7 @@ def serkey(key):
 def serrow(key, value, compression=None, **kwargs):
     value = dumps([key, value])
     if compression == Compression.gzip:
-        value = gzip.compress(value)
+        # See: https://quixdb.github.io/squash-benchmark/#results
+        value = gzip.compress(value, compresslevel=1)
     compression = None if compression is None else int(compression.value)
     return dict(kwargs, key=serkey(key), value=value, compression=compression)

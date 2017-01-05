@@ -382,6 +382,39 @@ To rename it in database you need to execute following command::
 
     $ ./hackernews.py rename 'old name' 'new name'
 
+
+Compressing pipe data
+=====================
+
+Some times you want to compress some pipes, especially those, containing HTML
+pages. Compressing HTML pages can save `up to 3 times of disk space
+<https://quixdb.github.io/squash-benchmark/#results>`_.
+
+You can specify compression level like this:
+
+.. code-block:: python
+
+    bot.define('html-pages', compress=True)
+
+If you specify ``compress=True``, only new entries will be compressed. In order
+to compress existing entries, run following command::
+
+    $ ./bot.py compress html-pages
+
+Also you can decompress existing data::
+
+    $ ./bot.py decompress html-pages
+
+After compressing existing data, Sqlite file size stays same as before, in
+order for compression to take effect you need to vacuum you Sqlite database
+using this command::
+
+    $ sqlite3 path/to/sqlite.db vacuum
+
+``vacuum`` command requires as much as `twice the size
+<https://www.sqlite.org/lang_vacuum.html>`_ of the original database file of
+free disk space.
+
 Manual access to the data
 =========================
 

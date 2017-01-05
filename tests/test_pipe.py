@@ -157,7 +157,7 @@ def test_append_none(bot):
 
 
 def test_compression(bot):
-    pipe = bot.define('p1', compression=Compression.gzip).append([(1, 'a'), (2, 'b')])
+    pipe = bot.define('p1', compress=True).append([(1, 'a'), (2, 'b')])
     assert list(pipe.data.items()) == [(1, 'a'), (2, 'b')]
 
 
@@ -175,7 +175,7 @@ def test_compress_decompress(bot):
     pipe.compress()
     assert fetchrow(1, 'compression') is Compression.gzip.value
     assert fetchrow(1, 'value') != b'\x92\x01\xa1a'
-    assert fetchrow(1, 'value') == gzip.compress(b'\x92\x01\xa1a')
+    assert fetchrow(1, 'value') == gzip.compress(b'\x92\x01\xa1a', compresslevel=1)
     assert list(pipe.data.items()) == [(1, 'a'), (2, 'b')]
 
     pipe.decompress()

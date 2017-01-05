@@ -247,7 +247,7 @@ class PipeErrors(object):
 
 
 class Pipe(object):
-    def __init__(self, bot, id, name, table, engine, samedb=True, compression=None):
+    def __init__(self, bot, id, name, table, engine, samedb=True, compress=None):
         """
 
         Parameters
@@ -264,7 +264,7 @@ class Pipe(object):
             Identifies if this pipe is stored in same database as other pipes of ``bot``.
 
             If a pipe is stored in an external database, some queries will be executed in a bit different way.
-        compression : databot.db.models.Compression, optional
+        compress : databot.db.models.Compression or bool, optional
             Data compression algorithm.
         """
         self.bot = bot
@@ -274,7 +274,7 @@ class Pipe(object):
         self.models = bot.models
         self.engine = engine
         self.samedb = samedb
-        self.compression = compression
+        self.compression = Compression.gzip if compress is True else compress
         self.data = PipeData(self)
         self.errors = PipeErrors(self)
 

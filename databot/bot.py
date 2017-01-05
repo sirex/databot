@@ -40,7 +40,7 @@ class Bot(object):
         if self.migrations.has_initial_state():
             self.migrations.initialize()
 
-    def define(self, name, uri_or_engine=None, compression=None):
+    def define(self, name, uri_or_engine=None, compress=None):
         """Defines new pipe for storing data.
 
         Parameters
@@ -94,7 +94,7 @@ class Bot(object):
         table = models.get_data_table(table_name)
         table.create(engine, checkfirst=True)
 
-        pipe = databot.pipes.Pipe(self, table_id, name, table, engine, samedb, compression)
+        pipe = databot.pipes.Pipe(self, table_id, name, table, engine, samedb, compress)
         self.pipes.append(pipe)
         self.pipes_by_name[name] = pipe
         self.pipes_by_id[pipe.id] = pipe
