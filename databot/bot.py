@@ -94,7 +94,7 @@ class Bot(object):
         table = models.get_data_table(table_name)
         table.create(engine, checkfirst=True)
 
-        pipe = databot.pipes.Pipe(self, table_id, name, table, engine, samedb)
+        pipe = databot.pipes.Pipe(self, table_id, name, table, engine, samedb, compression)
         self.pipes.append(pipe)
         self.pipes_by_name[name] = pipe
         self.pipes_by_id[pipe.id] = pipe
@@ -148,6 +148,8 @@ class Bot(object):
         cmgr.register('errors', commands.Errors)
         cmgr.register('sh', commands.Shell)
         cmgr.register('rename', commands.Rename)
+        cmgr.register('compress', commands.Compress)
+        cmgr.register('decompress', commands.Decompress)
         return cmgr
 
     def main(self, define=None, run=None, argv=None):

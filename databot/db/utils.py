@@ -2,6 +2,7 @@ import pathlib
 import sqlalchemy as sa
 import sqlalchemy.orm.exc
 
+from databot.db.models import Compression
 from databot.db.serializers import loads
 
 
@@ -12,8 +13,9 @@ class Row(dict):
 
 
 def create_row(row):
-    key, value = loads(row['value'])
-    return Row(row, key=key, value=value)
+    compression = None if row['compression'] is None else Compression(row['compression'])
+    key, value = loads(row['value'], compression)
+    return Row(row, key=key, value=value, compression=compression)
 
 
 def strip_prefix(row, prefix):

@@ -433,3 +433,15 @@ def test_rename(bot):
         '    2                 0  p2\n'
         '---------------------------------\n'
     )
+
+
+def test_compress(bot):
+    bot.define('p1').append([(1, 'a'), (2, 'b')])
+    bot.main(argv=['compress', 'p1'])
+    assert bot.output.output.getvalue().startswith('\r  0%|          | 0/2')
+
+
+def test_decompress(bot):
+    bot.define('p1').append([(1, 'a'), (2, 'b')]).compress()
+    bot.main(argv=['decompress', 'p1'])
+    assert bot.output.output.getvalue().startswith('\r  0%|          | 0/2')

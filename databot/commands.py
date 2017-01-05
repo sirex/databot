@@ -380,3 +380,27 @@ class Rename(Command):
         pipes = self.bot.models.pipes
         pipe_id = sa.select([pipes.c.id], pipes.c.pipe == args.old).execute().scalar()
         pipes.update().where(pipes.c.id == pipe_id).values(pipe=args.new).execute()
+
+
+class Compress(Command):
+
+    def add_arguments(self, parser):
+        parser.add_argument('pipe', type=str, help="Pipe name or id")
+
+    def run(self, args):
+        self.call(self.pipe(args.pipe))
+
+    def call(self, pipe):
+        pipe.compress()
+
+
+class Decompress(Command):
+
+    def add_arguments(self, parser):
+        parser.add_argument('pipe', type=str, help="Pipe name or id")
+
+    def run(self, args):
+        self.call(self.pipe(args.pipe))
+
+    def call(self, pipe):
+        pipe.compress()

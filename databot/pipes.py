@@ -9,6 +9,7 @@ import databot
 from databot.db.serializers import serrow, serkey
 from databot.db.utils import strip_prefix, create_row, get_or_create, Row
 from databot.db.windowedquery import windowed_query
+from databot.db.models import Compression
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
 from databot.exporters import csv, jsonl
@@ -343,7 +344,7 @@ class Pipe(object):
             # Skip all items if key is None
             if key is not None and (not only_missing or not self.data.exists(key)):
                 now = datetime.datetime.utcnow()
-                bulk.append(serrow(key, value, created=now))
+                bulk.append(serrow(key, value, created=now, compression=self.compression))
 
         # Bulk insert finish
         if save_bulk:
@@ -462,12 +463,24 @@ class Pipe(object):
         return self
 
     def compress(self):
-        total = engine.execute(table.count()).scalar()
-        rows = windowed_query(engine, table.select(), table.c.id)
-        if self.verbosity == 1:
-            rows = tqdm.tqdm(rows, total=total, file=self.output.output)
+        table = self.table
+        rows = self.data.rows()
+        if self.bot.verbosity == 1:
+            rows = tqdm.tqdm(rows, total=self.data.count(), file=self.bot.output.output)
         for row in rows:
-            self.engine.execute(table.update().where(table.c.id == row['id']).values(**self.migrate_data_item(row)))
+            if row.compression != Compression.gzip:
+                data = serrow(row.key, row.value, created=row.created, compression=Compression.gzip)
+                self.engine.execute(table.update().where(table.c.id == row['id']).values(data))
+
+    def decompress(self):
+        table = self.table
+        rows = self.data.rows()
+        if self.bot.verbosity == 1:
+            rows = tqdm.tqdm(rows, total=self.data.count(), file=self.bot.output.output)
+        for row in rows:
+            if row.compression is not None:
+                data = serrow(row.key, row.value, created=row.created, compression=None)
+                self.engine.execute(table.update().where(table.c.id == row['id']).values(data))
 
     def count(self):
         """How much items left to process."""
