@@ -466,7 +466,7 @@ class Pipe(object):
         table = self.table
         rows = self.data.rows()
         if self.bot.verbosity == 1:
-            rows = tqdm.tqdm(rows, total=self.data.count(), file=self.bot.output.output)
+            rows = tqdm.tqdm(rows, ('compress %s' % self.name), total=self.data.count(), file=self.bot.output.output)
         for row in rows:
             if row.compression != Compression.gzip:
                 data = serrow(row.key, row.value, created=row.created, compression=Compression.gzip)
@@ -476,7 +476,7 @@ class Pipe(object):
         table = self.table
         rows = self.data.rows()
         if self.bot.verbosity == 1:
-            rows = tqdm.tqdm(rows, total=self.data.count(), file=self.bot.output.output)
+            rows = tqdm.tqdm(rows, ('decompress %s' % self.name), total=self.data.count(), file=self.bot.output.output)
         for row in rows:
             if row.compression is not None:
                 data = serrow(row.key, row.value, created=row.created, compression=None)

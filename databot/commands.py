@@ -8,24 +8,24 @@ from databot.exceptions import PipeNameError
 class CommandsManager(object):
 
     def __init__(self, bot, sps=None):
-        self.bot = bot
-        self.sps = sps
-        self.commands = {}
-
-    def __getattr__(self, key):
-        return self.commands[key].call
+        self._bot = bot
+        self._sps = sps
+        self._commands = {}
 
     def register(self, name, Cmd, *args, **kwargs):
-        assert name not in self.commands
-        command = Cmd(self.bot)
+        assert name not in self._commands
+        command = Cmd(self._bot)
         command.init(*args, **kwargs)
-        if self.sps:
-            parser = self.sps.add_parser(name)
+        if self._sps:
+            parser = self._sps.add_parser(name)
             command.add_arguments(parser)
-        self.commands[name] = command
+        self._commands[name] = command
+
+        if hasattr(command, 'call'):
+            setattr(self, name, command.call)
 
     def run(self, name, args, default=None):
-        command = self.commands[name if name else default]
+        command = self._commands[name if name else default]
         command.run(args)
 
 
@@ -115,6 +115,23 @@ class Select(Command):
         self.call(source, query, key=args.key, table=args.table)
 
     def call(self, source, query, key=None, table=False, raw=False):
+        """Select structured data from an unstructured source.
+
+        Parameters
+        ----------
+        source : databot.pipes.Pipe
+            Source pipe. Should be a pipe with downloaded HTML pages.
+        query : list | dict | tuple
+            Query for selecting data.
+        key : str, optional
+            Use specific key from source pipe.
+        table : bool, optional
+            Output results as table.
+        raw : bool, optional
+            Return raw python objects instead of printing results to stdout.
+
+        """
+
         from databot.pipes import keyvalueitems
         from databot.handlers import html
         from databot.db.utils import Row
@@ -385,22 +402,26 @@ class Rename(Command):
 class Compress(Command):
 
     def add_arguments(self, parser):
-        parser.add_argument('pipe', type=str, help="Pipe name or id")
+        parser.add_argument('pipes', nargs='+', type=str, help="Pipe name or id")
 
     def run(self, args):
-        self.call(self.pipe(args.pipe))
+        pipes = [self.pipe(x) for x in args.pipes]
+        self.call(pipes)
 
-    def call(self, pipe):
-        pipe.compress()
+    def call(self, pipes):
+        for pipe in pipes:
+            pipe.compress()
 
 
 class Decompress(Command):
 
     def add_arguments(self, parser):
-        parser.add_argument('pipe', type=str, help="Pipe name or id")
+        parser.add_argument('pipes', nargs='+', type=str, help="Pipe name or id")
 
     def run(self, args):
-        self.call(self.pipe(args.pipe))
+        pipes = [self.pipe(x) for x in args.pipes]
+        self.call(pipes)
 
-    def call(self, pipe):
-        pipe.compress()
+    def call(self, pipes):
+        for pipe in pipes:
+            pipe.decompress()
