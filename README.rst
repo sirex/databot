@@ -437,7 +437,8 @@ using ``databot`` library:
   def query_rows(engine, table):
       query = sa.select([table.c.value])
       for row in engine.execute(query):
-          yield msgpack.loads(row.value, encoding='utf-8')
+          value = gzip.decompress(row.value) if row.compression == 1 row.value
+          yield msgpack.loads(value, encoding='utf-8')
 
 
   def main():
@@ -446,7 +447,7 @@ using ``databot`` library:
       db = sa.MetaData()
       db.reflect(bind=engine)
 
-      for row in query_rows(engine, get_table(engine, db, 'mypipe')):
-          print(row)
+      for key, value in query_rows(engine, get_table(engine, db, 'mypipe')):
+          print(key, value)
 
 As you see data storage format is pretty simple.
