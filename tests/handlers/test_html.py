@@ -192,9 +192,7 @@ def test_url(Html):
         '<a href="http://example.com/">b</a>',
         '</div>',
     ])
-    selector = html.Select([
-        'a', databot.url('@href', query='id'),
-    ])
+    selector = html.Select(['a', databot.url('@href', query='id')])
     assert selector(row) == ['http://example.com/?id=1', None]
 
 

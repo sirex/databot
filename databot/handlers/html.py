@@ -2,11 +2,13 @@ import re
 import lxml.html
 import lxml.etree
 import itertools
+import urllib.parse
 
 from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
 from bs4 import BeautifulSoup
 
+import databot.utils.urls
 from databot import rowvalue
 from databot.handlers.download import get_content
 
@@ -285,6 +287,13 @@ class Value(object):
 
     def __call__(self, row, node):
         return self.value
+
+
+def url(row, *args, **kwargs):
+    if isinstance(row, rowvalue.Row):
+        return rowvalue.UrlRowItem(args, kwargs, row._row_keys + (urllib.parse.urlparse,))
+    else:
+        return func(skipna=True)(databot.utils.urls.url)(row, *args, **kwargs)
 
 
 @func()

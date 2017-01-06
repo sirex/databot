@@ -22,7 +22,7 @@ def check_query(qry, query):
 def url(url, domains=None, query=None):
     query = [query] if isinstance(query, str) else query or []
 
-    url = urllib.parse.urlparse(url)
+    url = urllib.parse.urlparse(url) if isinstance(url, str) else url
     qry = urllib.parse.parse_qsl(url.query, keep_blank_values=True)
     if query:
         qry = [(k, v) for k, v in qry if k in query]

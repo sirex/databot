@@ -1,4 +1,3 @@
-import operator
 import databot
 from databot.db.utils import Row
 
@@ -50,3 +49,11 @@ def test_value_attr():
 
     row = Row(key=1, value={'x': {'y': {'z': 42}}})
     assert databot.row.value.x.y.z(row) == 42
+
+
+def test_url():
+    row = Row(key=1, value='http://example.com/path?key=42')
+    assert databot.url(databot.row.value).query.key(int)(row) == 42
+    assert databot.url(databot.row.value).path(row) == '/path'
+    assert databot.url(databot.row.value).hostname(row) == 'example.com'
+    assert databot.url(databot.row.value)(row) == 'http://example.com/path?key=42'
