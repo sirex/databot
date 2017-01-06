@@ -313,7 +313,7 @@ def test_error_when_migrations_not_applied(mocker, db):
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
         "You need to run database migrations:                   ",
         "                                                       ",
-        "    %s migrate   " % sys.argv[0],
+        "    databot sqlite:///:memory: migrate                 ",
         "                                                       ",
         "List of unapplied migrations:                          ",
         "                                                       ",
