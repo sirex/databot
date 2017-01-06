@@ -168,6 +168,12 @@ def test_first_empty_string(Html):
     assert select(row) == 'a'
 
 
+def test_first_from_list(Html):
+    row = Html(['<div><a name="1">a</a><a name="2">b</a></div>'])
+    select = html.Select(databot.first('a:text'))
+    assert select(row) == 'a'
+
+
 def test_func(Html):
     length = databot.func()(len)
     row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])

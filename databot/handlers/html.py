@@ -116,7 +116,12 @@ class Select(object):
                     else:
                         raise ValueError("'%s' did not returned any results. Source: %s" % (value, row.key))
             elif len(result) > 1:
-                raise ValueError("'%s' returned more than one value: %r." % (value, result))
+                if html.tag != 'html':
+                    raise ValueError("'%s' returned more than one value: %r. Context:\n\n%s" % (
+                        value, result, lxml.etree.tostring(html, pretty_print=True).decode('utf-8')
+                    ))
+                else:
+                    raise ValueError("'%s' returned more than one value: %r." % (value, result))
             else:
                 return result[0]
 
@@ -246,11 +251,12 @@ class First(Call):
     def __init__(self, *queries):
         self.queries = queries
 
-    def __call__(self, select, row, node, many=False, single=True):
+    def __call__(self, select, row, node, many=True, single=True):
         for query in self.queries:
-            value = select.render(row, node, query, many, single)
-            if value:
-                return value
+            value = select.render(row, node, query, many=True, single=True)
+            for val in value:
+                if val:
+                    return val
         return None
 
 
