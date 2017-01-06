@@ -1,5 +1,8 @@
 This tool currently is under development and is not ready to be used.
 
+.. contents::
+
+
 Quick start
 ===========
 
@@ -280,6 +283,28 @@ One interesting point is that each pair of pipes remembers where they left last
 time and when executed again, they will continue from position left last time.
 That means, that you can run this script many times and only new items will be
 processed.
+
+Error handling
+==============
+
+By default, when you ``run`` your bot, all errors are stored in errors table
+with possibility to retry all items by running ``retry`` command.
+
+But sometimes it is a good idea to limit number of error with ``run -f`` flag.
+``-f`` without argument will stop scraping on first error. It means, that if
+you will run ``run -f`` again, *databot* will continue where it left.
+
+You can specify number of errors with ``run -f 10``, here scraping will stop
+after 10th error.
+
+Limiting number of errors is good idea in situations, when server starts to
+block *databot* after some time, in that case there is no point in trying to
+scrape more items, since error will be the same for all items.
+
+In order to inspect what errors where recorded you can use ``errors <pipe>``
+command. It will print whole source item and nice Python traceback. If source
+item is downloaded html page it is good idea to run ``errors <pipe> -x
+content``. This will suppress HTML content from output.
 
 
 Debugging

@@ -15,6 +15,9 @@ from databot.bulkinsert import BulkInsert
 from databot.exporters import csv, jsonl
 
 
+NONE = object()
+
+
 def wrapper(handler, wrap):
     if wrap is None:
         return handler
@@ -521,7 +524,9 @@ class Pipe(object):
         row = self.engine.execute(query).first()
         return create_row(row) if row else None
 
-    def call(self, handler):
+    def call(self, handler, error_limit=NONE):
+        error_limit = self.bot.error_limit if error_limit is NONE else error_limit
+
         state = self.get_state()
         desc = '%s -> %s' % (self.source, self)
 
@@ -545,8 +550,10 @@ class Pipe(object):
             pipe.post_save(post_save)
 
         n = 0
+        n_errors = 0
         row = None
         interrupt = None
+        last_row = None
         for row in rows:
             if self.bot.limit and n > self.bot.limit:
                 break
@@ -562,9 +569,20 @@ class Pipe(object):
                 except KeyboardInterrupt as e:
                     interrupt = e
                     break
-                except:
-                    self.errors.report(row, traceback.format_exc(), errors)
+                except Exception as e:
+                    n_errors += 1
+                    if error_limit is not None and n_errors >= error_limit:
+                        interrupt = e
+                        if self.bot.verbosity > 0:
+                            print('Interrupting bot because error limit of %d was reached.' % error_limit)
+                        if error_limit > 0:
+                            self.errors.report(row, traceback.format_exc(), errors)
+                        row = last_row
+                        break
+                    else:
+                        self.errors.report(row, traceback.format_exc(), errors)
             n += 1
+            last_row = row
 
         pipe.save(post_save=True)
         errors.save()

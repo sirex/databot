@@ -1,6 +1,5 @@
 import os
 import io
-import sys
 import mock
 import tempfile
 import sqlalchemy as sa
@@ -449,3 +448,69 @@ def test_decompress(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b')]).compress()
     bot.main(argv=['decompress', 'p1'])
     assert bot.output.output.getvalue().startswith('\rdecompress p1:   0%|          | 0/2')
+
+
+def test_run(bot):
+
+    def handler(row):
+        yield row.key, row.value.upper()
+
+    def run(bot):
+        with bot.pipe('p1'):
+            bot.pipe('p2').call(handler)
+
+    bot.define('p1').append([(1, 'a'), (2, 'b')])
+    bot.define('p2')
+    bot.main(run=run, argv=['run'])
+    assert bot.output.output.getvalue() == ''
+    assert list(bot.pipe('p2').data.items()) == [(1, 'A'), (2, 'B')]
+
+
+def test_run_error_limit(bot, capsys):
+
+    def handler(row):
+        if row.key > 1:
+            raise ValueError('Error.')
+        else:
+            yield row.key, row.value.upper()
+
+    def run(bot):
+        with bot.pipe('p1'):
+            bot.pipe('p2').call(handler)
+
+    p1 = bot.define('p1').append([(1, 'a'), (2, 'b')])
+    p2 = bot.define('p2')
+    with pytest.raises(ValueError):
+        bot.main(run=run, argv=['run', '-f'])
+
+    assert bot.output.output.getvalue() == ''
+    assert list(p2.data.items()) == [(1, 'A')]
+    assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 0 was reached.\n'
+
+    with p1:
+        assert p2.errors.count() == 0
+
+
+def test_run_error_limit_n(bot, capsys):
+
+    def handler(row):
+        if row.key > 1:
+            raise ValueError('Error.')
+        else:
+            yield row.key, row.value.upper()
+
+    def run(bot):
+        with bot.pipe('p1'):
+            bot.pipe('p2').call(handler)
+
+    p1 = bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd')])
+    p2 = bot.define('p2')
+    with pytest.raises(ValueError):
+        bot.main(run=run, argv=['run', '-f', '2'])
+
+    assert bot.output.output.getvalue() == ''
+    assert list(p2.data.items()) == [(1, 'A')]
+    assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'
+
+    with p1:
+        assert p2.errors.count() == 2

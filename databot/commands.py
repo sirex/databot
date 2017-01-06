@@ -71,11 +71,15 @@ class Run(Command):
         parser.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
         parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
         parser.add_argument('-n', '--limit', type=int, default=0, help="Limit number of iteratios for all pipes.")
+        parser.add_argument('-f', '--fail', type=int, default=None, const=0, nargs='?', action='store', help=(
+            "Stop scraping after specified number of errors."
+        ))
 
     def run(self, args):
         self.bot.debug = args.debug
         self.bot.retry = args.retry
         self.bot.limit = args.limit
+        self.bot.error_limit = args.fail
 
         if self.func is not None:
             self.bot.options = args.options

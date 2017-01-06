@@ -128,3 +128,34 @@ def test_resolve_key(t1, t2):
     with t1:
         t2.errors.resolve('1')
         assert list(t2.errors.keys()) == ['3']
+
+
+@pytest.mark.parametrize('limit, errors, left, raises', [
+    (None, 2, 0, False),
+    (0, 0, 3, True),
+    (1, 1, 3, True),
+    (2, 2, 2, True),
+    (3, 2, 0, False),
+])
+def test_error_limit(limit, errors, left, raises):
+
+    def errorif(*keys):
+        def handler(row):
+            if row.key in keys:
+                raise ValueError('Error for key: %r.' % row.key)
+            else:
+                yield row.key, row.value.upper()
+        return handler
+
+    bot = databot.Bot()
+    t1 = bot.define('t1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    t2 = bot.define('t2')
+
+    with t1:
+        if raises:
+            with pytest.raises(ValueError):
+                t2.call(errorif(1, 2), error_limit=limit)
+        else:
+            t2.call(errorif(1, 2), error_limit=limit)
+        assert t2.errors.count() == errors
+        assert t2.count() == left
