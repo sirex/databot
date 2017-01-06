@@ -3,28 +3,159 @@ This tool currently is under development and is not ready to be used.
 Quick start
 ===========
 
-In this quick start guide we are going to scrape `Hacker News`_ index page and
-will extract all data from that index page.
+In this quick start guide we are going to scrape Reddit_ index page and will
+extract all data from that index page.
 
-.. _Hacker News: https://news.ycombinator.com/
+.. _Reddit: https://news.ycombinator.com/
 
-Them main ``databot`` object is a pipe. A pipe is just a database table with
-basically key and value columns. For each pipe new table is created. ``key``
-column is used to identify distinct object and ``value`` is for storing the
-data. ``key`` can't be ``None``, when adding items to a pipe all items where
-``key`` is ``None`` are skipped.
+Just open a `Jupyter notebook`_ or any text editor and paste this code:
 
-So first thing we need to do is to define our pipes. In our case, we are going
-to need two pipes, ``index`` for whole HTML code of Hacker News index page and
-``news`` for storing extracted data.
+.. _Jupyter notebook: https://jupyter.org/
 
-Here is how our initial version of script looks:
+.. code-block:: python
+
+    import databot
+
+    bot = databot.Bot('/tmp/reddit.db')
+
+    index = bot.define('index').download('https://www.reddit.com/')
+
+    bot.commands.select(index, table=True, query=[
+        '.thing.link', (
+            '.entry .title > a@href', {
+                'title': '.entry .title > a:text',
+                'score': '.midcol .score.likes@title',
+                'time': databot.first('.tagline time@datetime'),
+                'comments': '.entry a.comments:text',
+            }
+        )
+    ])
+
+Last method call will output the data::
+
+    key                   comments       score  time                  title
+    ========================================================================================
+    http://i.imgur.com/Y  704 comments   20592  2017-01-05T06:57:31+  Reflex level: German
+    cX7DND.gifv                                 00:00                 Solider
+    https://youtu.be/hNw  567 comments   5494   2017-01-05T08:16:49+  If you haven't seen
+    ORVbNN-s                                    00:00                 it, the 2016
+                                                                      Japanese Godzilla
+                                                                      Resurgence is an
+                                                                      amaz...
+    https://www.reddit.c  1001 comments  8032   2017-01-05T06:34:41+  CALL TO ARMS #4 -
+    om/r/UpliftingNews/c                        00:00                 LET'S SHOW THE
+    omments/5m4uuw/call_                                              CHICAGO VICTIM SOME
+    to_arms_4_le...                                                   LOVE
+
+
+Now dig deeper into the code.
+
+
+.. code-block:: python
+
+    bot = databot.Bot('/tmp/reddit.db')
+
+Here we define ``Bot`` object and tell where all the data should be stored. In
+this case we simple pass a path to the Sqlite database. PostgreSQL and MySQL
+databases are supported too, `just give a dsn
+<http://docs.sqlalchemy.org/en/rel_1_1/core/engines.html#database-urls>`_
+instead of a path.
+
+.. code-block:: python
+
+    index = bot.define('index').download('https://www.reddit.com/')
+
+Here we define a new pipe called ``index``, then download
+``https://www.reddit.com/`` page and store it in ``index`` pipe.
+
+A pipe is just a database table with basically key and value columns.
+
+When we download a page and store in into a pipe, key for will be downloaded
+page url and value will be content with metadata.
+
+.. code-block:: python
+
+    bot.commands.select(index, table=True, query=[
+        '.thing.link', (
+            '.entry .title > a@href', {
+                'title': '.entry .title > a:text',
+                'score': '.midcol .score.likes@title',
+                'time': '.tagline time@datetime',
+                'comments': '.entry a.comments:text',
+            }
+        )
+    ])
+
+Once we have some HTML stored in a pipe, we can extract data from it using
+``select`` function.
+
+Query can be a list, dict, tuple or string. All strings are css selectors with
+some syntactic sugar added on top of it. Lists, dicts and tuples are used to
+define structure of extracted data.
+
+Here is a quick reference::
+
+    str: 'css/xpath selector (expects single item)'
+
+    tuple: (<key query>, <value query>)
+
+    dict: {<field>: <query>}
+
+    list: [<query a list container>, <query an item in the container>]
+
+    list: [<query (expects multiple items)>]
+
+So in our case, query is a list ``[]``, it means, that we expect list of items.
+Since our list has two items in it, first item ``.thing.link`` is selector that
+points to a container and second item is a tuple. A tuple can be only at the
+top level of query and it expects two selectors, one for key and other for
+value.
+
+As I said before, pipes (or tables) have only key and value for storing data.
+So we always have to provide key and value.
+
+In our case key is ``.entry .title > a@href``, and value is a dict. Keep in
+mind, that all queries inside list of two items are relative to element
+selected by first item of that list.
+
+It is a good idea to use key values, that uniquely identify object that is
+being scraped.
+
+css/xpath expressions have these syntactic sugar additions:
+
+- ``selector[1]`` - expands to ``selector:nth-child(1)``.
+
+- ``selector?`` - it is OK if there is no elements matching this selector,
+  ``None`` will be returned.
+
+- ``selector:text`` - take text part of selected element.
+
+- ``selector@attr`` - take attribute value of selected element.
+
+- ``selector:content`` - extract text content of selected element and all his
+  descendants.
+
+- ``xpath:selector`` - switch from css selector to xpath selector.
+
+- ``selector xpath:selector css:selector`` - start with css selector then
+  switch to xpath and then back to css. Each subsequent is relative to previous
+  one. Unless selector starts with ``/``.
+
+
+Writing scraper bot scripts
+===========================
+
+Example provided in quick start is good if you want to play with it in an
+interactive Python console, but if you want to run this scraper many times, it
+is better to move it to a script.
+
+Here is how previous example can be transformed into a script:
 
 .. code-block:: python
 
     #!/usr/bin/env python3
 
-    from databot import Bot
+    import databot
 
 
     def define(bot):
@@ -32,14 +163,36 @@ Here is how our initial version of script looks:
         bot.define('news')
 
 
+    def run(bot):
+        index = bot.pipe('index')
+        news = bot.pipe('news')
+
+        with index.download('https://www.reddit.com/'):
+            news.select([
+                '.thing.link', (
+                    '.entry .title > a@href', {
+                        'title': '.entry .title > a:text',
+                        'score': '.midcol .score.likes@title',
+                        'time': databot.first('.tagline time@datetime'),
+                        'comments': '.entry a.comments:text',
+                    }
+                )
+            ])
+
+        bot.compact()
+
+        news.export('/tmp/reddit.jsonl')
+
+
     if __name__ == '__main__':
-        Bot('sqlite:///hackernews.db').main(define)
+        databot.Bot('/tmp/reddit.db').main(define, run)
 
-Save this script under ``hackernews.py`` name, make it executable ``chmod +x
-hackernews.py`` and run it::
 
-    $ ./hackernews.py 
 
+Save this script under ``reddit.py`` name, make it executable ``chmod +x
+reddit.py`` and run it::
+
+    $ ./reddit.py 
     id              rows  source
         errors      left    target
     ==============================
@@ -48,284 +201,85 @@ hackernews.py`` and run it::
      2                 0  news
     ------------------------------
 
-If you execute script without any arguments it just show the status of all
-pipes. Now it's time to add some data to our pipes. Firs we need to add the HTML
-code of index page. You can do that using following command::
+When you run this script without any parameters it shows status of all your
+pipes.
 
-    $ ./hackernews.py download 'https://news.ycombinator.com/' -a index -x content
+To do the scraping use ``run`` subcommand::
 
-What just happened? Here we instructed *databot* to download
-``https://news.ycombinator.com/`` page and append it's content to ``index``
-pipe. Since ``download`` command prints whole downloaded content, additionally
-we specified ``-x content`` to not print downloaded content.
+    $ ./reddit.py run
+    index -> news: 100%|█████████████████| 1/1 [00:00<00:00,  4.94it/s]
 
-Now let's check the status output::
+If you will check status again you will see following output::
 
-    $ ./hackernews.py                                                          
-
+    $ ./reddit.py 
     id              rows  source
         errors      left    target
     ==============================
      1                 1  index
+             0         0    news
     ------------------------------
-     2                 0  news
+     2                35  news
     ------------------------------
 
-We see, that one item was added to our ``index`` pipe. We can see content of
-last added item in pipe using ``show`` command::
+It shows that ``index -> news`` does not have any errors and all items are
+processed. Also we see, than we have 1 row in ``index`` pipe and 35 rows in
+``news`` pipe.
 
-    $ ./hackernews.py show index -x content
+You can inspect content of pipes using ``tail`` or ``show`` commands::
 
-Again, we used ``-x content`` for the same reasons as with ``download`` command. If
-you want to see content of a specific item, you can add ``key`` argument::
+    $ ./reddit.py tail news -t -x key,title -n 5
+      comments      score             time            
+    =================================================
+    717 comments    25194   2017-01-05T16:37:01+00:00 
+    533 comments    9941    2017-01-05T17:34:22+00:00 
+    1111 comments   26383   2017-01-05T16:19:22+00:00 
+    1122 comments   9813    2017-01-05T17:33:36+00:00 
+    832 comments    7963    2017-01-05T16:58:55+00:00 
 
-    $ ./hackernews.py show index 'https://news.ycombinator.com/' -x content
-
-Now we need to extract news titles from downloaded HTML code. For this we need
-to specified CSS selector or XPath query. We can check what our selector returns
-before adding it to the script using ``select`` command::
-
-    $ ./hackernews.py select index '.athing > td[3] > a:text' -t
-
-                             key                                value 
-    =================================================================
-    The Hostile Email Landscape                                 None  
-    On Botnets and Streaming Music Services                     None  
-    Leaked Pinterest Documents Show Revenue, Growth Forecasts   None  
-
-This command selects data using last item from ``index`` pipe as source using
-``'.athing > td[3] > a:text'`` CSS selector. ``-t`` flag tels to show output as
-a table instead of JSON.
-
-As you see, ``'.athing > td[3] > a:text'``` CSS selector has two things that are
-not CSS selector expressions. ``[3]`` will be expanded to ``:nth-child(3)`` and
-``:text`` just takes text content of selected element. These two small
-extensions to CSS selector expressions just helps to write less code.
-
-OK, we have titles, but we need more data. Let's update our selector to get more
-data::
-
-    $ ./hackernews.py select index "[
-          '.athing', (
-              'td[3] > a@href', {
-                  'title': 'td[3] > a:text',
-                  'score': 'xpath:./following-sibling::tr[1]/td[2] css:.score:text?',
-                  'time': 'xpath:./following-sibling::tr[1]/td[2]/a[2]/text()?',
-                  'comments': 'xpath:./following-sibling::tr[1]/td[2]/a[3]/text()?',
-              }
-          )
-      ]"
-
-    - key: 'http://liminality.xyz/the-hostile-email-landscape/'
+    $ ./reddit.py show news -x title
+    - key: 'https://www.reddit.com/r/DIY/comments/5m7ild/hi_reddit_greetings_from_this_old_house/'
 
       value:
-        {'comments': '112 comments',
-         'score': '214 points',
-         'time': '2 hours ago',
-         'title': 'The Hostile Email Landscape'}
+        {'comments': '832 comments',
+         'score': '7963',
+         'time': '2017-01-05T16:58:55+00:00'}
 
-At first this might look a bit scary, but actually it is really easy to
-understand. This example combines together data structure and selectors in one
-place.
-
-For example, ``['.athing', ...]`` tells *databot*, that we want list and since
-this list has two items in it, it means, that first we query all ``.athing``
-elements and then process each element with ``...``. In our case ``...`` is a
-tuple of two elements. In other words, we are returning ``[(key, value)]``.
-``key`` is a string taken by ``td[3] > a@href`` selector which is relative to
-``.athing`` selected elements. ``value`` is a dict where each key of that dict
-is assigned to another selector.
-
-Basically the idea is that you can build any data structure and *databot* will
-replace all selectors in that structure with real values. Also data bot expect,
-that your data structure will be one of these: ``'key'``, ``['key']`` or
-``['selector', ('key', 'value')]``. If you specify just ``'key'``, *databot*
-checks if only one element is selected and will rise error otherwise.
-
-As you probably mentioned, our selectors has both XPath and CSS selectors mixed
-together. Usually CSS selectors are very continent to use, but they ar not
-flexible enough, so in some situations you will need XPath, like in our case.
-
-Each selector is split in parts by ``(xpath|css):`` and each part is selected
-with specified selector where subsequent selector is executed on previously
-selected elements.
-
-Additionally, selectors can have ``?`` suffix, which tells, that if element is
-not found, return ``None`` without raising error.
-
-If we are satisfied with selected data, we can move these selectors to the
-script. Here is how our updated script looks:
+Since we exported structured data here:
 
 .. code-block:: python
 
-    #!/usr/bin/env python3
+    news.export('/tmp/reddit.jsonl')
 
-    from databot import Bot
+We can use any tool to work with the data, for example::
 
+    $ tail -n1 /tmp/reddit.jsonl | jq .
+    {
+      "key": "https://www.reddit.com/r/DIY/comments/5m7ild/hi_reddit_greetings_from_this_old_house/",
+      "comments": "832 comments",
+      "time": "2017-01-05T16:58:55+00:00",
+      "score": "7963",
+      "title": "Hi Reddit! Greetings from THIS OLD HOUSE."
+    }
 
-    def define(bot):
-        bot.define('start urls')
-        bot.define('index')
-        bot.define('news')
-
-
-    def run(bot):
-        start_url = 'https://news.ycombinator.com/'
-        with bot.pipe('start urls').append(start_url):
-            with bot.pipe('index').download():
-                bot.pipe('news').select([
-                    '.athing', (
-                        'td[3] > a@href', {
-                            'title': 'td[3] > a:text',
-                            'score': 'xpath:./following-sibling::tr[1]/td[2] css:.score:text?',
-                            'time': 'xpath:./following-sibling::tr[1]/td[2]/a[2]/text()?',
-                            'comments': 'xpath:./following-sibling::tr[1]/td[2]/a[3]/text()?',
-                        }
-                    )
-                ])
-
-        bot.compact()
-
-
-    if __name__ == '__main__':
-        Bot('sqlite:///hackernews.db').main(define, run)
+How does it work?
+=================
 
 *databot* uses *Python's* context managers to take data from one pipe as input
 for another pipe. For example:
 
 .. code-block:: python
 
-    with bot.pipe('start urls'):
-        bot.pipe('index').download()
+    with index.download('https://www.reddit.com/'):
+        news.select(...)
 
-Here ``index`` pipe takes ``start urls`` as input and calls ``download``
-function for each row from ``start urls``. Build in ``download`` function, takes
-``key`` from received row and downloads URL provided in ``key`` value.
-Downloaded content is stored in ``index`` pipe.
+Here ``news`` pipe takes downloaded content from ``index`` pipe and executes
+``select`` method to extract data. All extracted data are appended to the
+``news`` pipe.
 
-Same thing happens with:
-
-.. code-block:: python
-
-    with bot.pipe('index'):
-        bot.pipe('news').select(...)
-
-This time, ``news`` pipe takes downloaded content from ``index`` pipe and
-executes ``select`` build in function to extract data. All extracted data are
-appended to ``news`` pipe.
-
-One interesting this is that each pair of pipes remembers where they left last
+One interesting point is that each pair of pipes remembers where they left last
 time and when executed again, they will continue from position left last time.
-That means, that you can run this script many times and only new this will be
+That means, that you can run this script many times and only new items will be
 processed.
-
-Since all pipes are append only, at the end of script you need
-``bot.compact()``, this will group all rows in each pipe by key and removes all
-duplicates leaving just those added last. There is another function ``dedup()``
-to remove all duplicates leaving just those added first.
-
-Now, we have fully working scraper script and we can run it using following
-command::
-
-    $ ./hackernews.py run
-
-    start urls -> index, rows processed: 1                                                  
-    index -> news, rows processed: 1                                          
-
-You will see nice progress bar for each pair of pipes during data processing.
-After scraping is finished, you can check status::
-
-    $ ./hackernews.py    
-    id              rows  source
-        errors      left    target
-    ================================
-     3                 1  start-urls
-             0         0    news
-             0         0    index
-    --------------------------------
-     1                 1  index
-             0         0    news
-    --------------------------------
-     2                30  news
-    --------------------------------
-
-Also, you can check your data::
-
-    $ ./hackernews.py tail news -t -x key
-
-    comments     score        time                     title                                       
-    ============================================================================
-    discuss    18 points   5 hours ago   A 15-Year Series of Campaign Simulators                                          
-    discuss    14 points   5 hours ago   The Universal Design                                                             
-    discuss    13 points   4 hours ago   The History of American Surveillance                                             
-
-And export to CSV::
-
-    $ ./hackernews.py export news hackernews.csv
-
-Our *databot* script works well, but sometimes ``time`` can be found not in
-``xpath:./following-sibling::tr[1]/td[2]/a[2]/text()``, but in
-``xpath:./following-sibling::tr[1]/td[2]/text()``. And the second case has
-extra spaces at the beginning. To fix that, we can add following improvement:
-
-.. code-block:: python
-
-    'time': first(
-        'xpath:./following-sibling::tr[1]/td[2]/a[2]/text()?',
-        strip('xpath:./following-sibling::tr[1]/td[2]/text()'),
-    ),
-
-Also, we would like to see raw numbers of comments and score. To fix that we can
-add following code:
-
-.. code-block:: python
-
-    'score': call(clean_number, 'xpath:./following-sibling::tr[1]/td[2] css:.score:text?'),
-    'comments': call(clean_number, 'xpath:./following-sibling::tr[1]/td[2]/a[3]/text()?'),
-
-See full example below.
-
-.. code-block:: python
-
-    #!/usr/bin/env python3
-
-    from databot import Bot, first, strip, call
-
-
-    def clean_number(value):
-        value = [int(v) for v in value.split() if v.isnumeric()] if value else None
-        return value[0] if value else None
-
-
-    def define(bot):
-        bot.define('start urls')
-        bot.define('index')
-        bot.define('news')
-
-
-    def run(bot):
-        start_url = 'https://news.ycombinator.com/'
-        with bot.pipe('start urls').append(start_url):
-            with bot.pipe('index').download():
-                bot.pipe('news').select([
-                    '.athing', (
-                        'td[3] > a@href', {
-                            'title': 'td[3] > a:text',
-                            'score': call(clean_number, 'xpath:./following-sibling::tr[1]/td[2] css:.score:text?'),
-                            'time': first(
-                                'xpath:./following-sibling::tr[1]/td[2]/a[2]/text()?',
-                                strip('xpath:./following-sibling::tr[1]/td[2]/text()'),
-                            ),
-                            'comments': call(clean_number, 'xpath:./following-sibling::tr[1]/td[2]/a[3]/text()?'),
-                        }
-                    )
-                ])
-
-        bot.compact()
-
-
-    if __name__ == '__main__':
-        Bot('sqlite:///hackernews.db').main(define, run)
 
 
 Debugging
