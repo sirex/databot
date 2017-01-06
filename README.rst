@@ -4,7 +4,7 @@ Quick start
 ===========
 
 In this quick start guide we are going to scrape Reddit_ index page and will
-extract all data from that index page.
+extract all data from index page.
 
 .. _Reddit: https://news.ycombinator.com/
 
@@ -25,7 +25,7 @@ Just open a `Jupyter notebook`_ or any text editor and paste this code:
             '.entry .title > a@href', {
                 'title': '.entry .title > a:text',
                 'score': '.midcol .score.likes@title',
-                'time': databot.first('.tagline time@datetime'),
+                'time': databot.first(['.tagline time@datetime']),
                 'comments': '.entry a.comments:text',
             }
         )
@@ -80,7 +80,7 @@ page url and value will be content with metadata.
             '.entry .title > a@href', {
                 'title': '.entry .title > a:text',
                 'score': '.midcol .score.likes@title',
-                'time': '.tagline time@datetime',
+                'time': databot.first(['.tagline time@datetime']),
                 'comments': '.entry a.comments:text',
             }
         )
@@ -173,7 +173,7 @@ Here is how previous example can be transformed into a script:
                     '.entry .title > a@href', {
                         'title': '.entry .title > a:text',
                         'score': '.midcol .score.likes@title',
-                        'time': databot.first('.tagline time@datetime'),
+                        'time': databot.first(['.tagline time@datetime']),
                         'comments': '.entry a.comments:text',
                     }
                 )

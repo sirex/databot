@@ -18,7 +18,7 @@ def run(bot):
                 '.entry .title > a@href', {
                     'title': '.entry .title > a:text',
                     'score': '.midcol .score.likes@title',
-                    'time': databot.first('.tagline time@datetime'),
+                    'time': databot.first(['.tagline time@datetime']),
                     'comments': '.entry a.comments:text',
                 }
             )

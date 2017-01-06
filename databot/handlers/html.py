@@ -251,10 +251,10 @@ class First(Call):
     def __init__(self, *queries):
         self.queries = queries
 
-    def __call__(self, select, row, node, many=True, single=True):
+    def __call__(self, select, row, node, many=False, single=True):
         for query in self.queries:
-            value = select.render(row, node, query, many=True, single=True)
-            for val in value:
+            value = select.render(row, node, query, many, single=True)
+            for val in value or []:
                 if val:
                     return val
         return None

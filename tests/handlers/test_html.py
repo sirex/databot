@@ -170,7 +170,12 @@ def test_first_empty_string(Html):
 
 def test_first_from_list(Html):
     row = Html(['<div><a name="1">a</a><a name="2">b</a></div>'])
+
     select = html.Select(databot.first('a:text'))
+    with pytest.raises(ValueError):
+        select(row)
+
+    select = html.Select(databot.first(['a:text']))
     assert select(row) == 'a'
 
 
