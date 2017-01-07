@@ -173,12 +173,12 @@ class Download(Command):
         parser.add_argument('-a', '--append', type=str, help="Append downloaded content to specified pipe.")
 
     def run(self, args):
-        from databot import row
+        from databot import this
         from databot.db.utils import Row
         from databot.handlers import download
 
         exclude = args.exclude.split(',') if args.exclude else None
-        key, value = next(download.download(self.bot.requests, row.key)(Row(key=args.url, value=None)))
+        key, value = next(download.download(self.bot.requests, this.key)(Row(key=args.url, value=None)))
         self.bot.output.key_value(key, value, exclude=exclude)
 
         if args.append:

@@ -1,6 +1,11 @@
+from databot.expressions.base import Expression
+
+
 def call(value, *args, **kwargs):
     if value is None:
         return None
+    elif isinstance(value, Expression):
+        return value._eval(*args, **kwargs)
     elif callable(value):
         return value(*args, **kwargs)
     elif isinstance(value, dict):

@@ -31,7 +31,7 @@ def download(session, urlexpr, delay=None, update=None, **kwargs):
 
         if isinstance(row, Row):
             kwargs = call(kwargs, row)
-            url = urlexpr(row)
+            url = urlexpr._eval(row)
         else:
             url = row
 

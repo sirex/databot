@@ -5,7 +5,6 @@ import sqlalchemy as sa
 import traceback
 import tqdm
 
-import databot
 from databot.db.serializers import serrow, serkey
 from databot.db.utils import strip_prefix, create_row, get_or_create, Row
 from databot.db.windowedquery import windowed_query
@@ -13,6 +12,7 @@ from databot.db.models import Compression
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
 from databot.exporters import csv, jsonl
+from databot.expressions.base import Expression
 
 
 NONE = object()
@@ -707,7 +707,7 @@ class Pipe(object):
             return self.append(next(fetch(url)) for url in urls)
 
         else:
-            urls = urls or databot.row.key
+            urls = urls or Expression().key
             return self.call(download.download(self.bot.requests, urls, **kwargs))
 
     def select(self, key, value=None):

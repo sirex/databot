@@ -14,9 +14,6 @@ def handler(types=None, item=None):
 
         HANDLERS[func.__name__].append(Handler(func, types, items))
 
-        def wrapper(*args, **kwargs):
-            func(*args, **kwargs)
-
         return func
 
     return decorator

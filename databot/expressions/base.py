@@ -2,8 +2,6 @@ from collections import namedtuple
 
 from databot.expressions.utils import HANDLERS
 
-import databot.expressions.handlers  # noqa
-
 
 Attr = namedtuple('Attr', ('key',))
 Item = namedtuple('Item', ('key',))
@@ -52,7 +50,7 @@ class Expression:
                         value = handler.handler(value, *item.args, **item.kwargs)
                         break
                 else:
-                    raise ExpressionError("Unknown function %r." % item.name)
+                    raise ExpressionError("Unknown function %r for value %r." % (item.name, value))
 
             elif isinstance(item, Method):
                 for handler in HANDLERS[item.name]:
@@ -64,7 +62,7 @@ class Expression:
                         value = handler.handler(value, *item.args, **item.kwargs)
                         break
                 else:
-                    raise ExpressionError("Unknown function %r." % item.name)
+                    raise ExpressionError("Unknown method %r for value %r." % (item.name, value))
 
             elif isinstance(item, Attr):
                 for handler in HANDLERS[item.key]:

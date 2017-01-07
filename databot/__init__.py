@@ -1,14 +1,12 @@
 from databot.bot import Bot  # noqa
-from databot.rowvalue import RowTop
-from databot.handlers.html import func, url, text  # noqa
-from databot.handlers.html import Call as call  # noqa
+from databot.expressions.base import Expression
+from databot.handlers.html import func  # noqa
 from databot.handlers.html import Join as join  # noqa
 from databot.handlers.html import First as first  # noqa
 from databot.handlers.html import Subst as subst  # noqa
-from databot.handlers.html import Value as value  # noqa
 
-row = RowTop()
+import databot.expressions.handlers  # noqa
 
-strip = func(skipna=True)(str.strip)  # noqa
-lower = func(skipna=True)(str.lower)
-nspace = func(skipna=True)(lambda v: ' '.join(filter(None, map(str.strip, v.split()))))
+this = Expression()
+select = Expression(func='select')  # noqa
+value = Expression(func='value')

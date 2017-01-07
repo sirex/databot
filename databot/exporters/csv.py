@@ -6,6 +6,7 @@ import pathlib
 import funcy
 
 from databot.db.utils import Row
+from databot.expressions.base import Expression
 
 
 def get_fields(data, field=()):
@@ -56,7 +57,10 @@ def updated_rows(rows, update=None):
         else:
             value = _force_dict(row.value)
             for k, call in update.items():
-                value[k] = call(row)
+                if isinstance(call, Expression):
+                    value[k] = call._eval(row)
+                else:
+                    value[k] = call(row)
             row.value = value
             yield row
 

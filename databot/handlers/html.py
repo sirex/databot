@@ -2,15 +2,14 @@ import re
 import lxml.html
 import lxml.etree
 import itertools
-import urllib.parse
 
 from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
 from bs4 import BeautifulSoup
 
-import databot.utils.urls
-from databot import rowvalue
 from databot.handlers.download import get_content
+from databot.expressions.utils import handler
+from databot.expressions.base import Expression, Func
 
 
 def create_html_parser(row):
@@ -86,10 +85,19 @@ class Select(object):
         """
         if value is None:
             return None
+        elif isinstance(value, Expression):
+            item = value._stack[0] if value._stack and isinstance(value._stack[0], Func) else None
+            name = item.name if item else None
+            if name == 'select':
+                expr = Expression(value._stack[1:])
+                kwargs = dict(many=many, single=single)
+                kwargs.update(item.kwargs)
+                value = self.render(row, html, *item.args, **kwargs)
+                return expr._eval(value)
+            else:
+                return value._eval(row)
         elif isinstance(value, Call):
             return value(self, row, html, many, single)
-        elif isinstance(value, rowvalue.Row):
-            return value(row)
         elif callable(value):
             return value(row, html)
         elif isinstance(value, dict):
@@ -200,25 +208,7 @@ class Select(object):
         return result
 
 
-def func(skipna=False):
-    def wrapper(func):
-
-        # Modified version of func
-        def f(value, *args, **kwargs):
-            if skipna:
-                return None if value is None else func(value, *args, **kwargs)
-            else:
-                return func(value, *args, **kwargs)
-
-        def decorator(__query__, *args, **kwargs):
-            return Call(f, __query__, *args, **kwargs)
-
-        return decorator
-
-    return wrapper
-
-
-class Call(object):
+class Call:
 
     def __init__(self, __callables__, __query__, *args, **kwargs):
         self.query = __query__
@@ -274,29 +264,32 @@ class Subst(Call):
 
         if self.default is Exception:
             return self.subst[value]
-        elif isinstance(self.default, Value):
-            return self.subst.get(value, value)
+        elif isinstance(self.default, Expression):
+            default = select.render(row, node, self.default, many, single)
+            return self.subst.get(value, default)
         else:
             return self.subst.get(value, self.default)
 
 
-class Value(object):
+def func(skipna=False):
+    def wrapper(func):
 
-    def __init__(self, value):
-        self.value = value
+        # Modified version of func
+        def f(value, *args, **kwargs):
+            if skipna:
+                return None if value is None else func(value, *args, **kwargs)
+            else:
+                return func(value, *args, **kwargs)
 
-    def __call__(self, row, node):
-        return self.value
+        def decorator(__query__, *args, **kwargs):
+            return Call(f, __query__, *args, **kwargs)
+
+        return decorator
+
+    return wrapper
 
 
-def url(row, *args, **kwargs):
-    if isinstance(row, rowvalue.Row):
-        return rowvalue.UrlRowItem(args, kwargs, row._row_keys + (urllib.parse.urlparse,))
-    else:
-        return func(skipna=True)(databot.utils.urls.url)(row, *args, **kwargs)
-
-
-@func()
+@handler(item='method')
 def text(nodes, strip=True, exclude=None):
     # Recursively extract all texts
     def extract(nodes):

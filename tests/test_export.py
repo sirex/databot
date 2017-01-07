@@ -54,7 +54,7 @@ def test_update(data):
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
     ]
-    update = {'size': databot.row.value.text(len)}
+    update = {'size': databot.this.value.text.apply(len)}
     assert list(flatten_rows(rows, include=['key', 'size'], update=update)) == [
         ['key', 'size'],
         [1, 3],
@@ -67,7 +67,7 @@ def test_update_without_include(data):
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
     ]
-    update = {'size': databot.row.value.text(len)}
+    update = {'size': databot.this.value.text.apply(len)}
     assert list(flatten_rows(rows, update=update)) == [
         ['key', 'size', 'text'],
         [1, 3, 'abc'],
