@@ -21,4 +21,5 @@ def test_function_expression():
 
 def test_eval():
     assert Expression().cast(int)._eval('42') == 42
+    assert Expression().cast(int)._eval('42') == 42
     assert Expression().urlparse().query.key.cast(int)._eval('http://example.com/?key=42') == 42

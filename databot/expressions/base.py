@@ -80,16 +80,7 @@ class Expression:
                         value = getattr(value, item.key)
 
             elif isinstance(item, Item):
-                for handler in HANDLERS[item.key]:
-                    conditions = (
-                        (handler.items is None or 'item' in handler.items) and
-                        (handler.types is None or isinstance(value, handler.types))
-                    )
-                    if conditions:
-                        value = handler.handler(value)
-                        break
-                else:
-                    value = value[item.key]
+                value = value[item.key]
 
             else:
                 raise ExpressionError("Unknown item type %r." % item)
