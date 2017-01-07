@@ -1,3 +1,4 @@
+import re as re_
 import urllib.parse
 
 import databot.utils.urls
@@ -53,3 +54,12 @@ def upper(value):
 @handler(str, 'method')
 def normspace(value):
     return ' '.join([x for x in value.strip().split() if x])
+
+
+@handler(str, 'method')
+def re(value, pattern):
+    matches = re_.findall(pattern, value)
+    if len(matches) == 1:
+        return matches[0]
+    elif len(matches) > 1:
+        raise ValueError("More than one match found for pattern: %r in value: %r." % (pattern, value))
