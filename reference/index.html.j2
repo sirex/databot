@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width">
+        <title>databot reference</title>
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            {{ style }}
+        </style>
+        <style>
+            div.output pre {
+                background: none;
+                border: none;
+                padding: 0px;
+                margin-top: -4px;
+                margin-bottom: 24px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Table of content</h2>
+
+            <ul>
+            {% for key, title in toc.items() %}
+                <li><a href="#{{ key }}">{{ title }}</a></li>
+            {% endfor %}
+            </ul>
+
+            {% macro section(key) -%}
+            <a name="{{ key }}"></a>
+            <h2>{{ toc[key] }}</h2>
+            {%- endmacro %}
+
+
+            {{ section('append') }}
+
+            {% code 'py3', 'append' %}
+            p1.append(None)
+            {% endcode %}
+
+            {% code 'py3', 'append' %}
+            p1.append(1)
+            {% endcode %}
+
+            {% code 'py3', 'append' %}
+            p1.append([1, 2, 3])
+            {% endcode %}
+
+            {% code 'py3', 'append' %}
+            p1.append([
+                (1, 'a'),
+                (2, 'b'),
+                (3, 'c'),
+            ])
+            {% endcode %}
+
+
+            {{ section('expressions') }}
+
+            {% code 'py3', 'expressions' %}
+            this
+            {% endcode %}
+
+            {% code 'py3', 'expressions' %}
+            this.key
+            {% endcode %}
+
+            {% code 'py3', 'expressions' %}
+            this.value.title.upper()
+            {% endcode %}
+
+            {% code 'py3', 'expressions' %}
+            this.value.link.urlparse().query.q.cast(int)
+            {% endcode %}
+
+            {% code 'py3', 'expressions' %}
+            this.value.title.re(r'\d+').cast(int)
+            {% endcode %}
+
+            {% code 'py3', 'expressions' %}
+            this.value.title.re(r'"(\w+)"')
+            {% endcode %}
+
+        </div>
+
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    </body>
+</html>

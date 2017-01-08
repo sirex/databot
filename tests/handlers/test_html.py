@@ -125,6 +125,12 @@ def test_inline_call(Html):
     assert qry(row) == [('1', 'A'), ('2', 'B')]
 
 
+def test_call_getitem(Html):
+    row = Html(['<div><a name="1">a</a><a name="2">b</a></div>'])
+    qry = html.Select(select(['div > a'])[0].text().upper())
+    assert qry(row) == [('A', None)]
+
+
 def test_absolute_css_selector(Html):
     row = Html(['<div><h2>heading</h2><a name="1">a</a><a name="2">b</a></div>'])
     qry = html.Select(['div > a', ('@name', '/h2:text')])
