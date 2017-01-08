@@ -1,55 +1,54 @@
 #!/usr/bin/env python3
 
-import pprint
 import textwrap
 
 from pathlib import Path
 from collections import OrderedDict
+from pprintpp import pformat
 
 from jinja2 import Environment, FileSystemLoader
-from jinja2 import nodes
-from jinja2.ext import Extension, Markup
+from jinja2.ext import Markup
+import jinjatag
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import HtmlFormatter
 
-from databot import Bot, this
+from databot import Bot, this, select
+
+here = Path(__file__).parent
 
 
-class HighlightExtension(Extension):
-    tags = set(['code'])
+@jinjatag.simple_tag()
+def codefile(lang, path):
+    lexer = get_lexer_by_name(lang, stripall=False)
+    formatter = HtmlFormatter()
 
-    def parse(self, parser):
-        lineno = next(parser.stream).lineno
-        args = [parser.parse_expression()]
-        if parser.stream.skip_if('comma'):
-            args.append(parser.parse_expression())
-        else:
-            args.append(nodes.Const(None))
-        body = parser.parse_statements(['name:endcode'], drop_needle=True)
-        return nodes.CallBlock(self.call_method('_highlight', args), [], [], body).set_lineno(lineno)
+    with (here / path).open() as f:
+        body = f.read()
 
-    def _highlight(self, lang, sample, caller=None):
-        # highlight code using Pygments
-        body = caller()
-        lexer = get_lexer_by_name(lang, stripall=False)
-        formatter = HtmlFormatter()
-        body = textwrap.dedent(body.rstrip())
+    return highlight(Markup(body).unescape(), lexer, formatter)
 
-        sample = getattr(samples, sample, None)
-        if sample:
-            result = sample(body.strip())
-        else:
-            result = None
 
-        html = highlight(Markup(body).unescape(), lexer, formatter)
+@jinjatag.simple_block()
+def code(body, lang, sample=None):
+    lexer = get_lexer_by_name(lang, stripall=False)
+    formatter = HtmlFormatter()
+    body = textwrap.dedent(body.rstrip())
 
-        if result:
-            formatter = HtmlFormatter(cssclass='output')
-            html += highlight(Markup(result).unescape(), lexer, formatter)
+    sample = getattr(samples, sample, None)
+    if sample:
+        result = sample(body.strip())
+    else:
+        result = None
 
-        return html
+    html = highlight(Markup(body).unescape(), lexer, formatter)
+
+    if result:
+        formatter = HtmlFormatter(cssclass='output')
+        html += highlight(Markup(result).unescape(), lexer, formatter)
+
+    return html
 
 
 class Samples:
@@ -68,7 +67,7 @@ class Samples:
             'this': this,
             'int': int,
         })
-        return pprint.pformat(result._eval({
+        return pformat(result._eval({
             'key': 1,
             'value': {
                 'title': 'Foo bar "1000"',
@@ -76,17 +75,45 @@ class Samples:
             },
         }), width=42)
 
+    def html(self, code):
+        bot = Bot()
+        html = bot.define('html')
+        p1 = bot.define('p1')
+
+        with (here / 'fixtures/sample.html').open('rb') as f:
+            content = f.read()
+
+        html.append([('https://example.com/', {
+            'headers': {},
+            'cookies': {},
+            'status_code': 200,
+            'encoding': 'utf-8',
+            'content': content,
+        })])
+
+        with html:
+            eval(code, {}, {
+                'bot': bot,
+                'html': html,
+                'p1': p1,
+                'this': this,
+                'int': int,
+                'select': select,
+            })
+
+        return pformat(list(p1.data.items()), width=42)
+
 
 samples = Samples()
 
 
 def main():
-    here = Path(__file__).parent
-
+    jinja_tag = jinjatag.JinjaTag()
     env = Environment(
         loader=FileSystemLoader(str(here)),
-        extensions=[HighlightExtension],
+        extensions=[jinja_tag],
     )
+    jinja_tag.init()
 
     formatter = HtmlFormatter(style='manni')
     template = env.get_template('index.html.j2')
@@ -95,6 +122,7 @@ def main():
         toc=OrderedDict([
             ('append', 'Appending data to pipe'),
             ('expressions', 'Lazy expressions'),
+            ('html', 'HTML parsing'),
         ])
     )
 

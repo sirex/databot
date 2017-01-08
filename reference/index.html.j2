@@ -36,52 +36,82 @@
 
             {{ section('append') }}
 
-            {% code 'py3', 'append' %}
+            {% code lang='py3' sample='append' %}
             p1.append(None)
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'append' %}
+            {% code lang='py3' sample='append' %}
             p1.append(1)
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'append' %}
+            {% code lang='py3' sample='append' %}
             p1.append([1, 2, 3])
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'append' %}
+            {% code lang='py3' sample='append' %}
             p1.append([
                 (1, 'a'),
                 (2, 'b'),
                 (3, 'c'),
             ])
-            {% endcode %}
+            {% end_code %}
 
 
             {{ section('expressions') }}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this.key
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this.value.title.upper()
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this.value.link.urlparse().query.q.cast(int)
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this.value.title.re(r'\d+').cast(int)
-            {% endcode %}
+            {% end_code %}
 
-            {% code 'py3', 'expressions' %}
+            {% code lang='py3' sample='expressions' %}
             this.value.title.re(r'"(\w+)"')
-            {% endcode %}
+            {% end_code %}
+
+
+            {{ section('html') }}
+
+            {% codefile lang='html' path='fixtures/sample.html' %}
+
+            {% code lang='py3' sample='html' %}
+            p1.select('head > title:text')
+            {% end_code %}
+
+            {% code lang='py3' sample='html' %}
+            p1.select('head > title:text', 'body > p:text')
+            {% end_code %}
+
+            {% code lang='py3' sample='html' %}
+            p1.select(select('head > title:text').upper())
+            {% end_code %}
+
+            {#
+            {% code lang='py3' sample='html' %}
+            p1.select(this.key, this.encoding)
+            {% end_code %}
+            #}
+
+            {% code lang='py3' sample='html' %}
+            p1.select(this.key, {
+                'title': 'head > title:text',
+                'body': 'body > p:text',
+            })
+            {% end_code %}
 
         </div>
 
