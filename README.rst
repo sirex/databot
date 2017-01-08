@@ -1,5 +1,7 @@
 This tool currently is under development and is not ready to be used.
 
+`Reference documentation <https://rawgit.com/sirex/databot/master/reference/index.html>`_
+
 .. contents::
 
 
