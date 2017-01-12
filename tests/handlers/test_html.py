@@ -128,7 +128,7 @@ def test_inline_call(Html):
 def test_call_getitem(Html):
     row = Html(['<div><a name="1">a</a><a name="2">b</a></div>'])
     qry = html.Select(select(['div > a'])[0].text().upper())
-    assert qry(row) == [('A', None)]
+    assert qry(row) == 'A'
 
 
 def test_absolute_css_selector(Html):
@@ -239,11 +239,28 @@ def test_func_outside_list(Html):
     assert selector(row) == [1, 2]
 
 
+def test_select_inside_list(Html):
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select([select('a@name').cast(int)])
+    assert selector(row) == [1, 2]
+
+
+def test_select_outside_list(Html):
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select(select(['a@name']).apply(len))
+    assert selector(row) == 2
+
+
+def test_select_outside_nested_list(Html):
+    row = Html(['<div><a name="1">a</a><a name="2"></a></div>'])
+    selector = html.Select(['a@name', select().cast(int)])
+    assert selector(row) == [1, 2]
+
+
 def test_text(Html):
     row = Html(['<div><p>p1</p>p2<br>p3<br>p4</div>'])
-    selector = html.Select([(None, select('div').text())])
-    key, value = selector(row)
-    assert value.splitlines() == [
+    selector = html.Select(select('div').text())
+    assert selector(row).splitlines() == [
         'p1', '',
         'p2', '',
         'p3', '',

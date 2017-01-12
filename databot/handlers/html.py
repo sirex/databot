@@ -33,7 +33,7 @@ class Select(object):
 
     def __call__(self, row):
         self.html = create_html_parser(row)
-        if isinstance(self.key, (list, Call)) and self.value is None:
+        if isinstance(self.key, (list, Call, Expression)) and self.value is None:
             return self.render(row, self.html, self.key)
         else:
             return [(self.render(row, self.html, self.key), self.render(row, self.html, self.value))]
@@ -92,8 +92,16 @@ class Select(object):
                 expr = Expression(value._stack[1:])
                 kwargs = dict(many=many, single=single)
                 kwargs.update(item.kwargs)
-                value = self.render(row, html, *item.args, **kwargs)
-                return expr._eval(value)
+
+                if item.args:
+                    value = self.render(row, html, *item.args, **kwargs)
+                else:
+                    value = html
+
+                if many and single:
+                    return [expr._eval(v) for v in value]
+                else:
+                    return expr._eval(value)
             else:
                 return value._eval(row)
         elif isinstance(value, Call):

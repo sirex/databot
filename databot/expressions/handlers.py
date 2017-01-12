@@ -59,6 +59,11 @@ def replace(value, old, new, count=None):
         return value.replace(old, new, count)
 
 
+@handler(list, 'method')
+def join(value, sep=' '):
+    return sep.join(map(str, value))
+
+
 @handler(str, 'method')
 def normspace(value):
     return ' '.join([x for x in value.strip().split() if x])

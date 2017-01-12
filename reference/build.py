@@ -72,6 +72,7 @@ class Samples:
             'value': {
                 'title': '  Foo bar "1000"  ',
                 'link': 'https://www.example.com/?q=42',
+                'list': [1, 2, 3],
             },
         }), width=42)
 

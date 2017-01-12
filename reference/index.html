@@ -139,6 +139,7 @@
     <span class="s1">&#39;key&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
     <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="p">{</span>
         <span class="s1">&#39;link&#39;</span><span class="p">:</span> <span class="s1">&#39;https://www.example.com/?q=42&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;list&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span>
         <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;  Foo bar &quot;1000&quot;  &#39;</span><span class="p">,</span>
     <span class="p">},</span>
 <span class="p">}</span>
@@ -154,6 +155,12 @@
             <div class="highlight"><pre><span></span><span class="n">this</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">title</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;&quot;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
 </pre></div>
 <div class="output"><pre><span></span><span class="s1">&#39;FOO BAR 1000&#39;</span>
+</pre></div>
+
+
+            <div class="highlight"><pre><span></span><span class="n">this</span><span class="o">.</span><span class="n">value</span><span class="o">.</span><span class="n">list</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="p">)</span>
+</pre></div>
+<div class="output"><pre><span></span><span class="s1">&#39;1, 2, 3&#39;</span>
 </pre></div>
 
 
