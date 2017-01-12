@@ -433,3 +433,16 @@ using ``databot`` library:
           print(key, value)
 
 As you see data storage format is pretty simple.
+
+
+Running tests
+=============
+
+Install dependencies::
+
+    pip install -e .
+    pip install -r reference/requirements.txt
+
+Run tests::
+
+    py.test --cov-report=term-missing --cov=databot tests
