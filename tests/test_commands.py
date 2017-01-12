@@ -1,5 +1,6 @@
 import os
 import io
+import json
 import mock
 import tempfile
 import sqlalchemy as sa
@@ -43,6 +44,31 @@ def test_select(bot):
         '- key: \'value\'\n'
         '  value: None\n'
     )
+
+
+def test_select_export(bot, tmpdir):
+    bot.define('p1').append([
+        ('http://example.com/', {'content': b'<div id="1">a</div>'}),
+        ('http://example.com/', {'content': b'<div id="2">b</div>'}),
+        ('http://example.com/', {'content': b'<div id="3">c</div>'}),
+    ])
+
+    bot.main(argv=['select', 'p1', '-e', str(tmpdir / 'export.csv'), '("div@id", "div:text")'])
+    assert bot.output.output.getvalue() == ''
+    assert tmpdir.join('export.csv').read() == (
+        'key,value\n'
+        '1,a\n'
+        '2,b\n'
+        '3,c\n'
+    )
+
+    bot.main(argv=['select', 'p1', '-e', str(tmpdir / 'export.jsonl'), '("div@id", "div:text")'])
+    assert bot.output.output.getvalue() == ''
+    assert list(map(json.loads, tmpdir.join('export.jsonl').read().splitlines())) == [
+        {'key': '1', 'value': 'a'},
+        {'key': '2', 'value': 'b'},
+        {'key': '3', 'value': 'c'},
+    ]
 
 
 def test_select_not_found(bot):

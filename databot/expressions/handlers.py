@@ -52,6 +52,14 @@ def upper(value):
 
 
 @handler(str, 'method')
+def replace(value, old, new, count=None):
+    if count is None:
+        return value.replace(old, new)
+    else:
+        return value.replace(old, new, count)
+
+
+@handler(str, 'method')
 def normspace(value):
     return ' '.join([x for x in value.strip().split() if x])
 

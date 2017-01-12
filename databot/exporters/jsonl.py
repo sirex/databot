@@ -13,11 +13,11 @@ def open(path_or_file, *args, **kwargs):
         yield path_or_file
 
 
-def export(path, pipe, append=False):
+def export(path, rows, append=False):
     mode = 'a' if append else 'w'
 
     with open(path, mode, encoding='utf-8') as f:
-        for row in pipe.data.rows():
+        for row in rows:
             if isinstance(row.value, dict):
                 value = row.value
             else:

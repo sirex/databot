@@ -123,7 +123,7 @@ class CsvWriter(BaseWriter):
         self.writer.writerow(values_to_csv(row))
 
 
-def export(path, pipe, exclude=None, include=None, update=None, append=False, header=True):
+def export(path, rows, exclude=None, include=None, update=None, append=False, header=True):
     path = pathlib.Path(path)
 
     if path.suffix == '.txt':
@@ -139,7 +139,7 @@ def export(path, pipe, exclude=None, include=None, update=None, append=False, he
 
     with path.open(mode) as f:
         writer = Writer(f)
-        rows = flatten_rows(pipe.data.rows(), exclude, include, update)
+        rows = flatten_rows(rows, exclude, include, update)
 
         for row in rows:
             if header:

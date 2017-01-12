@@ -658,9 +658,9 @@ class Pipe(object):
 
     def export(self, path, **kwargs):
         if path.endswith('.jsonl'):
-            jsonl.export(path, self, **kwargs)
+            jsonl.export(path, self.data.rows(), **kwargs)
         else:
-            csv.export(path, self, **kwargs)
+            csv.export(path, self.data.rows(), **kwargs)
 
     def download(self, urls=None, **kwargs):
         """Download list of URLs and store downloaded content into a pipe.

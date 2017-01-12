@@ -68,7 +68,7 @@
             {% end_code %}
 
             {% code lang='py3' sample='expressions' %}
-            this.value.title.upper()
+            this.value.title.strip().upper().replace('"', '')
             {% end_code %}
 
             {% code lang='py3' sample='expressions' %}

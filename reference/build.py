@@ -70,7 +70,7 @@ class Samples:
         return pformat(result._eval({
             'key': 1,
             'value': {
-                'title': 'Foo bar "1000"',
+                'title': '  Foo bar "1000"  ',
                 'link': 'https://www.example.com/?q=42',
             },
         }), width=42)

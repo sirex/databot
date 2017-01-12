@@ -106,20 +106,21 @@ class Select(Command):
         parser.add_argument('query', type=str, help='Selector query.')
         parser.add_argument('-k', '--key', type=str, help="Try on specific source key.")
         parser.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
+        parser.add_argument('-e', '--export', type=str, help="Export all data to specified file.")
 
     def run(self, args):
         import ast
 
         source = self.pipe(args.source)
 
-        if args.query and args.query[0] in ('[', '{', '"', "'"):
+        if args.query and args.query[0] in ('[', '{', '(', '"', "'"):
             query = ast.literal_eval(args.query)
         else:
             query = [args.query]
 
-        self.call(source, query, key=args.key, table=args.table)
+        self.call(source, query, key=args.key, table=args.table, export=args.export)
 
-    def call(self, source, query, key=None, table=False, raw=False):
+    def call(self, source, query, key=None, table=False, export=None, raw=False):
         """Select structured data from an unstructured source.
 
         Parameters
@@ -132,10 +133,13 @@ class Select(Command):
             Use specific key from source pipe.
         table : bool, optional
             Output results as table.
+        table : str, optional
+            Export all data to specified file.
         raw : bool, optional
             Return raw python objects instead of printing results to stdout.
 
         """
+        import tqdm
 
         from databot.pipes import keyvalueitems
         from databot.handlers import html
@@ -145,24 +149,47 @@ class Select(Command):
             selector = html.Select(query[0], query[1])
         else:
             selector = html.Select(query)
-        row = source.last(key)
-        if raw:
-            if row:
-                rows = keyvalueitems(selector(row))
-                return [Row(key=key, value=value) for key, value in rows if key]
-            else:
-                return []
-        else:
-            if row:
-                rows = keyvalueitems(selector(row))
-                if table:
-                    self.bot.output.table([Row(key=key, value=value) for key, value in rows if key])
+
+        if export:
+            from databot.exporters import csv, jsonl
+
+            def scrape():
+                if self.bot.verbosity == 1:
+                    desc = '%s -> %s' % (source, export)
+                    total = source.data.count()
+                    rows = tqdm.tqdm(source.data.rows(), desc, total, leave=True)
                 else:
-                    for key, value in rows:
+                    rows = source.data.rows()
+
+                for row in rows:
+                    for key, value in keyvalueitems(selector(row)):
                         if key:
-                            self.bot.output.key_value(key, value)
+                            yield Row(key=key, value=value)
+
+            if export.endswith('.jsonl'):
+                jsonl.export(export, scrape())
             else:
-                self.info('Not found.')
+                csv.export(export, scrape())
+
+        else:
+            row = source.last(key)
+            if raw:
+                if row:
+                    rows = keyvalueitems(selector(row))
+                    return [Row(key=key, value=value) for key, value in rows if key]
+                else:
+                    return []
+            else:
+                if row:
+                    rows = keyvalueitems(selector(row))
+                    if table:
+                        self.bot.output.table([Row(key=key, value=value) for key, value in rows if key])
+                    else:
+                        for key, value in rows:
+                            if key:
+                                self.bot.output.key_value(key, value)
+                else:
+                    self.info('Not found.')
 
 
 class Download(Command):
@@ -341,7 +368,7 @@ class Export(Command):
         pipe = self.pipe(args.pipe)
         exclude = set(args.exclude.split(',') if args.exclude else [])
         include = args.include.split(',') if args.include else None
-        csv.export(args.path, pipe, exclude=exclude, include=include, append=args.append, header=args.header)
+        csv.export(args.path, pipe.data.rows(), exclude=exclude, include=include, append=args.append, header=args.header)
 
 
 class Resolve(Command):
