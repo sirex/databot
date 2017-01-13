@@ -12,7 +12,7 @@ class CommandsManager(object):
         self._sps = sps
         self._commands = {}
 
-    def register(self, name, Cmd, *args, **kwargs):
+    def _register(self, name, Cmd, *args, **kwargs):
         assert name not in self._commands
         command = Cmd(self._bot)
         command.init(*args, **kwargs)
@@ -24,7 +24,7 @@ class CommandsManager(object):
         if hasattr(command, 'call'):
             setattr(self, name, command.call)
 
-    def run(self, name, args, default=None):
+    def _run(self, name, args, default=None):
         command = self._commands[name if name else default]
         command.run(args)
 
@@ -63,12 +63,13 @@ class Command(object):
 
 class Run(Command):
 
-    def init(self, func):
-        self.func = func
+    def init(self, pipeline):
+        self.pipeline = pipeline
 
     def add_arguments(self, parser):
-        parser.add_argument('options', type=str, nargs='*', help="Run options if not specified everythig will be run.")
-        parser.add_argument('--retry', action='store_true', default=False, help="Retry failed rows.")
+        parser.add_argument('source', type=str, nargs='?', help="Pipe name to run.")
+        parser.add_argument('target', type=str, nargs='?', help="Pipe name to run.")
+        parser.add_argument('-r', '--retry', action='store_true', default=False, help="Retry failed rows.")
         parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
         parser.add_argument('-n', '--limit', type=int, default=0, help="Limit number of iteratios for all pipes.")
         parser.add_argument('-f', '--fail', type=int, default=None, const=0, nargs='?', action='store', help=(
@@ -76,17 +77,18 @@ class Run(Command):
         ))
 
     def run(self, args):
-        self.bot.debug = args.debug
-        self.bot.retry = args.retry
-        self.bot.limit = args.limit
-        self.bot.error_limit = args.fail
+        self.call(self.pipeline, args.source, args.target, debug=args.debug, retry=args.retry, limit=args.limit,
+                  error_limit=args.fail)
 
-        if self.func is not None:
-            self.bot.options = args.options
-            try:
-                self.func(self.bot)
-            except KeyboardInterrupt:
-                pass
+    def call(self, pipeline, source=None, target=None, *, debug=False, retry=False, limit=0, error_limit=None):
+        self.bot.debug = debug
+        self.bot.retry = retry
+        self.bot.limit = limit
+        self.bot.error_limit = error_limit
+
+        if pipeline:
+            for expr in pipeline.get('tasks', []):
+                expr._eval(self.bot)
 
 
 class Status(Command):

@@ -6,7 +6,10 @@ from databot.handlers.html import First as first  # noqa
 from databot.handlers.html import Subst as subst  # noqa
 
 import databot.expressions.handlers  # noqa
+import databot.runner  # noqa
 
+define = Expression(func='define')
+task = Expression(func='task')
 this = Expression()
 select = Expression(func='select')  # noqa
 value = Expression(func='value')

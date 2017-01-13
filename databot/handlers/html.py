@@ -32,7 +32,11 @@ class Select(object):
         self.value = value
 
     def __call__(self, row):
-        self.html = create_html_parser(row)
+        if isinstance(row.value, dict) and 'content' in row.value:
+            self.html = create_html_parser(row)
+        else:
+            self.html = None
+
         if isinstance(self.key, (list, Call, Expression)) and self.value is None:
             return self.render(row, self.html, self.key)
         else:

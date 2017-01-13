@@ -7,7 +7,7 @@ import sqlalchemy as sa
 import freezegun
 import pytest
 
-from databot import Bot
+from databot import Bot, define, task, this
 from databot.db import migrations
 from databot.db.models import Models
 from databot.commands import Command
@@ -477,17 +477,18 @@ def test_decompress(bot):
 
 
 def test_run(bot):
+    pipeline = {
+        'pipes': [
+            define('p1'),
+            define('p2'),
+        ],
+        'tasks': [
+            task('p1').append([(1, 'a'), (2, 'b')]),
+            task('p1', 'p2').select(this.key, this.value.upper()),
+        ]
+    }
 
-    def handler(row):
-        yield row.key, row.value.upper()
-
-    def run(bot):
-        with bot.pipe('p1'):
-            bot.pipe('p2').call(handler)
-
-    bot.define('p1').append([(1, 'a'), (2, 'b')])
-    bot.define('p2')
-    bot.main(run=run, argv=['run'])
+    bot.main(pipeline, argv=['run', '-f'])
     assert bot.output.output.getvalue() == ''
     assert list(bot.pipe('p2').data.items()) == [(1, 'A'), (2, 'B')]
 
@@ -500,21 +501,24 @@ def test_run_error_limit(bot, capsys):
         else:
             yield row.key, row.value.upper()
 
-    def run(bot):
-        with bot.pipe('p1'):
-            bot.pipe('p2').call(handler)
+    pipeline = {
+        'pipes': [
+            define('p1'),
+            define('p2'),
+        ],
+        'tasks': [
+            task('p1').append([(1, 'a'), (2, 'b')]),
+            task('p1', 'p2').call(handler),
+        ]
+    }
 
-    p1 = bot.define('p1').append([(1, 'a'), (2, 'b')])
-    p2 = bot.define('p2')
     with pytest.raises(ValueError):
-        bot.main(run=run, argv=['run', '-f'])
+        bot.main(pipeline, argv=['run', '-f'])
 
     assert bot.output.output.getvalue() == ''
-    assert list(p2.data.items()) == [(1, 'A')]
+    assert list(bot.pipe('p2').data.items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 0 was reached.\n'
-
-    with p1:
-        assert p2.errors.count() == 0
+    assert task('p1', 'p2').errors.count()._eval(bot) == 0
 
 
 def test_run_error_limit_n(bot, capsys):
@@ -525,18 +529,21 @@ def test_run_error_limit_n(bot, capsys):
         else:
             yield row.key, row.value.upper()
 
-    def run(bot):
-        with bot.pipe('p1'):
-            bot.pipe('p2').call(handler)
+    pipeline = {
+        'pipes': [
+            define('p1'),
+            define('p2'),
+        ],
+        'tasks': [
+            task('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd')]),
+            task('p1', 'p2').call(handler),
+        ]
+    }
 
-    p1 = bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd')])
-    p2 = bot.define('p2')
     with pytest.raises(ValueError):
-        bot.main(run=run, argv=['run', '-f', '2'])
+        bot.main(pipeline, argv=['run', '-f', '2'])
 
     assert bot.output.output.getvalue() == ''
-    assert list(p2.data.items()) == [(1, 'A')]
+    assert list(bot.pipe('p2').data.items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'
-
-    with p1:
-        assert p2.errors.count() == 2
+    assert task('p1', 'p2').errors.count()._eval(bot) == 2

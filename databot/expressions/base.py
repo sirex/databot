@@ -62,7 +62,7 @@ class Expression:
                         value = handler.handler(value, *item.args, **item.kwargs)
                         break
                 else:
-                    raise ExpressionError("Unknown method %r for value %r." % (item.name, value))
+                    value = getattr(value, item.name)(*item.args, **item.kwargs)
 
             elif isinstance(item, Attr):
                 for handler in HANDLERS[item.key]:

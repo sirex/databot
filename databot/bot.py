@@ -26,7 +26,6 @@ class Bot(object):
         self.pipes_by_name = {}
         self.pipes_by_id = {}
         self.stack = []
-        self.options = []
         self.name = '%s.%s' % (self.__class__.__module__, self.__class__.__name__)
         self.debug = debug
         self.retry = retry
@@ -136,27 +135,27 @@ class Bot(object):
             pipe.compact()
 
     def _register_commands(self, cmgr):
-        cmgr.register('status', commands.Status)
-        cmgr.register('select', commands.Select)
-        cmgr.register('download', commands.Download)
-        cmgr.register('skip', commands.Skip)
-        cmgr.register('reset', commands.Reset)
-        cmgr.register('offset', commands.Offset)
-        cmgr.register('clean', commands.Clean)
-        cmgr.register('compact', commands.Compact)
-        cmgr.register('show', commands.Show)
-        cmgr.register('tail', commands.Tail)
-        cmgr.register('export', commands.Export)
-        cmgr.register('resolve', commands.Resolve)
-        cmgr.register('migrate', commands.Migrate)
-        cmgr.register('errors', commands.Errors)
-        cmgr.register('sh', commands.Shell)
-        cmgr.register('rename', commands.Rename)
-        cmgr.register('compress', commands.Compress)
-        cmgr.register('decompress', commands.Decompress)
+        cmgr._register('status', commands.Status)
+        cmgr._register('select', commands.Select)
+        cmgr._register('download', commands.Download)
+        cmgr._register('skip', commands.Skip)
+        cmgr._register('reset', commands.Reset)
+        cmgr._register('offset', commands.Offset)
+        cmgr._register('clean', commands.Clean)
+        cmgr._register('compact', commands.Compact)
+        cmgr._register('show', commands.Show)
+        cmgr._register('tail', commands.Tail)
+        cmgr._register('export', commands.Export)
+        cmgr._register('resolve', commands.Resolve)
+        cmgr._register('migrate', commands.Migrate)
+        cmgr._register('errors', commands.Errors)
+        cmgr._register('sh', commands.Shell)
+        cmgr._register('rename', commands.Rename)
+        cmgr._register('compress', commands.Compress)
+        cmgr._register('decompress', commands.Decompress)
         return cmgr
 
-    def main(self, define=None, run=None, argv=None):
+    def main(self, pipeline=None, argv=None):
         parser = argparse.ArgumentParser()
 
         # Vorbosity levels:
@@ -167,7 +166,7 @@ class Bot(object):
         sps = parser.add_subparsers(dest='command')
 
         cmgr = commands.CommandsManager(self, sps)
-        cmgr.register('run', commands.Run, run)
+        cmgr._register('run', commands.Run, pipeline)
         self._register_commands(cmgr)
 
         args = parser.parse_args(argv)
@@ -175,15 +174,16 @@ class Bot(object):
         self.verbosity = args.verbosity
 
         if args.command == 'migrate':
-            cmgr.run(args.command, args, default='status')
-        elif args.command or define:
+            cmgr._run(args.command, args, default='status')
+        elif args.command or pipeline:
             self.check_migrations(self.migrations)
 
-            if define is not None:
-                define(self)
+            if pipeline:
+                for expr in pipeline.get('pipes', []):
+                    expr._eval(self)
 
             try:
-                cmgr.run(args.command, args, default='status')
+                cmgr._run(args.command, args, default='status')
             except KeyboardInterrupt:
                 pass
 
@@ -200,9 +200,3 @@ class Bot(object):
                 'List of unapplied migrations:\n\n  - %s\n'
             ) % (self.engine.url, '\n  - '.join([f.__name__ for f in unapplied_migrations])))
             sys.exit(1)
-
-    def run(self, name):
-        if self.options:
-            return name in self.options
-        else:
-            return True
