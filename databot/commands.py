@@ -452,9 +452,9 @@ class Compress(Command):
 
     def run(self, args):
         pipes = [self.pipe(x) for x in args.pipes]
-        self.call(pipes)
+        self.call(*pipes)
 
-    def call(self, pipes):
+    def call(self, *pipes):
         for pipe in pipes:
             pipe.compress()
 
@@ -466,8 +466,8 @@ class Decompress(Command):
 
     def run(self, args):
         pipes = [self.pipe(x) for x in args.pipes]
-        self.call(pipes)
+        self.call(*pipes)
 
-    def call(self, pipes):
+    def call(self, *pipes):
         for pipe in pipes:
             pipe.decompress()
