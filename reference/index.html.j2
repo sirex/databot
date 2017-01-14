@@ -57,6 +57,21 @@
             {% end_code %}
 
 
+            {{ section('duplicates') }}
+
+            {% code lang='py3' sample='duplicates' %}
+            p1
+            {% end_code %}
+
+            {% code lang='py3' sample='duplicates' %}
+            p1.dedup()
+            {% end_code %}
+
+            {% code lang='py3' sample='duplicates' %}
+            p1.compact()
+            {% end_code %}
+
+
             {{ section('expressions') }}
 
             {% code lang='py3' sample='expressions' %}

@@ -62,6 +62,20 @@ class Samples:
         })
         return repr(list(p1.data.items()))
 
+    def duplicates(self, code):
+        bot = Bot()
+        p1 = bot.define('p1').append([
+            (1, 'old'),
+            (1, 'new'),
+            (2, 'old'),
+            (2, 'new'),
+        ])
+        eval(code, {}, {
+            'bot': bot,
+            'p1': p1,
+        })
+        return repr(list(p1.data.items()))
+
     def expressions(self, code):
         result = eval(code, {}, {
             'this': this,
@@ -122,6 +136,7 @@ def main():
         style=formatter.get_style_defs(),
         toc=OrderedDict([
             ('append', 'Appending data to pipe'),
+            ('duplicates', 'Handle duplicate data'),
             ('expressions', 'Lazy expressions'),
             ('html', 'HTML parsing'),
         ])

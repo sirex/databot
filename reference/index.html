@@ -89,6 +89,8 @@
             
                 <li><a href="#append">Appending data to pipe</a></li>
             
+                <li><a href="#duplicates">Handle duplicate data</a></li>
+            
                 <li><a href="#expressions">Lazy expressions</a></li>
             
                 <li><a href="#html">HTML parsing</a></li>
@@ -126,6 +128,28 @@
 <span class="p">])</span>
 </pre></div>
 <div class="output"><pre><span></span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;a&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;b&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;c&#39;</span><span class="p">)]</span>
+</pre></div>
+
+
+
+            <a name="duplicates"></a>
+            <h2>Handle duplicate data</h2>
+
+            <div class="highlight"><pre><span></span><span class="n">p1</span>
+</pre></div>
+<div class="output"><pre><span></span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;old&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;new&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;old&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;new&#39;</span><span class="p">)]</span>
+</pre></div>
+
+
+            <div class="highlight"><pre><span></span><span class="n">p1</span><span class="o">.</span><span class="n">dedup</span><span class="p">()</span>
+</pre></div>
+<div class="output"><pre><span></span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;old&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;old&#39;</span><span class="p">)]</span>
+</pre></div>
+
+
+            <div class="highlight"><pre><span></span><span class="n">p1</span><span class="o">.</span><span class="n">compact</span><span class="p">()</span>
+</pre></div>
+<div class="output"><pre><span></span><span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;new&#39;</span><span class="p">),</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;new&#39;</span><span class="p">)]</span>
 </pre></div>
 
 
