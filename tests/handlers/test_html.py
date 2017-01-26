@@ -12,7 +12,7 @@ def Html(bot):
     def factory(lines):
         key = 'http://exemple.com'
         value = {'content': '\n'.join(lines).encode('utf-8')}
-        row, = bot.define('a').append(key, value).data.rows()
+        row, = bot.define('a').append(key, value).rows()
         return row
     return factory
 

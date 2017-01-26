@@ -63,48 +63,36 @@ def bot(request, db):
 
 def test_call(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
-
-    with p1:
-        p2.call(handler)
-
-    assert list(p2.data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
+    p2(p1).call(handler)
+    assert list(p2.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
 
 
 def test_data(bot):
     p1 = bot.pipe('p1')
-
-    assert list(p1.data.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
+    assert list(p1.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
 
 
 def test_is_filled(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
-
-    with p1:
-        assert p2.is_filled() is True
-        p2.call(handler)
-        assert p2.is_filled() is False
+    assert p2(p1).is_filled() is True
+    p2(p1).call(handler)
+    assert p2(p1).is_filled() is False
 
 
 def test_last(bot):
-    p1 = bot.pipe('p1')
-
-    assert p1.last().value == 'c'
+    assert bot.pipe('p1').last().value == 'c'
 
 
 def test_skip(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
-
-    with p1:
-        assert p2.count() == 3
-        assert p2.skip().count() == 0
+    assert p2(p1).count() == 3
+    assert p2(p1).skip().count() == 0
 
 
 def test_offset(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
-
-    with p1:
-        assert p2.count() == 3
-        assert p2.offset(1).count() == 2
+    assert p2(p1).count() == 3
+    assert p2(p1).offset(1).count() == 2
 
 
 def test_errors(bot):
@@ -112,66 +100,60 @@ def test_errors(bot):
 
     handler = databot.testing.ErrorHandler(2)
 
-    with p1:
-        p2.call(handler)
-        assert p2.errors.count() == 1
-        assert list(p2.errors.keys()) == [2]
+    p2(p1).call(handler)
+    assert p2(p1).errors.count() == 1
+    assert list(p2(p1).errors.keys()) == [2]
 
-    assert list(p2.data.items()) == [(1, 'A'), (3, 'C')]
+    assert list(p2.items()) == [(1, 'A'), (3, 'C')]
 
     handler = databot.testing.ErrorHandler(None)
 
     bot.main(argv=['-v0', 'run', '--retry'])
 
-    with p1:
-        p2.call(handler)
-        assert p2.errors.count() == 0
+    p2(p1).call(handler)
+    assert p2(p1).errors.count() == 0
 
-    assert list(p2.data.items()) == [(1, 'A'), (3, 'C'), (2, 'B')]
+    assert list(p2.items()) == [(1, 'A'), (3, 'C'), (2, 'B')]
 
 
 def test_errors_with_key(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    with p1:
-        p2.call(databot.testing.ErrorHandler(2))
-        errors = [err.row.value for err in p2.errors(2)]
-        assert errors == ['b']
+    p2(p1).call(databot.testing.ErrorHandler(2))
+    errors = [err.row.value for err in p2(p1).errors(2)]
+    assert errors == ['b']
 
 
 def test_errors_with_missing_key(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    with p1:
-        p2.call(databot.testing.ErrorHandler(2))
-        errors = [err.row.value for err in p2.errors(42)]
-        assert errors == []
+    p2(p1).call(databot.testing.ErrorHandler(2))
+    errors = [err.row.value for err in p2(p1).errors(42)]
+    assert errors == []
 
 
 def test_errors_reversed(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    with p1:
-        p2.call(databot.testing.ErrorHandler(2, 3))
+    p2(p1).call(databot.testing.ErrorHandler(2, 3))
 
-        # Without reverse
-        errors = [err.row.value for err in p2.errors(reverse=False)]
-        assert errors == ['b', 'c']
+    # Without reverse
+    errors = [err.row.value for err in p2(p1).errors(reverse=False)]
+    assert errors == ['b', 'c']
 
-        # Reverse
-        errors = [err.row.value for err in p2.errors(reverse=True)]
-        assert errors == ['c', 'b']
+    # Reverse
+    errors = [err.row.value for err in p2(p1).errors(reverse=True)]
+    assert errors == ['c', 'b']
 
 
 def test_errors_last(bot):
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    with p1:
-        p2.call(databot.testing.ErrorHandler(1, 2, 3))
+    p2(p1).call(databot.testing.ErrorHandler(1, 2, 3))
 
-        assert p2.errors.last().row.key == 3
-        assert p2.errors.last(1).row.key == 1
-        assert p2.errors.last(42) is None
+    assert p2(p1).errors.last().row.key == 3
+    assert p2(p1).errors.last(1).row.key == 1
+    assert p2(p1).errors.last(42) is None
 
 
 def test_errors_resolve_all(bot):
@@ -179,14 +161,13 @@ def test_errors_resolve_all(bot):
 
     handler = databot.testing.ErrorHandler(2, 3)
 
-    with p1:
-        p2.call(handler)
-        assert p2.errors.count() == 2
-        assert list(p2.errors.keys()) == [2, 3]
+    p2(p1).call(handler)
+    assert p2(p1).errors.count() == 2
+    assert list(p2(p1).errors.keys()) == [2, 3]
 
-        p2.errors.resolve()
-        assert p2.errors.count() == 0
-        assert list(p2.errors.keys()) == []
+    p2(p1).errors.resolve()
+    assert p2(p1).errors.count() == 0
+    assert list(p2(p1).errors.keys()) == []
 
 
 def test_errors_resolve_key(bot):
@@ -194,14 +175,13 @@ def test_errors_resolve_key(bot):
 
     handler = databot.testing.ErrorHandler(2, 3)
 
-    with p1:
-        p2.call(handler)
-        assert p2.errors.count() == 2
-        assert list(p2.errors.keys()) == [2, 3]
+    p2(p1).call(handler)
+    assert p2(p1).errors.count() == 2
+    assert list(p2(p1).errors.keys()) == [2, 3]
 
-        p2.errors.resolve(2)
-        assert p2.errors.count() == 1
-        assert list(p2.errors.keys()) == [3]
+    p2(p1).errors.resolve(2)
+    assert p2(p1).errors.count() == 1
+    assert list(p2(p1).errors.keys()) == [3]
 
 
 def test_missing_pipe_name(db):
@@ -214,8 +194,7 @@ def test_missing_pipe_name(db):
 
     pp, p2 = bot.pipe('pp'), bot.pipe('p2')
 
-    with pp:
-        assert p2.count() is 0
+    assert p2(pp).count() is 0
 
 
 def test_external_write(db):
@@ -228,9 +207,8 @@ def test_external_write(db):
 
     p1, p2 = bot.pipe('p1'), bot.pipe('p2')
 
-    with p2:
-        p1.call(handler)
+    p1(p2).call(handler)
 
-    assert list(p1.data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
-    assert list(p2.data.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
-    assert list(external.pipe('p1').data.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
+    assert list(p1.items()) == [(1, 'A'), (2, 'B'), (3, 'C')]
+    assert list(p2.items()) == [(1, 'a'), (2, 'b'), (3, 'c')]
+    assert list(external.pipe('p1').items()) == [(1, 'A'), (2, 'B'), (3, 'C')]

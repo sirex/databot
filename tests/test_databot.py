@@ -15,5 +15,5 @@ def test_main(db):
 
     bot = db.Bot().main(pipeline, argv=['-v0', 'run'])
 
-    assert list(bot.pipe('p1').data.items()) == [('1', 'a'), ('2', 'b'), ('3', 'c')]
-    assert list(bot.pipe('p2').data.items()) == [('1', 'A'), ('2', 'B'), ('3', 'C')]
+    assert list(bot.pipe('p1').items()) == [('1', 'a'), ('2', 'b'), ('3', 'c')]
+    assert list(bot.pipe('p2').items()) == [('1', 'A'), ('2', 'B'), ('3', 'C')]

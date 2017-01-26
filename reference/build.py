@@ -60,7 +60,7 @@ class Samples:
             'bot': bot,
             'p1': p1,
         })
-        return repr(list(p1.data.items()))
+        return repr(list(p1.items()))
 
     def duplicates(self, code):
         bot = Bot()
@@ -74,7 +74,7 @@ class Samples:
             'bot': bot,
             'p1': p1,
         })
-        return repr(list(p1.data.items()))
+        return repr(list(p1.items()))
 
     def expressions(self, code):
         result = eval(code, {}, {
@@ -106,17 +106,16 @@ class Samples:
             'content': content,
         })])
 
-        with html:
-            eval(code, {}, {
-                'bot': bot,
-                'html': html,
-                'p1': p1,
-                'this': this,
-                'int': int,
-                'select': select,
-            })
+        eval(code, {}, {
+            'bot': bot,
+            'html': html,
+            'p1': p1(html),
+            'this': this,
+            'int': int,
+            'select': select,
+        })
 
-        return pformat(list(p1.data.items()), width=42)
+        return pformat(list(p1.items()), width=42)
 
 
 samples = Samples()

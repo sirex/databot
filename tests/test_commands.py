@@ -46,6 +46,16 @@ def test_select(bot):
     )
 
 
+def test_select_table(bot):
+    bot.define('p1').append('http://example.com/', {'content': b'<div>value</div>'})
+    bot.main(argv=['select', 'p1', 'div:text', '-t'])
+    assert bot.output.output.getvalue() == (
+        ' key    value \n'
+        '=============\n'
+        'value   None  \n'
+    )
+
+
 def test_select_export(bot, tmpdir):
     bot.define('p1').append([
         ('http://example.com/', {'content': b'<div id="1">a</div>'}),
@@ -71,12 +81,39 @@ def test_select_export(bot, tmpdir):
     ]
 
 
+def test_select_export_non_verbose(bot, tmpdir):
+    bot.define('p1').append([
+        ('http://example.com/', {'content': b'<div id="1">a</div>'}),
+        ('http://example.com/', {'content': b'<div id="2">b</div>'}),
+        ('http://example.com/', {'content': b'<div id="3">c</div>'}),
+    ])
+
+    bot.main(argv=['-v', '0', 'select', 'p1', '-e', str(tmpdir / 'export.csv'), '("div@id", "div:text")'])
+    assert bot.output.output.getvalue() == ''
+    assert tmpdir.join('export.csv').read() == (
+        'key,value\n'
+        '1,a\n'
+        '2,b\n'
+        '3,c\n'
+    )
+
+
 def test_select_not_found(bot):
     bot.define('p1')
     bot.main(argv=['select', 'p1', '-k', 'missing', 'div:text'])
     assert bot.output.output.getvalue() == (
         'Not found.\n'
     )
+
+
+def test_select_raw(bot):
+    p1 = bot.define('p1').append([1, 2, 3])
+    assert bot.commands.select(p1, raw=True, query=this.key) == [{'key': 3, 'value': None}]
+
+
+def test_select_raw_empty(bot):
+    p1 = bot.define('p1')
+    assert bot.commands.select(p1, raw=True, query=this.key) == []
 
 
 def test_download(bot, requests):
@@ -131,8 +168,9 @@ def test_reset(bot):
 
 
 def test_offset(bot):
-    with bot.define('p1').append([1, 2, 3, 4]):
-        bot.define('p2').skip()
+    p1 = bot.define('p1').append([1, 2, 3, 4])
+    p2 = bot.define('p2')
+    p2(p1).skip()
     bot.main(argv=['offset', 'p1', 'p2', '-1'])
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
         "   id              rows  source  ",
@@ -280,10 +318,9 @@ def test_resolve_all(bot):
     t1 = bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
     t2 = bot.define('p2')
 
-    rows = list(t1.data.rows())
-    with t1:
-        t2.errors.report(rows[0], 'Error 1')
-        t2.errors.report(rows[2], 'Error 2')
+    rows = list(t1.rows())
+    t2(t1).errors.report(rows[0], 'Error 1')
+    t2(t1).errors.report(rows[2], 'Error 2')
 
     bot.main(argv=['resolve', 'p1', 'p2'])
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
@@ -303,10 +340,9 @@ def test_resolve_key(bot):
     t1 = bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
     t2 = bot.define('p2')
 
-    rows = list(t1.data.rows())
-    with t1:
-        t2.errors.report(rows[0], 'Error 1')
-        t2.errors.report(rows[2], 'Error 2')
+    rows = list(t1.rows())
+    t2(t1).errors.report(rows[0], 'Error 1')
+    t2(t1).errors.report(rows[2], 'Error 2')
 
     bot.main(argv=['resolve', 'p1', 'p2', '"3"'])
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
@@ -427,9 +463,8 @@ def test_errors(bot):
     ]
 
     bot.main(argv=['-v0', 'run'])
-    with t1:
-        with freezegun.freeze_time('2015-12-20 15:33:05'):
-            t2.errors.report(t1.last(), '\n'.join(map(str.rstrip, traceback)))
+    with freezegun.freeze_time('2015-12-20 15:33:05'):
+        t2(t1).errors.report(t1.last(), '\n'.join(map(str.rstrip, traceback)))
 
     bot.main(argv=['errors', 'p1', 'p2'])
     bot.output.output.getvalue(), '\n'.join(map(str.rstrip, [
@@ -490,7 +525,7 @@ def test_run(bot):
 
     bot.main(pipeline, argv=['run', '-f'])
     assert bot.output.output.getvalue() == ''
-    assert list(bot.pipe('p2').data.items()) == [(1, 'A'), (2, 'B')]
+    assert list(bot.pipe('p2').items()) == [(1, 'A'), (2, 'B')]
 
 
 def test_run_error_limit(bot, capsys):
@@ -516,7 +551,7 @@ def test_run_error_limit(bot, capsys):
         bot.main(pipeline, argv=['run', '-f'])
 
     assert bot.output.output.getvalue() == ''
-    assert list(bot.pipe('p2').data.items()) == [(1, 'A')]
+    assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 0 was reached.\n'
     assert task('p1', 'p2').errors.count()._eval(bot) == 0
 
@@ -544,6 +579,6 @@ def test_run_error_limit_n(bot, capsys):
         bot.main(pipeline, argv=['run', '-f', '2'])
 
     assert bot.output.output.getvalue() == ''
-    assert list(bot.pipe('p2').data.items()) == [(1, 'A')]
+    assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'
     assert task('p1', 'p2').errors.count()._eval(bot) == 2

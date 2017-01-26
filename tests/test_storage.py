@@ -36,19 +36,20 @@ def test_clean(bot):
     bot.engine.execute(t1.table.insert(), serrow('2', 'b', created=now - 2 * day))
     bot.engine.execute(t1.table.insert(), serrow('3', 'c', created=now - 3 * day))
 
-    with t1:
-        assert t2.count() == 3
+    task = t2(t1)
 
-        t1.clean(3 * day, now=now)
-        assert t2.count() == 2
-        assert list(map(int, t2.keys())) == [1, 2]
+    assert task.count() == 3
 
-        t1.clean(2 * day, now=now)
-        assert t2.count() == 1
-        assert list(map(int, t2.keys())) == [1]
+    t1.clean(3 * day, now=now)
+    assert task.count() == 2
+    assert list(map(int, task.keys())) == [1, 2]
 
-        t1.clean()
-        assert t2.count() == 0
+    t1.clean(2 * day, now=now)
+    assert task.count() == 1
+    assert list(map(int, task.keys())) == [1]
+
+    t1.clean()
+    assert task.count() == 0
 
 
 def test_dedup(bot):
@@ -58,9 +59,9 @@ def test_dedup(bot):
     t1.append('2', 'c')
     t1.append('3', 'd')
     t1.append('3', 'e')
-    assert t1.data.count() == 5
-    assert t1.dedup().data.count() == 3
-    assert list(t1.data.items()) == [
+    assert t1.count() == 5
+    assert t1.dedup().count() == 3
+    assert list(t1.items()) == [
         ('1', 'a'),
         ('2', 'b'),
         ('3', 'd'),
@@ -74,32 +75,32 @@ def test_compact(bot):
     t1.append('2', 'c')
     t1.append('3', 'd')
     t1.append('3', 'e')
-    assert t1.data.count() == 5
-    assert t1.compact().data.count() == 3
-    assert list(t1.data.items()) == [
+    assert t1.count() == 5
+    assert t1.compact().count() == 3
+    assert list(t1.items()) == [
         ('1', 'a'),
         ('2', 'c'),
         ('3', 'e'),
     ]
 
     t1.append('3', 'x')
-    assert t1.data.count() == 4
+    assert t1.count() == 4
 
     bot.compact()
-    assert t1.data.count() == 3
+    assert t1.count() == 3
 
 
 def test_initial_state(bot):
     t1 = bot.pipe('pipe 1')
     t2 = bot.pipe('pipe 2')
 
-    assert exclude(t1.get_state(), 'id') == {
+    assert exclude(t1(None).get_state(), 'id') == {
         'offset': 0,
         'source_id': None,
         'target_id': t1.id,
     }
 
-    assert exclude(t2.get_state(), 'id') == {
+    assert exclude(t2(None).get_state(), 'id') == {
         'offset': 0,
         'source_id': None,
         'target_id': t2.id,
@@ -110,12 +111,11 @@ def test_context_state(bot):
     t1 = bot.pipe('pipe 1')
     t2 = bot.pipe('pipe 2')
 
-    with t1:
-        assert exclude(t2.get_state(), 'id') == {
-            'offset': 0,
-            'source_id': t1.id,
-            'target_id': t2.id,
-        }
+    assert exclude(t2(t1).get_state(), 'id') == {
+        'offset': 0,
+        'source_id': t1.id,
+        'target_id': t2.id,
+    }
 
 
 def test_offset(bot):
@@ -133,32 +133,32 @@ def test_offset(bot):
 
     t1.append('1', 'a').append('2', 'b')
 
-    with t1:
-        assert items_processed == 0
-        assert t3.is_filled()
+    task = t3(t1)
 
-        t3.call(handler)
-        assert exclude(t3.get_state(), 'id') == {
-            'offset': 2,
-            'source_id': t1.id,
-            'target_id': t3.id,
-        }
+    assert items_processed == 0
+    assert task.is_filled()
 
-        assert items_processed == 2
-        assert t3.is_filled() is False
+    task.call(handler)
+    assert exclude(task.get_state(), 'id') == {
+        'offset': 2,
+        'source_id': t1.id,
+        'target_id': t3.id,
+    }
+
+    assert items_processed == 2
+    assert task.is_filled() is False
 
     t1.append('3', 'c')
 
-    with t1:
-        assert items_processed == 2
-        assert t3.is_filled()
+    assert items_processed == 2
+    assert task.is_filled()
 
-        t3.call(handler)
-        assert exclude(t3.get_state(), 'id') == {
-            'offset': 3,
-            'source_id': t1.id,
-            'target_id': t3.id,
-        }
+    task.call(handler)
+    assert exclude(task.get_state(), 'id') == {
+        'offset': 3,
+        'source_id': t1.id,
+        'target_id': t3.id,
+    }
 
-        assert items_processed == 3
-        assert t3.is_filled() is False
+    assert items_processed == 3
+    assert task.is_filled() is False

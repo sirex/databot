@@ -1,14 +1,15 @@
 def test_download(bot, requests):
     url = 'http://example.com'
     requests.get(url)
-    with bot.define('a').append(url):
-        assert list(bot.define('b').download().data.keys()) == [url]
+    a = bot.define('a').append(url)
+    b = bot.define('b')
+    assert list(b(a).download().target.keys()) == [url]
 
 
 def test_download_str(bot, requests):
     url = 'http://example.com'
     requests.get(url)
-    assert list(bot.define('a').download(url).data.keys()) == [url]
+    assert list(bot.define('a').download(url).keys()) == [url]
 
 
 def test_download_list(bot, requests):
@@ -20,4 +21,4 @@ def test_download_list(bot, requests):
     for url in urls:
         requests.get(url)
 
-    assert list(bot.define('a').download(urls).data.keys()) == urls
+    assert list(bot.define('a').download(urls).keys()) == urls

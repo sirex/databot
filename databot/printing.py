@@ -136,16 +136,16 @@ class Printer(object):
         lines.append('%5s  %6s %9s  %s' % ('', 'errors', 'left', '  target'))
         lines.append(None)
         for source in bot.pipes:
-            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.data.count(), source.name.replace(' ', '-')))
+            lines.append('%5d  %6s %9d  %s' % (source.id, '', source.count(), source.name.replace(' ', '-')))
 
             query = sa.select([self.models.state.c.target_id]).where(self.models.state.c.source_id == source.id)
             for target_id, in bot.engine.execute(query):
                 if target_id in pipes:
                     target = pipes[target_id]
-                    with source:
-                        lines.append('%5s  %6s %9d    %s' % (
-                            '', target.errors.count(), target.count(), target.name.replace(' ', '-')
-                        ))
+                    tpipe = target(source)
+                    lines.append('%5s  %6s %9d    %s' % (
+                        '', tpipe.errors.count(), tpipe.count(), target.name.replace(' ', '-')
+                    ))
 
             lines.append(None)
 

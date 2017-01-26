@@ -16,5 +16,5 @@ def test_watch(bot):
         task('b').append(1),
     ])
 
-    assert list(a.data.keys()) == [1, 4, 16, 2, 8]
-    assert list(b.data.keys()) == [2, 8, 1, 4, 16]
+    assert list(a.keys()) == [1, 4, 16, 2, 8]
+    assert list(b.keys()) == [2, 8, 1, 4, 16]

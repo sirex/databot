@@ -9,8 +9,9 @@ def define(bot, *args, **kwargs):
 @handler(item='func')
 def task(bot, source=None, target=None, watch=False):
     if source and target:
-        bot.stack.append(bot.pipe(source))
-        return bot.pipe(target)
+        source = bot.pipe(source)
+        target = bot.pipe(target)
+        return target(source)
     elif source:
         return bot.pipe(source)
     else:
@@ -35,15 +36,15 @@ def get_watching_tasks(bot, tasks):
         if task.kwargs.get('watch', False):
             source = bot.pipe(task.args[0])
             target = bot.pipe(task.args[1])
-            yield source, target, expr
+            yield target(source), expr
 
 
 def run_watching_tasks(bot, tasks, source, target):
     has_changes = True
     while has_changes:
         has_changes = False
-        for src, tgt, expr in tasks:
-            if bot.is_filled(src, tgt):
+        for task, expr in tasks:
+            if task.is_filled():
                 has_changes = True
                 run_single_task(bot, expr, source, target)
 

@@ -130,7 +130,7 @@ def test_value(data):
 def test_jsonl(bot):
     pipe = bot.define('p1').append([('1', 'a'), ('2', 'b')])
     stream = io.StringIO()
-    jsonl.export(stream, pipe.data.rows())
+    jsonl.export(stream, pipe.rows())
     assert stream.getvalue().splitlines() == [
         '{"key": "1", "value": "a"}',
         '{"key": "2", "value": "b"}',
@@ -140,7 +140,7 @@ def test_jsonl(bot):
 def test_jsonl_dict(bot):
     pipe = bot.define('p1').append([('1', {'a': 2}), ('2', {'b': 3})])
     stream = io.StringIO()
-    jsonl.export(stream, pipe.data.rows())
+    jsonl.export(stream, pipe.rows())
     assert stream.getvalue().splitlines() == [
         '{"key": "1", "a": 2}',
         '{"key": "2", "b": 3}',

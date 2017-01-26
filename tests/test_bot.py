@@ -43,22 +43,22 @@ def test_pipe(bot):
 def test_compact_empty_pipe(bot):
     pipe = bot.define('pipe')
     bot.compact()
-    assert list(pipe.data.keys()) == []
+    assert list(pipe.keys()) == []
 
 
 def test_compact_full_pipe(bot):
     pipe = bot.define('pipe')
     pipe.append([1, 1, 2, 1, 1])
-    assert list(pipe.data.keys()) == [1, 1, 2, 1, 1]
+    assert list(pipe.keys()) == [1, 1, 2, 1, 1]
 
     bot.compact()
-    list(pipe.data.keys()) == [2, 1]
+    list(pipe.keys()) == [2, 1]
 
 
 def test_compress(bot):
     pipe = bot.define('pipe')
     pipe.append([1, 1, 2, 1, 1])
-    assert list(pipe.data.keys()) == [1, 1, 2, 1, 1]
+    assert list(pipe.keys()) == [1, 1, 2, 1, 1]
 
     bot.compact()
-    list(pipe.data.keys()) == [2, 1]
+    list(pipe.keys()) == [2, 1]

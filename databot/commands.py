@@ -43,7 +43,7 @@ class Command(object):
         pass
 
     def run(self, args):
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
     def pipe(self, name):
         if name.isdigit():
@@ -172,10 +172,10 @@ class Select(Command):
             def scrape():
                 if self.bot.verbosity == 1:
                     desc = '%s -> %s' % (source, export)
-                    total = source.data.count()
-                    rows = tqdm.tqdm(source.data.rows(), desc, total, leave=True)
+                    total = source.count()
+                    rows = tqdm.tqdm(source.rows(), desc, total, leave=True)
                 else:
-                    rows = source.data.rows()
+                    rows = source.rows()
 
                 for row in rows:
                     for key, value in keyvalueitems(selector(row)):
@@ -235,8 +235,9 @@ class Skip(Command):
         parser.add_argument('target', type=str, help="Target pipe.")
 
     def run(self, args):
-        with self.pipe(args.source):
-            self.pipe(args.target).skip()
+        source = self.pipe(args.source)
+        target = self.pipe(args.target)
+        target(source).skip()
         self.bot.output.status(self.bot)
 
 
@@ -247,8 +248,9 @@ class Reset(Command):
         parser.add_argument('target', type=str, help="Target pipe.")
 
     def run(self, args):
-        with self.pipe(args.source):
-            self.pipe(args.target).reset()
+        source = self.pipe(args.source)
+        target = self.pipe(args.target)
+        target(source).reset()
         self.bot.output.status(self.bot)
 
 
@@ -260,8 +262,9 @@ class Offset(Command):
         parser.add_argument('offset', type=int, help="Relative offset.")
 
     def run(self, args):
-        with self.pipe(args.source):
-            self.pipe(args.target).offset(args.offset)
+        source = self.pipe(args.source)
+        target = self.pipe(args.target)
+        target(source).offset(args.offset)
         self.bot.output.status(self.bot)
 
 
@@ -384,7 +387,7 @@ class Export(Command):
         pipe = self.pipe(args.pipe)
         exclude = set(args.exclude.split(',') if args.exclude else [])
         include = args.include.split(',') if args.include else None
-        csv.export(args.path, pipe.data.rows(), exclude=exclude, include=include, append=args.append, header=args.header)
+        csv.export(args.path, pipe.rows(), exclude=exclude, include=include, append=args.append, header=args.header)
 
 
 class Resolve(Command):
@@ -399,8 +402,9 @@ class Resolve(Command):
         import ast
 
         key = ast.literal_eval(args.key) if args.key else None
-        with self.pipe(args.source):
-            self.pipe(args.target).errors.resolve(key)
+        source = self.pipe(args.source)
+        target = self.pipe(args.target)
+        target(source).errors.resolve(key)
         self.bot.output.status(self.bot)
 
 
@@ -423,10 +427,11 @@ class Errors(Command):
     def run(self, args):
         key = parsevalue.parse(args.key)
         exclude = args.exclude.split(',') if args.exclude else None
-        with self.pipe(args.source):
-            errors = self.pipe(args.target).errors(key, reverse=True)
-            errors = funcy.take(args.limit, errors)
-            self.bot.output.errors(errors, exclude)
+        source = self.pipe(args.source)
+        target = self.pipe(args.target)
+        errors = target(source).errors(key, reverse=True)
+        errors = funcy.take(args.limit, errors)
+        self.bot.output.errors(errors, exclude)
 
 
 class Shell(Command):

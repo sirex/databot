@@ -69,42 +69,42 @@ def t1(db):
 
 
 def test_keys(t1):
-    assert list(t1.data.keys()) == ['1', '2']
+    assert list(t1.keys()) == ['1', '2']
 
 
 def test_values(t1):
-    assert list(t1.data.values()) == ['a', 'b']
+    assert list(t1.values()) == ['a', 'b']
 
 
 def test_items(t1):
-    assert list(t1.data.items()) == [('1', 'a'), ('2', 'b')]
+    assert list(t1.items()) == [('1', 'a'), ('2', 'b')]
 
 
 def test_rows(t1):
-    assert [(row.key, row.value) for row in t1.data.rows()] == [('1', 'a'), ('2', 'b')]
+    assert [(row.key, row.value) for row in t1.rows()] == [('1', 'a'), ('2', 'b')]
 
 
 def test_exists(t1):
-    assert t1.data.exists('1') is True
-    assert t1.data.exists('3') is False
+    assert t1.exists('1') is True
+    assert t1.exists('3') is False
 
 
 def test_data_get(t1):
-    assert t1.data.get('1').value == 'a'
-    assert t1.data.get('zz', None) is None
+    assert t1.get('1').value == 'a'
+    assert t1.get('zz', None) is None
     with pytest.raises(ValueError):
-        t1.data.get('zz')
+        t1.get('zz')
 
 
 def test_data_get_more_than_one_error(db):
     pipe = db.Bot().define('pipe').append([('1', 'a'), ('1', 'b')])
     with pytest.raises(ValueError):
-        pipe.data.get('1')
+        pipe.get('1')
 
 
 def test_data_getall(db):
     pipe = db.Bot().define('pipe').append([('1', 'a'), ('1', 'b')])
-    assert [x.value for x in pipe.data.getall('1')] == ['a', 'b']
+    assert [x.value for x in pipe.getall('1')] == ['a', 'b']
 
 
 @pytest.fixture
@@ -142,23 +142,23 @@ def test_only_missing(p2):
     # only_missing = False
     p2.append([1, 2, 3])
     p2.append([1, 2, 3, 4])
-    assert list(p2.data.keys()) == [1, 2, 3, 1, 2, 3, 4]
+    assert list(p2.keys()) == [1, 2, 3, 1, 2, 3, 4]
 
     # only_missing = True
     p2.clean()
     p2.append([1, 2, 3], only_missing=True)
     p2.append([1, 2, 3, 4], only_missing=True)
-    assert list(p2.data.keys()) == [1, 2, 3, 4]
+    assert list(p2.keys()) == [1, 2, 3, 4]
 
 
 def test_append_none(bot):
     pipe = bot.define('p1').append([None, 1, None, 2, 3])
-    assert list(pipe.data.keys()) == [1, 2, 3]
+    assert list(pipe.keys()) == [1, 2, 3]
 
 
 def test_compression(bot):
     pipe = bot.define('p1', compress=True).append([(1, 'a'), (2, 'b')])
-    assert list(pipe.data.items()) == [(1, 'a'), (2, 'b')]
+    assert list(pipe.items()) == [(1, 'a'), (2, 'b')]
 
 
 def test_compress_decompress(bot):
@@ -176,9 +176,9 @@ def test_compress_decompress(bot):
     assert fetchrow(1, 'compression') is Compression.gzip.value
     assert fetchrow(1, 'value') != b'\x92\x01\xa1a'
     assert fetchrow(1, 'value') == gzip.compress(b'\x92\x01\xa1a', compresslevel=1)
-    assert list(pipe.data.items()) == [(1, 'a'), (2, 'b')]
+    assert list(pipe.items()) == [(1, 'a'), (2, 'b')]
 
     pipe.decompress()
     assert fetchrow(1, 'compression') is None
     assert fetchrow(1, 'value') == b'\x92\x01\xa1a'
-    assert list(pipe.data.items()) == [(1, 'a'), (2, 'b')]
+    assert list(pipe.items()) == [(1, 'a'), (2, 'b')]
