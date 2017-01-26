@@ -134,7 +134,8 @@ class Bot(object):
         for pipe in self.pipes:
             pipe.compact()
 
-    def _register_commands(self, cmgr):
+    def _register_commands(self, cmgr, pipeline=None):
+        cmgr._register('run', commands.Run, pipeline)
         cmgr._register('status', commands.Status)
         cmgr._register('select', commands.Select)
         cmgr._register('download', commands.Download)
@@ -166,8 +167,7 @@ class Bot(object):
         sps = parser.add_subparsers(dest='command')
 
         cmgr = commands.CommandsManager(self, sps)
-        cmgr._register('run', commands.Run, pipeline)
-        self._register_commands(cmgr)
+        self._register_commands(cmgr, pipeline)
 
         args = parser.parse_args(argv)
 
