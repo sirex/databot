@@ -161,37 +161,32 @@ Here is how previous example can be transformed into a script:
 
     #!/usr/bin/env python3
 
-    import databot
+    from databot import define, task, first
 
-
-    def define(bot):
-        bot.define('index')
-        bot.define('news')
-
-
-    def run(bot):
-        index = bot.pipe('index')
-        news = bot.pipe('news')
-
-        with index.download('https://www.reddit.com/'):
-            news.select([
+    pipeline = {
+        'pipes': [
+            define('index'),
+            define('news'),
+        ],
+        'tasks': [
+            task('index').download('https://www.reddit.com/'),
+            task('index', 'news').select([
                 '.thing.link', (
                     '.entry .title > a@href', {
                         'title': '.entry .title > a:text',
                         'score': '.midcol .score.likes@title',
-                        'time': databot.first(['.tagline time@datetime']),
+                        'time': first(['.tagline time@datetime']),
                         'comments': '.entry a.comments:text',
                     }
                 )
-            ])
-
-        bot.compact()
-
-        news.export('/tmp/reddit.jsonl')
-
+            ]),
+            task('news').export('/tmp/reddit.jsonl'),
+            task().compact(),
+        ],
+    }
 
     if __name__ == '__main__':
-        databot.Bot('/tmp/reddit.db').main(define, run)
+        databot.Bot('/tmp/reddit.db').main(pipeline)
 
 
 
@@ -286,6 +281,26 @@ One interesting point is that each pair of pipes remembers where they left last
 time and when executed again, they will continue from position left last time.
 That means, that you can run this script many times and only new items will be
 processed.
+
+Pagination
+==========
+
+You can scrape web pages that use pagination using watch functionality.
+
+.. code-block:: python
+
+    'tasks': [
+        task('listing pages').download('https://example.com'),
+        task('listing pages', 'listing urls', watch=True).select(['.pagination a.page@href']).dedup(),
+        task('listing urls', 'listing pages', watch=True).download(),
+    ],
+
+All tasks, that have ``watch=True`` flag, will be run multiple times if source
+pipe gets new data to process. In this case, when all pages are downloaded for
+extracted  urls in third task, second task will will run again and populates
+'listing urls' with new urls, then third tasks will run again and downloads
+pages from new urls. And this will continue, until there is not urls left to
+extract.
 
 Error handling
 ==============

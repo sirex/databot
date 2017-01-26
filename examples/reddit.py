@@ -1,31 +1,28 @@
 #!/usr/bin/env python3
 
-import databot
+from databot import Bot, define, task, first
 
-
-def define(bot):
-    bot.define('index')
-    bot.define('news')
-
-
-def run(bot):
-    index = bot.pipe('index')
-    news = bot.pipe('news')
-
-    with index.download('https://www.reddit.com/'):
-        news.select([
+pipeline = {
+    'pipes': [
+        define('index'),
+        define('news'),
+    ],
+    'tasks': [
+        task('index').download('https://www.reddit.com/'),
+        task('index', 'news').select([
             '.thing.link', (
                 '.entry .title > a@href', {
                     'title': '.entry .title > a:text',
                     'score': '.midcol .score.likes@title',
-                    'time': databot.first(['.tagline time@datetime']),
+                    'time': first(['.tagline time@datetime']),
                     'comments': '.entry a.comments:text',
                 }
             )
-        ])
-
-    news.export('/tmp/reddit.jsonl')
-
+        ]),
+        task('news').export('/tmp/reddit.jsonl'),
+        task().compact(),
+    ],
+}
 
 if __name__ == '__main__':
-    databot.Bot('/tmp/reddit.db').main(define, run)
+    Bot('/tmp/reddit.db').main(pipeline)
