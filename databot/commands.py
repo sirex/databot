@@ -4,6 +4,7 @@ import funcy
 from databot import parsevalue
 from databot.exceptions import PipeNameError
 from databot.expressions.base import Expression
+from databot.runner import run_all_tasks
 
 
 class CommandsManager(object):
@@ -80,18 +81,19 @@ class Run(Command):
     def run(self, args):
         source = self.bot.pipe(args.source) if args.source else None
         target = self.bot.pipe(args.target) if args.target else None
-        self.call(self.pipeline, source, target, debug=args.debug, retry=args.retry, limit=args.limit,
+        tasks = self.pipeline.get('tasks', []) if self.pipeline else []
+        self.call(tasks, source, target, debug=args.debug, retry=args.retry, limit=args.limit,
                   error_limit=args.fail)
 
-    def call(self, pipeline, source=None, target=None, *, debug=False, retry=False, limit=0, error_limit=None):
+    def call(self, tasks, source=None, target=None, *, debug=False, retry=False, limit=0, error_limit=None):
         self.bot.debug = debug
         self.bot.retry = retry
         self.bot.limit = limit
         self.bot.error_limit = error_limit
 
-        if pipeline:
+        if tasks:
             # Validate tasks
-            for expr in pipeline.get('tasks', []):
+            for expr in tasks:
                 if not isinstance(expr, Expression):
                     raise RuntimeError("Unknown task type: %r" % expr)
 
@@ -100,15 +102,7 @@ class Run(Command):
                     raise RuntimeError("Unknown function: %r" % task.name)
 
             # Run tasks
-            for expr in pipeline.get('tasks', []):
-                task = expr._stack[0]
-                if (
-                    (source, target) == (None, None) or
-                    (source and target and (source.name, target.name) == task.args) or
-                    (source and target is None and (source.name,) == task.args) or
-                    (source and target is None and len(task.args) == 2 and (source.name,) == task.args[1:])
-                ):
-                    expr._eval(self.bot)
+            run_all_tasks(self.bot, tasks, source, target)
 
 
 class Status(Command):

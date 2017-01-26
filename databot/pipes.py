@@ -6,7 +6,7 @@ import traceback
 import tqdm
 
 from databot.db.serializers import serrow, serkey
-from databot.db.utils import strip_prefix, create_row, get_or_create, Row
+from databot.db.utils import strip_prefix, create_row, Row
 from databot.db.windowedquery import windowed_query
 from databot.db.models import Compression
 from databot.handlers import download, html
@@ -301,19 +301,11 @@ class Pipe(object):
             return self.bot.stack[-1]
 
     def get_state(self):
-        source, target = self.source, self
-        return get_or_create(self.bot.engine, self.bot.models.state, ['source_id', 'target_id'], dict(
-            source_id=(source.id if source else None),
-            target_id=target.id,
-            offset=0,
-        ))
+        return self.bot.get_state(self.source, self)
 
     def is_filled(self):
         if self.source:
-            table = self.source.table
-            state = self.get_state()
-            query = table.select(table.c.id > state.offset).limit(1)
-            return len(self.source.engine.execute(query).fetchall()) > 0
+            return self.bot.is_filled(self.source, self)
         else:
             return False
 

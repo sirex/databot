@@ -1,6 +1,10 @@
+import logging
+
 from collections import namedtuple
 
 from databot.expressions.utils import HANDLERS
+
+logger = logging.getLogger(__name__)
 
 
 Attr = namedtuple('Attr', ('key',))
@@ -47,6 +51,7 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
+                        logger.debug('eval: %s.%s', handler.handler.__module__, handler.handler.__name__)
                         value = handler.handler(value, *item.args, **item.kwargs)
                         break
                 else:

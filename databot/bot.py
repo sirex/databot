@@ -107,6 +107,19 @@ class Bot(object):
     def pipe(self, name):
         return self.pipes_by_name[name]
 
+    def get_state(self, source, target):
+        return get_or_create(target.bot.engine, target.bot.models.state, ['source_id', 'target_id'], dict(
+            source_id=(source.id if source else None),
+            target_id=target.id,
+            offset=0,
+        ))
+
+    def is_filled(self, source, target):
+        table = source.table
+        state = self.get_state(source, target)
+        query = table.select(table.c.id > state.offset).limit(1)
+        return len(source.engine.execute(query).fetchall()) > 0
+
     def query_retry_pipes(self):
         errors, state, pipes = self.models.errors, self.models.state, self.models.pipes
 
