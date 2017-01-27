@@ -8,7 +8,7 @@ pipeline = {
         define('news'),
     ],
     'tasks': [
-        task('index').download('https://www.reddit.com/'),
+        task('index').once().download('https://www.reddit.com/'),
         task('index', 'news').select([
             '.thing.link', (
                 '.entry .title > a@href', {

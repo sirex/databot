@@ -13,6 +13,7 @@ from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
 from databot.exporters import csv, jsonl
 from databot.expressions.base import Expression
+from databot.tasks import Task
 
 
 NONE = object()
@@ -37,8 +38,9 @@ def keyvalueitems(key, value=None):
         return itertools.chain([(item, None)], ((k, None) for k in items))
 
 
-class PipeErrors(object):
+class PipeErrors(Task):
     def __init__(self, task):
+        super().__init__()
         self.task = task
         self.bot = task.bot
 
@@ -186,13 +188,21 @@ class PipeErrors(object):
                     self.task.target.engine.execute(query)
 
 
-class TaskPipe:
+class TaskPipe(Task):
 
     def __init__(self, bot, source, target):
+        super().__init__()
         self.bot = bot
         self.source = source
         self.target = target
         self.errors = PipeErrors(self)
+
+    def __repr__(self):
+        return '<databot.pipes.TaskPipe(%r, %r) at 0x%x>' % (
+            self.source.name if self.source else None,
+            self.target.name,
+            id(self),
+        )
 
     def get_state(self):
         return get_or_create(self.target.engine, self.target.models.state, ['source_id', 'target_id'], dict(
@@ -315,7 +325,7 @@ class TaskPipe:
             self.retry(handler)
 
         if self.bot.verbosity == 1 and not self.bot.debug:
-            total = self.count()
+            total = min(self.bot.limit, self.count()) if self.bot.limit else self.count()
             rows = tqdm.tqdm(self.rows(), desc, total, leave=True)
         else:
             rows = self.rows()
@@ -339,6 +349,7 @@ class TaskPipe:
         last_row = None
         for row in rows:
             if self.bot.limit and n >= self.bot.limit:
+                row = last_row
                 break
 
             if self.bot.debug:
@@ -382,7 +393,7 @@ class TaskPipe:
         desc = '%s -> %s (retry)' % (self.source, self.target)
 
         if self.bot.verbosity == 1 and not self.bot.debug:
-            total = self.errors.count()
+            total = min(self.bot.limit, self.errors.count()) if self.bot.limit else self.errors.count()
             errors = tqdm.tqdm(self.errors(), desc, total, leave=True, file=self.bot.output.output)
         else:
             errors = self.errors()
@@ -441,8 +452,14 @@ class TaskPipe:
     def select(self, key, value=None):
         return self.call(html.Select(key, value))
 
+    def dedup(self):
+        self.target.dedup()
 
-class Pipe(object):
+    def compact(self):
+        self.target.compact()
+
+
+class Pipe(Task):
     def __init__(self, bot, id, name, table, engine, samedb=True, compress=None):
         """
 
@@ -463,6 +480,7 @@ class Pipe(object):
         compress : databot.db.models.Compression or bool, optional
             Data compression algorithm.
         """
+        super().__init__()
         self.bot = bot
         self.id = id
         self.name = name
@@ -471,15 +489,19 @@ class Pipe(object):
         self.engine = engine
         self.samedb = samedb
         self.compression = Compression.gzip if compress is True else compress
+        self.tasks = {}
 
     def __str__(self):
         return self.name
 
     def __repr__(self):
-        return '<databot.Pipe[%d]: %s>' % (self.id, self.name)
+        return '<databot.pipes.Pipe(%r) at ox%x>' % (self.name, id(self))
 
     def __call__(self, source):
-        return TaskPipe(self.bot, source, self)
+        source_id = source.id if source else None
+        if source_id not in self.tasks:
+            self.tasks[source_id] = TaskPipe(self.bot, source, self)
+        return self.tasks[source_id]
 
     def append(self, key, value=None, conn=None, bulk=None, only_missing=False, progress=None, total=-1):
         """Append data to the pipe

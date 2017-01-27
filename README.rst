@@ -169,7 +169,7 @@ Here is how previous example can be transformed into a script:
             define('news'),
         ],
         'tasks': [
-            task('index').download('https://www.reddit.com/'),
+            task('index').once().download('https://www.reddit.com/'),
             task('index', 'news').select([
                 '.thing.link', (
                     '.entry .title > a@href', {
@@ -281,6 +281,51 @@ One interesting point is that each pair of pipes remembers where they left last
 time and when executed again, they will continue from position left last time.
 That means, that you can run this script many times and only new items will be
 processed.
+
+Pipeline worm up
+================
+
+Databot executes each task one by one. Each task will process all unprocessed
+items and only then new task begins.
+
+If you have a lot of data to process, usually you would like to test all tasks
+with several items, and when all tasks where tested, then run tasks one by one
+with all items.
+
+By default, databot runs all tasks limiting number of items for each task to
+one, and once whole pipline where run, then continue running all tasks again
+with all items. This is sort of pipeline worm up.
+
+This way, if one of your tasks fails, you will see it immediately.
+
+Pipeline worm up can be controlled with ``--limit`` flag, by default it is
+``--limit=1,0``, when ``1`` menas, run each task with single item, and ``0``
+menas, run each tasks with all items.
+
+You can spacify different worm up strategy, for example ``--limit=0`` means do
+not worm up and run all items. Another example ``--limit=1,5,10,100,0``, this
+will run bot with ``1``, ``5``, ``10``, ``100`` items to worm up, and then
+continues with all other items.
+
+Since your pipeline will be run multiple times, some times you want to controll
+how ofter you want a task to run. For example, usually you start a pipeline
+with a task, that downloads a starting page:
+
+.. code-block:: python
+
+  task('index').download('https://www.reddit.com/'),
+
+But since pipeline can be executed multiple times, you want to make sure, than
+starting page will be downloaded only once. To do that, use ``once()`` method
+call, like this:
+
+.. code-block:: python
+
+  task('index').once().download('https://www.reddit.com/'),
+
+Now starting page will be downloaded only the first time. All subsequent
+pipline reruns will do nothing.
+
 
 Pagination
 ==========

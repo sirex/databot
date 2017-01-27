@@ -302,7 +302,7 @@ def func(skipna=False):
 
 
 @handler(item='method')
-def text(nodes, strip=True, exclude=None):
+def text(expr, nodes, strip=True, exclude=None):
     # Recursively extract all texts
     def extract(nodes):
         texts = []

@@ -3,31 +3,33 @@ import urllib.parse
 
 import databot.utils.urls
 
+from databot.tasks import Task
+from databot.expressions.utils import StopEval
 from databot.expressions.utils import handler
 
 
 @handler(item='func')
-def value(_, value):
+def value(expr, _, value):
     return value
 
 
 @handler(item='method')
-def cast(value, func):
+def cast(expr, value, func):
     return func(value)
 
 
 @handler(item='method')
-def apply(value, func, *args, **kwargs):
+def apply(expr, value, func, *args, **kwargs):
     return func(value, *args, **kwargs)
 
 
 @handler(str, 'method')
-def urlparse(value):
+def urlparse(expr, value):
     return urllib.parse.urlparse(value)
 
 
 @handler(str, 'method')
-def url(value, *args, **kwargs):
+def url(expr, value, *args, **kwargs):
     return databot.utils.urls.url(value, *args, **kwargs)
 
 
@@ -37,22 +39,22 @@ def query(url):
 
 
 @handler(str, 'method')
-def strip(value):
+def strip(expr, value):
     return value.strip()
 
 
 @handler(str, 'method')
-def lower(value):
+def lower(expr, value):
     return value.lower()
 
 
 @handler(str, 'method')
-def upper(value):
+def upper(expr, value):
     return value.upper()
 
 
 @handler(str, 'method')
-def replace(value, old, new, count=None):
+def replace(expr, value, old, new, count=None):
     if count is None:
         return value.replace(old, new)
     else:
@@ -60,19 +62,27 @@ def replace(value, old, new, count=None):
 
 
 @handler(list, 'method')
-def join(value, sep=' '):
+def join(expr, value, sep=' '):
     return sep.join(map(str, value))
 
 
 @handler(str, 'method')
-def normspace(value):
+def normspace(expr, value):
     return ' '.join([x for x in value.strip().split() if x])
 
 
 @handler(str, 'method')
-def re(value, pattern):
+def re(expr, value, pattern):
     matches = re_.findall(pattern, value)
     if len(matches) == 1:
         return matches[0]
     elif len(matches) > 1:
         raise ValueError("More than one match found for pattern: %r in value: %r." % (pattern, value))
+
+
+@handler(Task, 'method')
+def once(expr, value):
+    if expr._evals > 1:
+        raise StopEval()
+    else:
+        return value

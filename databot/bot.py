@@ -3,6 +3,7 @@ import pathlib
 import sqlalchemy as sa
 import argparse
 import requests
+import logging
 
 import databot.db
 import databot.pipes
@@ -11,12 +12,14 @@ from databot.db.utils import strip_prefix, get_or_create, get_engine
 from databot.db.migrations import Migrations
 from databot.printing import Printer
 from databot import commands
+from databot.tasks import Task
 
 
-class Bot(object):
+class Bot(Task):
 
     def __init__(self, uri_or_engine='sqlite:///:memory:', *,
                  debug=False, retry=False, limit=0, error_limit=None, verbosity=0, output=sys.stdout, models=None):
+        super().__init__()
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
         self.models = models or Models(sa.MetaData(self.engine))
@@ -38,6 +41,9 @@ class Bot(object):
         self.migrations = Migrations(self.models, self.engine, self.output, verbosity=1)
         if self.migrations.has_initial_state():
             self.migrations.initialize()
+
+    def __repr__(self):
+        return '<databot.bot.Bot(%r) at 0x%x>' % (self.engine.url, id(self))
 
     def define(self, name, uri_or_engine=None, compress=None):
         """Defines new pipe for storing data.
@@ -162,6 +168,7 @@ class Bot(object):
         # 0 - no output
         # 1 - show progress bar
         parser.add_argument('-v', '--verbosity', type=int, default=1)
+        parser.add_argument('--log', default=None, choices=['debug', 'info', 'warn', 'error'])
 
         sps = parser.add_subparsers(dest='command')
 
@@ -169,6 +176,15 @@ class Bot(object):
         self._register_commands(cmgr, pipeline)
 
         args = parser.parse_args(argv)
+
+        if args.log:
+            levels = {
+                'debug': logging.DEBUG,
+                'info': logging.INFO,
+                'warn': logging.WARNING,
+                'error': logging.ERROR,
+            }
+            logging.basicConfig(level=levels.get(args.log))
 
         self.verbosity = args.verbosity
 

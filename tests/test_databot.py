@@ -8,7 +8,7 @@ def test_main(db):
             define('p2'),
         ],
         'tasks': [
-            task('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')]),
+            task('p1').once().append([('1', 'a'), ('2', 'b'), ('3', 'c')]),
             task('p1', 'p2').select(this.key, this.value.upper()),
         ],
     }

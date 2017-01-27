@@ -2,6 +2,7 @@ import logging
 
 from collections import namedtuple
 
+from databot.expressions.utils import StopEval
 from databot.expressions.utils import HANDLERS
 
 logger = logging.getLogger(__name__)
@@ -13,6 +14,21 @@ Method = namedtuple('Method', ('name', 'args', 'kwargs'))
 Func = namedtuple('Func', ('name', 'args', 'kwargs'))
 
 
+class _HandlerRepr:
+
+    def __init__(self, handler, args, kwargs):
+        self.handler = handler
+        self.args = args
+        self.kwargs = kwargs
+
+    def __str__(self):
+        args = ', '.join(
+            [repr(x) for x in self.args] +
+            ['%s=%r' % (k, v) for k, v in self.kwargs.items()]
+        )
+        return '%s.%s(%s)' % (self.handler.__module__, self.handler.__name__, args)
+
+
 class ExpressionError(Exception):
     pass
 
@@ -22,6 +38,7 @@ class Expression:
     def __init__(self, stack=(), func=None):
         self._stack = stack
         self._func = func
+        self._reset()
 
     def __getitem__(self, key):
         return self._add(Item(key))
@@ -42,7 +59,12 @@ class Expression:
     def _add(self, *items):
         return Expression(self._stack + items)
 
+    def _reset(self):
+        self._evals = 0
+
     def _eval(self, value):
+        self._evals += 1
+
         for item in self._stack:
             if isinstance(item, Func):
                 for handler in HANDLERS[item.name]:
@@ -51,8 +73,12 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        logger.debug('eval: %s.%s', handler.handler.__module__, handler.handler.__name__)
-                        value = handler.handler(value, *item.args, **item.kwargs)
+                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
+                        try:
+                            value = handler.handler(self, value, *item.args, **item.kwargs)
+                        except StopEval:
+                            logger.debug('eval: StopEval')
+                            return value
                         break
                 else:
                     raise ExpressionError("Unknown function %r for value %r." % (item.name, value))
@@ -64,10 +90,17 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        value = handler.handler(value, *item.args, **item.kwargs)
+                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
+                        try:
+                            value = handler.handler(self, value, *item.args, **item.kwargs)
+                        except StopEval:
+                            logger.debug('eval: StopEval')
+                            return value
                         break
                 else:
-                    value = getattr(value, item.name)(*item.args, **item.kwargs)
+                    method = getattr(value, item.name)
+                    logger.debug('eval: %s', _HandlerRepr(method, item.args, item.kwargs))
+                    value = method(*item.args, **item.kwargs)
 
             elif isinstance(item, Attr):
                 for handler in HANDLERS[item.key]:
@@ -76,15 +109,23 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        value = handler.handler(value)
+                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,), {}))
+                        try:
+                            value = handler.handler(value)
+                        except StopEval:
+                            logger.debug('eval: StopEval')
+                            return value
                         break
                 else:
                     if isinstance(value, dict):
+                        logger.debug('eval: [%r]', item.key)
                         value = value[item.key]
                     else:
+                        logger.debug('eval: %r.%s', value, item.key)
                         value = getattr(value, item.key)
 
             elif isinstance(item, Item):
+                logger.debug('eval: [%r]', item.key)
                 value = value[item.key]
 
             else:

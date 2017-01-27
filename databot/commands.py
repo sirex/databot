@@ -69,11 +69,16 @@ class Run(Command):
         self.pipeline = pipeline
 
     def add_arguments(self, parser):
-        parser.add_argument('source', type=str, nargs='?', help="Pipe name to run.")
-        parser.add_argument('target', type=str, nargs='?', help="Pipe name to run.")
-        parser.add_argument('-r', '--retry', action='store_true', default=False, help="Retry failed rows.")
+        parser.add_argument('source', type=str, nargs='?', help="Source pipe, to read data from.")
+        parser.add_argument('target', type=str, nargs='?', help="Target pipe, to write data to.")
+        parser.add_argument('-r', '--retry', action='store_true', default=False, help=(
+            "Retry failed rows, before running the pipeline."
+        ))
         parser.add_argument('-d', '--debug', action='store_true', default=False, help="Run in debug and verbose mode.")
-        parser.add_argument('-n', '--limit', type=int, default=0, help="Limit number of iteratios for all pipes.")
+        parser.add_argument('-l', '--limit', type=str, default='1,0', help=(
+            "Limit number of iteratios for all pipes. Multiple limits can be specified, for example 1,0 will run whole "
+            "pipleine once with limit=1, and then runs pipline again with limit=0."
+        ))
         parser.add_argument('-f', '--fail', type=int, default=None, const=0, nargs='?', action='store', help=(
             "Stop scraping after specified number of errors."
         ))
@@ -82,16 +87,18 @@ class Run(Command):
         source = self.bot.pipe(args.source) if args.source else None
         target = self.bot.pipe(args.target) if args.target else None
         tasks = self.pipeline.get('tasks', []) if self.pipeline else []
-        self.call(tasks, source, target, debug=args.debug, retry=args.retry, limit=args.limit,
+        limits = [int(x) for x in map(str.strip, args.limit.split(',')) if x]
+        self.call(tasks, source, target, debug=args.debug, retry=args.retry, limits=limits,
                   error_limit=args.fail)
 
-    def call(self, tasks, source=None, target=None, *, debug=False, retry=False, limit=0, error_limit=None):
+    def call(self, tasks, source=None, target=None, *, debug=False, retry=False, limits=(1, 0), error_limit=None):
         self.bot.debug = debug
         self.bot.retry = retry
-        self.bot.limit = limit
         self.bot.error_limit = error_limit
 
         if tasks:
+            self.info('Validating pipeline.')
+
             # Validate tasks
             for expr in tasks:
                 if not isinstance(expr, Expression):
@@ -101,8 +108,16 @@ class Run(Command):
                 if task.name != 'task':
                     raise RuntimeError("Unknown function: %r" % task.name)
 
+            # Reset tasks
+            for expr in tasks:
+                expr._reset()
+
             # Run tasks
-            run_all_tasks(self.bot, tasks, source, target)
+            for limit in limits:
+                self.info('')
+                self.info('Run pipeline (limit=%r).' % limit)
+                self.bot.limit = limit
+                run_all_tasks(self.bot, tasks, source, target)
 
 
 class Status(Command):

@@ -6,6 +6,7 @@ import tempfile
 import sqlalchemy as sa
 import freezegun
 import pytest
+import textwrap
 
 from databot import Bot, define, task, this
 from databot.db import migrations
@@ -518,13 +519,19 @@ def test_run(bot):
             define('p2'),
         ],
         'tasks': [
-            task('p1').append([(1, 'a'), (2, 'b')]),
+            task('p1').once().append([(1, 'a'), (2, 'b')]),
             task('p1', 'p2').select(this.key, this.value.upper()),
         ]
     }
 
     bot.main(pipeline, argv=['run', '-f'])
-    assert bot.output.output.getvalue() == ''
+    assert bot.output.output.getvalue() == textwrap.dedent('''\
+    Validating pipeline.
+
+    Run pipeline (limit=1).
+
+    Run pipeline (limit=0).
+    ''')
     assert list(bot.pipe('p2').items()) == [(1, 'A'), (2, 'B')]
 
 
@@ -550,7 +557,13 @@ def test_run_error_limit(bot, capsys):
     with pytest.raises(ValueError):
         bot.main(pipeline, argv=['run', '-f'])
 
-    assert bot.output.output.getvalue() == ''
+    assert bot.output.output.getvalue() == textwrap.dedent('''\
+    Validating pipeline.
+
+    Run pipeline (limit=1).
+
+    Run pipeline (limit=0).
+    ''')
     assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 0 was reached.\n'
     assert task('p1', 'p2').errors.count()._eval(bot) == 0
@@ -570,15 +583,19 @@ def test_run_error_limit_n(bot, capsys):
             define('p2'),
         ],
         'tasks': [
-            task('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd')]),
+            task('p1').once().append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd')]),
             task('p1', 'p2').call(handler),
         ]
     }
 
     with pytest.raises(ValueError):
-        bot.main(pipeline, argv=['run', '-f', '2'])
+        bot.main(pipeline, argv=['run', '-f', '2', '-l', '0'])
 
-    assert bot.output.output.getvalue() == ''
+    assert bot.output.output.getvalue() == textwrap.dedent('''\
+    Validating pipeline.
+
+    Run pipeline (limit=0).
+    ''')
     assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'
     assert task('p1', 'p2').errors.count()._eval(bot) == 2

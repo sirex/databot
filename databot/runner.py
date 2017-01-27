@@ -1,13 +1,17 @@
+import logging
+
 from databot.expressions.utils import handler
+
+logger = logging.getLogger(__name__)
 
 
 @handler(item='func')
-def define(bot, *args, **kwargs):
+def define(expr, bot, *args, **kwargs):
     return bot.define(*args, **kwargs)
 
 
 @handler(item='func')
-def task(bot, source=None, target=None, watch=False):
+def task(expr, bot, source=None, target=None, watch=False):
     if source and target:
         source = bot.pipe(source)
         target = bot.pipe(target)
@@ -20,6 +24,8 @@ def task(bot, source=None, target=None, watch=False):
 
 def run_single_task(bot, expr, source, target):
     task = expr._stack[0]
+
+    logger.debug('run_single_task: %s', ', '.join(task.args))
 
     if (
         (source, target) == (None, None) or
@@ -40,16 +46,23 @@ def get_watching_tasks(bot, tasks):
 
 
 def run_watching_tasks(bot, tasks, source, target):
+    n = 0
     has_changes = True
     while has_changes:
+        n += 1
         has_changes = False
         for task, expr in tasks:
             if task.is_filled():
                 has_changes = True
+                logger.debug('run watching task: %r', task)
                 run_single_task(bot, expr, source, target)
+        if bot.limit and n >= bot.limit:
+            break
 
 
 def run_all_tasks(bot, tasks, source=None, target=None):
+    logger.debug('run_all_tasks: limit=%r', bot.limit)
+
     watching_tasks = list(get_watching_tasks(bot, tasks))
 
     for expr in tasks:
