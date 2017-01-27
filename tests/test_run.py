@@ -1,3 +1,5 @@
+import pytest
+
 from databot import Bot, define, task, this
 
 
@@ -101,3 +103,57 @@ def test_run_once():
 
     bot.commands.run(tasks, limits=(1, 1, 0))
     assert list(p1.keys()) == [1, 2, 3, 3, 3]
+
+
+def test_run_limits_and_fail():
+    def handler(row):
+        if row.key == 'b':
+            raise ValueError('b')
+        else:
+            yield row.key.upper()
+
+    pipeline = {
+        'tasks': [
+            task('p1').once().append(['a', 'b', 'c']),
+            task('p1', 'p2').call(handler),
+        ],
+    }
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    with pytest.raises(ValueError):
+        bot.main(pipeline, ['run', '-l', '1,1,0'])
+
+    assert list(p1.keys()) == ['a', 'b', 'c']
+    assert list(p2.keys()) == ['A']
+    assert pipeline['tasks'][0]._evals == 2
+    assert pipeline['tasks'][1]._evals == 2
+
+
+def test_run_limits_and_fail_smaller():
+    def handler(row):
+        if row.key == 'b':
+            raise ValueError('b')
+        else:
+            yield row.key.upper()
+
+    pipeline = {
+        'tasks': [
+            task('p1').once().append(['a', 'b', 'c']),
+            task('p1', 'p2').call(handler),
+        ],
+    }
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    bot.main(pipeline, ['run', '-l', '1,1,0', '-f', '2'])
+
+    assert list(p1.keys()) == ['a', 'b', 'c']
+    assert list(p2.keys()) == ['A', 'C']
+    assert list(p2(p1).errors.keys()) == ['b']
+    assert pipeline['tasks'][0]._evals == 3
+    assert pipeline['tasks'][1]._evals == 3

@@ -94,7 +94,6 @@ class Run(Command):
     def call(self, tasks, source=None, target=None, *, debug=False, retry=False, limits=(1, 0), error_limit=None):
         self.bot.debug = debug
         self.bot.retry = retry
-        self.bot.error_limit = error_limit
 
         if tasks:
             self.info('Validating pipeline.')
@@ -117,6 +116,7 @@ class Run(Command):
                 self.info('')
                 self.info('Run pipeline (limit=%r).' % limit)
                 self.bot.limit = limit
+                self.bot.error_limit = 1 if limit and error_limit is None else error_limit
                 run_all_tasks(self.bot, tasks, source, target)
 
 

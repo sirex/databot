@@ -293,22 +293,22 @@ with several items, and when all tasks where tested, then run tasks one by one
 with all items.
 
 By default, databot runs all tasks limiting number of items for each task to
-one, and once whole pipline where run, then continue running all tasks again
+one, and once whole pipeline is run, then continue running all tasks again
 with all items. This is sort of pipeline warm up.
 
 This way, if one of your tasks fails, you will see it immediately.
 
 Pipeline warm up can be controlled with ``--limit`` flag, by default it is
-``--limit=1,0``, when ``1`` menas, run each task with single item, and ``0``
-menas, run each tasks with all items.
+``--limit=1,0``, where ``1`` means, run each task with single item, and ``0``
+means, run each tasks with all items.
 
-You can spacify different warm up strategy, for example ``--limit=0`` means do
-not warm up and run all items. Another example ``--limit=1,5,10,100,0``, this
+You can specify different warm up strategy, for example ``--limit=0`` means run
+all items without warming up. Another example ``--limit=1,5,10,100,0``, this
 will run bot with ``1``, ``5``, ``10``, ``100`` items to warm up, and then
 continues with all other items.
 
-Since your pipeline will be run multiple times, some times you want to controll
-how ofter you want a task to run. For example, usually you start a pipeline
+Since your pipeline will be run multiple times, some times you want to control
+how often you want a task to run. For example, usually you start a pipeline
 with a task, that downloads a starting page:
 
 .. code-block:: python
@@ -355,10 +355,17 @@ with possibility to retry all items by running ``retry`` command.
 
 But sometimes it is a good idea to limit number of error with ``run -f`` flag.
 ``-f`` without argument will stop scraping on first error. It means, that if
-you will run ``run -f`` again, *databot* will continue where it left.
+you run ``run -f`` again, *databot* will continue where it left.
 
 You can specify number of errors with ``run -f 10``, here scraping will stop
 after 10th error.
+
+If you run but with limited number of items per task (``--limit`` flag), then
+if not specified, ``-f`` flag will be turned on for each non-zero limit round.
+When you specify limit rounds, it is expected, than you wan to test you
+pipeline, before running all items per tasks. When testing, usually you want to
+get error as soon as possible. That's why ``-f`` is turned of by default if you
+use limit rounds.
 
 Limiting number of errors is good idea in situations, when server starts to
 block *databot* after some time, in that case there is no point in trying to
