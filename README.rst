@@ -335,7 +335,7 @@ You can scrape web pages that use pagination using watch functionality.
 .. code-block:: python
 
     'tasks': [
-        task('listing pages').download('https://example.com'),
+        task('listing pages').once().download('https://example.com'),
         task('listing pages', 'listing urls', watch=True).select(['.pagination a.page@href']).dedup(),
         task('listing urls', 'listing pages', watch=True).download(),
     ],
