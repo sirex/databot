@@ -1,4 +1,5 @@
 import pytest
+import freezegun
 
 from databot import Bot, define, task, this
 
@@ -157,3 +158,107 @@ def test_run_limits_and_fail_smaller():
     assert list(p2(p1).errors.keys()) == ['b']
     assert pipeline['tasks'][0]._evals == 3
     assert pipeline['tasks'][1]._evals == 3
+
+
+def test_run_daily():
+    tasks = [
+        task('p1').daily().append(['a']),
+        task('p1', 'p2').select(this.key.upper()),
+    ]
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    with freezegun.freeze_time('2017-01-01 00:00:00'):
+        bot.commands.run(tasks)
+
+    with freezegun.freeze_time('2017-01-01 12:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a']
+    assert list(p2.keys()) == ['A']
+
+    with freezegun.freeze_time('2017-01-02 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a', 'a']
+    assert list(p2.keys()) == ['A', 'A']
+
+
+def test_run_weekly():
+    tasks = [
+        task('p1').weekly().append(['a']),
+        task('p1', 'p2').select(this.key.upper()),
+    ]
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    with freezegun.freeze_time('2017-01-01 00:00:00'):
+        bot.commands.run(tasks)
+
+    with freezegun.freeze_time('2017-01-06 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a']
+    assert list(p2.keys()) == ['A']
+
+    with freezegun.freeze_time('2017-01-08 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a', 'a']
+    assert list(p2.keys()) == ['A', 'A']
+
+
+def test_run_monthly():
+    tasks = [
+        task('p1').monthly().append(['a']),
+        task('p1', 'p2').select(this.key.upper()),
+    ]
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    with freezegun.freeze_time('2017-01-01 00:00:00'):
+        bot.commands.run(tasks)
+
+    with freezegun.freeze_time('2017-01-15 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a']
+    assert list(p2.keys()) == ['A']
+
+    with freezegun.freeze_time('2017-02-15 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a', 'a']
+    assert list(p2.keys()) == ['A', 'A']
+
+
+def test_run_freq():
+    tasks = [
+        task('p1').freq(days=3).append(['a']),
+        task('p1', 'p2').select(this.key.upper()),
+    ]
+
+    bot = Bot()
+    p1 = bot.define('p1')
+    p2 = bot.define('p2')
+
+    with freezegun.freeze_time('2017-01-01 00:00:00'):
+        bot.commands.run(tasks)
+
+    with freezegun.freeze_time('2017-01-02 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a']
+    assert list(p2.keys()) == ['A']
+
+    with freezegun.freeze_time('2017-01-04 00:00:00'):
+        bot.commands.run(tasks)
+
+    assert list(p1.keys()) == ['a', 'a']
+    assert list(p2.keys()) == ['A', 'A']

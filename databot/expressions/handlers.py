@@ -1,11 +1,13 @@
 import re as re_
 import urllib.parse
+import datetime
 
 import databot.utils.urls
 
-from databot.tasks import Task
 from databot.expressions.utils import StopEval
 from databot.expressions.utils import handler
+from databot.pipes import TaskPipe, Pipe
+from databot.tasks import Task
 
 
 @handler(item='func')
@@ -86,3 +88,49 @@ def once(expr, value):
         raise StopEval()
     else:
         return value
+
+
+@handler(Task, 'method')
+def freq(expr, value, timedelta=None, **kwargs):
+    if isinstance(value, (Pipe, TaskPipe)):
+        if timedelta is None:
+            timedelta = datetime.timedelta(**kwargs)
+        if value.age() < timedelta:
+            raise StopEval()
+    else:
+        raise TypeError("Unsupported task type: %r." % type(value))
+
+    return value
+
+
+@handler(Task, 'method')
+def daily(expr, value):
+    if isinstance(value, (Pipe, TaskPipe)):
+        if value.age() < datetime.timedelta(days=1):
+            raise StopEval()
+    else:
+        raise TypeError("Unsupported task type: %r." % type(value))
+
+    return value
+
+
+@handler(Task, 'method')
+def weekly(expr, value):
+    if isinstance(value, (Pipe, TaskPipe)):
+        if value.age() < datetime.timedelta(days=7):
+            raise StopEval()
+    else:
+        raise TypeError("Unsupported task type: %r." % type(value))
+
+    return value
+
+
+@handler(Task, 'method')
+def monthly(expr, value):
+    if isinstance(value, (Pipe, TaskPipe)):
+        if value.age() < datetime.timedelta(days=30):
+            raise StopEval()
+    else:
+        raise TypeError("Unsupported task type: %r." % type(value))
+
+    return value

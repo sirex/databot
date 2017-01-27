@@ -347,6 +347,29 @@ extracted  urls in third task, second task will will run again and populates
 pages from new urls. And this will continue, until there is not urls left to
 extract.
 
+
+Continuous scraping
+===================
+
+Databot is built with continuous scraping in mind. Each pipeline should be
+runnable multiple times. For this to work, databot offers some utility methods
+to control when a task should be run.
+
+``task('x').once()`` - runs only once per run. If your run a pipeline with
+multiple limit rounds, then all ``once()`` tasks will be run only the first
+time.
+
+``task('x').daily()``, ``task('x').weekly()``, ``task('x').monthly()`` - runs
+task only if last entry in the pipeline is older than specified.
+
+``task('x').freq(<datetime.timedelta>)`` or ``task('x').freq(seconds=0,
+minutes=0, hours=0, days=0, weeks=0)`` - for more detailed frequency control.
+
+It is enough to specify these time restrictions for initial tasks, all other
+tasks, that use initial pipes as source, will wait while new data will be
+provided.
+
+
 Error handling
 ==============
 

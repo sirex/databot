@@ -458,6 +458,9 @@ class TaskPipe(Task):
     def compact(self):
         self.target.compact()
 
+    def age(self, key=None):
+        return self.target.age(key)
+
 
 class Pipe(Task):
     def __init__(self, bot, id, name, table, engine, samedb=True, compress=None):
@@ -627,6 +630,10 @@ class Pipe(Task):
 
         row = self.engine.execute(query).first()
         return create_row(row) if row else None
+
+    def age(self, key=None):
+        row = self.last(key)
+        return (datetime.datetime.utcnow() - row.created) if row else datetime.timedelta.max
 
     def count(self):
         return self.engine.execute(self.table.count()).scalar()
