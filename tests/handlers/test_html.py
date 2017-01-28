@@ -266,3 +266,28 @@ def test_text(Html):
         'p3', '',
         'p4'
     ]
+
+
+def test_empty_result(Html):
+    row = Html([
+        '<div>',
+        '  <h1>Test</h1>',
+        '  <p>1</p>',
+        '  <p>2</p>',
+        '  <p>3</p>',
+        '</div>',
+    ])
+
+    # Raise error, if selector did not found anything
+    selector = html.Select(['p.new:text'])
+    with pytest.raises(ValueError) as e:
+        selector(row)
+    assert str(e.value) == 'Select query did not returned any results.'
+
+    # Allow empty result from selector.
+    selector = html.Select(['p.new:text'], check=False)
+    assert selector(row) == []
+
+    # Allow empty result from selector, but check if we still looking at the right page.
+    selector = html.Select(['p.new:text'], check='xpath://h1[text() = "Test"]')
+    assert selector(row) == []

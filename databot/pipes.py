@@ -451,8 +451,8 @@ class TaskPipe(Task):
         urls = urls or Expression().key
         return self.call(download.download(self.bot.requests, urls, **kwargs))
 
-    def select(self, key, value=None):
-        return self.call(html.Select(key, value))
+    def select(self, key, value=None, **kwargs):
+        return self.call(html.Select(key, value, **kwargs))
 
     def dedup(self):
         self.target.dedup()

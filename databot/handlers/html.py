@@ -27,9 +27,10 @@ def create_bs4_parser(row):
 
 class Select(object):
 
-    def __init__(self, key, value=None):
+    def __init__(self, key, value=None, check=True):
         self.key = key
         self.value = value
+        self.check = check
 
     def __call__(self, row):
         if isinstance(row.value, dict) and 'content' in row.value:
@@ -47,7 +48,12 @@ class Select(object):
         if result:
             return result
         elif isinstance(result, list):
-            raise ValueError("Select query did not returned any results.")
+            if self.check is False:
+                return result
+            elif isinstance(self.check, str) and self.select(html, self.check):
+                return result
+            else:
+                raise ValueError("Select query did not returned any results.")
         else:
             return result
 

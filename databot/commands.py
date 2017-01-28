@@ -212,7 +212,7 @@ class Select(Command):
 
                 for row in rows:
                     for key, value in keyvalueitems(selector(row)):
-                        if key:
+                        if key is not None:
                             yield Row(key=key, value=value)
 
             if export.endswith('.jsonl'):
@@ -227,17 +227,17 @@ class Select(Command):
             if raw:
                 if row:
                     rows = keyvalueitems(selector(row))
-                    return [Row(key=key, value=value) for key, value in rows if key]
+                    return [Row(key=key, value=value) for key, value in rows if key is not None]
                 else:
                     return []
             else:
                 if row:
                     rows = keyvalueitems(selector(row))
                     if table:
-                        self.bot.output.table([Row(key=key, value=value) for key, value in rows if key])
+                        self.bot.output.table([Row(key=key, value=value) for key, value in rows if key is not None])
                     else:
                         for key, value in rows:
-                            if key:
+                            if key is not None:
                                 self.bot.output.key_value(key, value)
                 else:
                     self.info('Not found.')
