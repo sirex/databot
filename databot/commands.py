@@ -134,39 +134,46 @@ class Status(Command):
 class Select(Command):
 
     def add_arguments(self, parser):
-        parser.add_argument('source', type=str, help="Source id, for example: 1")
-        parser.add_argument('query', type=str, help='Selector query.')
+        parser.add_argument('source', type=str, help="Source pipe.")
+        parser.add_argument('target', type=str, nargs='?', help="Target pipe.")
+        parser.add_argument('-q', '--query', type=str, help='Selector query.')
         parser.add_argument('-k', '--key', type=str, help="Try on specific source key.")
         parser.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
-        parser.add_argument('-e', '--export', type=str, help="Export all data to specified file.")
+        parser.add_argument('-x', '--export', type=str, help="Export all data to specified file.")
+        parser.add_argument('-e', '--errors', action='store_true', help="Read data from target's errors.")
 
     def run(self, args):
         import ast
 
         source = self.pipe(args.source)
+        target = self.pipe(args.target) if args.target else None
 
         if args.query and args.query[0] in ('[', '{', '(', '"', "'"):
             query = ast.literal_eval(args.query)
         else:
             query = [args.query]
 
-        self.call(source, query, key=args.key, table=args.table, export=args.export)
+        self.call(source, target, query, key=args.key, table=args.table, export=args.export, errors=args.errors)
 
-    def call(self, source, query, key=None, table=False, export=None, raw=False):
+    def call(self, source, target=None, query=None, key=None, table=False, export=None, errors=False, raw=False):
         """Select structured data from an unstructured source.
 
         Parameters
         ----------
         source : databot.pipes.Pipe
             Source pipe. Should be a pipe with downloaded HTML pages.
+        target : databot.pipes.Pipe
+            Target pipe.
         query : list | dict | tuple
             Query for selecting data.
         key : str, optional
             Use specific key from source pipe.
         table : bool, optional
             Output results as table.
-        table : str, optional
+        export : str, optional
             Export all data to specified file.
+        errors : bool, optional
+            Read data frm target's errors.
         raw : bool, optional
             Return raw python objects instead of printing results to stdout.
 
@@ -177,10 +184,20 @@ class Select(Command):
         from databot.handlers import html
         from databot.db.utils import Row
 
+        assert query is not None
+
         if isinstance(query, tuple) and len(query) == 2:
             selector = html.Select(query[0], query[1])
         else:
             selector = html.Select(query)
+
+        if errors:
+            assert target
+            pipe = target(source).errors
+        elif target:
+            pipe = target(source)
+        else:
+            pipe = source
 
         if export:
             from databot.exporters import csv, jsonl
@@ -188,10 +205,10 @@ class Select(Command):
             def scrape():
                 if self.bot.verbosity == 1:
                     desc = '%s -> %s' % (source, export)
-                    total = source.count()
-                    rows = tqdm.tqdm(source.rows(), desc, total, leave=True)
+                    total = pipe.count()
+                    rows = tqdm.tqdm(pipe.rows(), desc, total, leave=True)
                 else:
-                    rows = source.rows()
+                    rows = pipe.rows()
 
                 for row in rows:
                     for key, value in keyvalueitems(selector(row)):
@@ -204,7 +221,9 @@ class Select(Command):
                 csv.export(export, scrape())
 
         else:
-            row = source.last(key)
+            row = pipe.last(key)
+            row = row['row'] if row and errors else row
+
             if raw:
                 if row:
                     rows = keyvalueitems(selector(row))
@@ -310,10 +329,12 @@ class Compact(Command):
 class Show(Command):
 
     def add_arguments(self, parser):
-        parser.add_argument('pipe', type=str, help="Pipe id, for example: 1 or my-pipe")
-        parser.add_argument('key', type=str, nargs='?', help="If key is not provided, last item will be shown.")
+        parser.add_argument('source', type=str, help="Source pipe.")
+        parser.add_argument('target', type=str, nargs='?', help="Target pipe.")
+        parser.add_argument('-k', '--key', type=str, help="If key is not provided, last item will be shown.")
         parser.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
         parser.add_argument('-b', '--in-browser', action='store_true', help="Show value content in browser.")
+        parser.add_argument('-e', '--errors', action='store_true', help="Read data from target's errors.")
 
     def run(self, args):
         import ast
@@ -324,16 +345,22 @@ class Show(Command):
         else:
             key = args.key or None
 
-        self.call(self.pipe(args.pipe), key, exclude=args.exclude, in_browser=args.in_browser)
+        source = self.pipe(args.source)
+        target = self.bot.pipe(args.target) if args.target else None
 
-    def call(self, pipe, key=None, exclude=None, in_browser=False):
+        self.call(source, target, key, errors=args.errors, exclude=args.exclude, in_browser=args.in_browser)
+
+    def call(self, source, target=None, key=None, errors=False, exclude=None, in_browser=False):
         """Show content of a record in a pipe.
 
         Parameters
         ----------
-        pipe : databot.pipes.Pipe
+        source : databot.pipes.Pipe
+        target : databot.pipes.Pipe
         key : str, optional
             Use specific key from pipe. If not specified last entry will be shown.
+        errors : bool, optional
+            Read data frm target's errors.
         exclude : List[str], optional
             Exclude specified fields from output.
         in_browser : boolean, optional
@@ -344,7 +371,16 @@ class Show(Command):
         import webbrowser
         import tempfile
 
+        if errors:
+            assert target
+            pipe = target(source).errors
+        elif target:
+            pipe = target(source)
+        else:
+            pipe = source
+
         row = pipe.last(key)
+        row = row['row'] if row and errors else row
 
         if row:
             exclude = exclude.split(',') if exclude else None

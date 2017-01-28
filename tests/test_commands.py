@@ -40,7 +40,7 @@ def test_status(bot):
 
 def test_select(bot):
     bot.define('p1').append('http://example.com/', {'content': b'<div>value</div>'})
-    bot.main(argv=['select', 'p1', 'div:text'])
+    bot.main(argv=['select', 'p1', '-q', 'div:text'])
     assert bot.output.output.getvalue() == (
         '- key: \'value\'\n'
         '  value: None\n'
@@ -49,7 +49,7 @@ def test_select(bot):
 
 def test_select_table(bot):
     bot.define('p1').append('http://example.com/', {'content': b'<div>value</div>'})
-    bot.main(argv=['select', 'p1', 'div:text', '-t'])
+    bot.main(argv=['select', 'p1', '-q', 'div:text', '-t'])
     assert bot.output.output.getvalue() == (
         ' key    value \n'
         '=============\n'
@@ -64,7 +64,7 @@ def test_select_export(bot, tmpdir):
         ('http://example.com/', {'content': b'<div id="3">c</div>'}),
     ])
 
-    bot.main(argv=['select', 'p1', '-e', str(tmpdir / 'export.csv'), '("div@id", "div:text")'])
+    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.csv'), '-q', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert tmpdir.join('export.csv').read() == (
         'key,value\n'
@@ -73,7 +73,7 @@ def test_select_export(bot, tmpdir):
         '3,c\n'
     )
 
-    bot.main(argv=['select', 'p1', '-e', str(tmpdir / 'export.jsonl'), '("div@id", "div:text")'])
+    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.jsonl'), '-q', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert list(map(json.loads, tmpdir.join('export.jsonl').read().splitlines())) == [
         {'key': '1', 'value': 'a'},
@@ -89,7 +89,7 @@ def test_select_export_non_verbose(bot, tmpdir):
         ('http://example.com/', {'content': b'<div id="3">c</div>'}),
     ])
 
-    bot.main(argv=['-v', '0', 'select', 'p1', '-e', str(tmpdir / 'export.csv'), '("div@id", "div:text")'])
+    bot.main(argv=['-v', '0', 'select', 'p1', '-x', str(tmpdir / 'export.csv'), '-q', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert tmpdir.join('export.csv').read() == (
         'key,value\n'
@@ -101,7 +101,7 @@ def test_select_export_non_verbose(bot, tmpdir):
 
 def test_select_not_found(bot):
     bot.define('p1')
-    bot.main(argv=['select', 'p1', '-k', 'missing', 'div:text'])
+    bot.main(argv=['select', 'p1', '-k', 'missing', '-q', 'div:text'])
     assert bot.output.output.getvalue() == (
         'Not found.\n'
     )
@@ -115,6 +115,26 @@ def test_select_raw(bot):
 def test_select_raw_empty(bot):
     p1 = bot.define('p1')
     assert bot.commands.select(p1, raw=True, query=this.key) == []
+
+
+def test_select_errors(bot):
+    p1 = bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+    p2 = bot.define('p2')
+    p2(p1).errors.report(p1.get('2'), 'Error.')
+    assert bot.commands.select(p1, p2, raw=True, query=this.key, errors=True) == [{'key': '2', 'value': None}]
+
+
+def test_select_errors_export(bot, tmpdir):
+    p1 = bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+    p2 = bot.define('p2')
+    p2(p1).errors.report(p1.get('1'), 'Error.')
+    p2(p1).errors.report(p1.get('3'), 'Error.')
+    bot.commands.select(p1, p2, raw=True, query=this.value, errors=True, export=str(tmpdir.join('export.csv')))
+    assert tmpdir.join('export.csv').read() == (
+        'key,value\n'
+        'a,\n'
+        'c,\n'
+    )
 
 
 def test_download(bot, requests):
@@ -224,10 +244,22 @@ def test_show(bot):
 
 def test_show_key(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b')])
-    bot.main(argv=['show', 'p1', '1'])
+    bot.main(argv=['show', 'p1', '-k', '1'])
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
         "- key: 1  ",
         "  value: 'a'",
+        "",
+    ]))
+
+
+def test_show_target_errors(bot):
+    p1 = bot.define('p1').append([('1', 'a'), ('2', 'b'), ('3', 'c')])
+    p2 = bot.define('p2')
+    p2(p1).errors.report(p1.get('2'), 'Error.')
+    bot.main(argv=['show', 'p1', 'p2', '-e'])
+    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
+        "- key: '2'  ",
+        "  value: 'b'",
         "",
     ]))
 
