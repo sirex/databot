@@ -1,6 +1,7 @@
 import io
 import textwrap
 import pytest
+import pandas as pd
 
 
 def handler(row):
@@ -213,3 +214,12 @@ def test_export_jsonl(tmpdir, bot):
     {"key": 2, "value": "b"}
     {"key": 3, "value": "c"}
     ''')
+
+
+def test_export_pandas(bot):
+    frame = bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')]).export(pd)
+    assert [dict(x._asdict()) for x in frame.itertuples()] == [
+        {'Index': 1, 'value': 'a'},
+        {'Index': 2, 'value': 'b'},
+        {'Index': 3, 'value': 'c'},
+    ]

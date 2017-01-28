@@ -11,7 +11,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
-from databot.exporters.csv import flatten_rows
+from databot.exporters.utils import flatten_rows
 from databot.handlers.download import get_content
 
 

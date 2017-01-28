@@ -2,10 +2,12 @@ import io
 
 import pytest
 import databot
+import pandas as pd
 
 from databot.db.utils import Row
-from databot.exporters.csv import get_fields, get_values, flatten_rows
+from databot.exporters.utils import get_fields, get_values, flatten_rows
 from databot.exporters import jsonl
+from databot.exporters import pandas
 
 
 @pytest.fixture
@@ -49,7 +51,7 @@ def test_missing_value(data):
     assert get_values(fields, data) == (1, None)
 
 
-def test_update(data):
+def test_flatten_rows_update(data):
     rows = [
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
@@ -62,7 +64,7 @@ def test_update(data):
     ]
 
 
-def test_update_without_include(data):
+def test_flatten_rows_update_without_include(data):
     rows = [
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
@@ -75,7 +77,7 @@ def test_update_without_include(data):
     ]
 
 
-def test_callable_update(data):
+def test_flatten_rows_callable_update(data):
     rows = [
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
@@ -91,7 +93,7 @@ def test_callable_update(data):
     ]
 
 
-def test_include(data):
+def test_flatten_rows_include(data):
     rows = [
         Row(key=1, value={'a': 1}),
         Row(key=2, value={'b': 2}),
@@ -103,7 +105,7 @@ def test_include(data):
     ]
 
 
-def test_include_value(data):
+def test_flatten_rows_include_value(data):
     rows = [
         Row(key=1, value='a'),
         Row(key=2, value='b'),
@@ -115,7 +117,7 @@ def test_include_value(data):
     ]
 
 
-def test_value(data):
+def test_flatten_rows_value(data):
     rows = [
         Row(key=1, value='a'),
         Row(key=2, value='b'),
@@ -144,4 +146,31 @@ def test_jsonl_dict(bot):
     assert stream.getvalue().splitlines() == [
         '{"key": "1", "a": 2}',
         '{"key": "2", "b": 3}',
+    ]
+
+
+def test_pandas_rows_to_dataframe_items():
+    rows = [
+        [1, 'a', 'x'],
+        [2, 'b', 'y'],
+    ]
+    assert list(pandas.rows_to_dataframe_items(rows, 0)) == [
+        (1, ['a', 'x']),
+        (2, ['b', 'y'])
+    ]
+    assert list(pandas.rows_to_dataframe_items(rows, 2)) == [
+        ('x', [1, 'a']),
+        ('y', [2, 'b'])
+    ]
+
+
+def test_pandas(bot):
+    pipe = bot.define('p1').append([
+        (1, {'a': 10}),
+        (2, {'a': 20}),
+    ])
+    frame = pandas.export(pd, pipe.rows())
+    assert [dict(x._asdict()) for x in frame.itertuples()] == [
+        {'Index': 1, 'a': 10.0},
+        {'Index': 2, 'a': 20.0},
     ]
