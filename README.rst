@@ -370,6 +370,26 @@ tasks, that use initial pipes as source, will wait while new data will be
 provided.
 
 
+Rescraping some pages again
+---------------------------
+
+There are cases, when you want to take last entry from list of links, and
+download that link again, because this last link can contain new entries
+inside.
+
+For this you can use ``min`` or ``max`` task methods:
+
+.. code-block:: python
+
+    task('links', 'links').daily().max(this.value.created)
+    task('links', 'pages').download()
+
+Here we have ``links`` pipe, that has URL in ``key`` and ``created`` attribute
+in ``value``. We always want to rescrape last link, where last is the one with
+latest ``created`` timestamp. First task will append last row back to ``links``
+pipe and next task will download that page if it was appended.
+
+
 Error handling
 ==============
 
