@@ -400,6 +400,18 @@ item is downloaded html page it is good idea to run ``errors <pipe> -x
 content``. This will suppress HTML content from output.
 
 
+Pandas integration
+==================
+
+You can export *databot* pipes directly to Pandas DataFrames:
+
+.. code-block:: python
+
+    import pandas as pd
+
+    frame = pipe.export(pd)
+
+
 Debugging
 =========
 
