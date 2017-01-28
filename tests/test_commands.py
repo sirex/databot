@@ -563,6 +563,8 @@ def test_run_error_limit(bot, capsys):
     Run pipeline (limit=1).
 
     Run pipeline (limit=0).
+    - key: 2
+      value: 'b'
     ''')
     assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 0 was reached.\n'
@@ -595,6 +597,8 @@ def test_run_error_limit_n(bot, capsys):
     Validating pipeline.
 
     Run pipeline (limit=0).
+    - key: 3
+      value: 'c'
     ''')
     assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'

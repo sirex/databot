@@ -3,6 +3,8 @@ import textwrap
 import pytest
 import pandas as pd
 
+from databot import this
+
 
 def handler(row):
     yield row.key**2
@@ -222,4 +224,22 @@ def test_export_pandas(bot):
         {'Index': 1, 'value': 'a'},
         {'Index': 2, 'value': 'b'},
         {'Index': 3, 'value': 'c'},
+    ]
+
+
+def test_max(bot):
+    p1 = bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    p2 = bot.define('p2')
+    p2(p1).max(this.key)
+    assert list(p2.items()) == [
+        (3, 'c')
+    ]
+
+
+def test_min(bot):
+    p1 = bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    p2 = bot.define('p2')
+    p2(p1).min(this.key)
+    assert list(p2.items()) == [
+        (1, 'a')
     ]

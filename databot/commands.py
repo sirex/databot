@@ -99,6 +99,7 @@ class Run(Command):
             self.info('Validating pipeline.')
 
             # Validate tasks
+            assert isinstance(tasks, (list, tuple))
             for expr in tasks:
                 if not isinstance(expr, Expression):
                     raise RuntimeError("Unknown task type: %r" % expr)

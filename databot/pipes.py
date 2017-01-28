@@ -370,6 +370,7 @@ class TaskPipe(Task):
                         interrupt = e
                         if self.bot.verbosity > 0:
                             print('Interrupting bot because error limit of %d was reached.' % error_limit)
+                            self.bot.output.key_value(row.key, row.value, short=True)
                         if error_limit > 0:
                             self.errors.report(row, traceback.format_exc(), errors)
                         row = last_row
@@ -461,6 +462,18 @@ class TaskPipe(Task):
 
     def age(self, key=None):
         return self.target.age(key)
+
+    def max(self, expr):
+        row = max((row for row in self.source.rows()), key=expr._eval, default=None)
+        if row:
+            self.target.append(row.key, row.value)
+        return self
+
+    def min(self, expr):
+        row = min((row for row in self.source.rows()), key=expr._eval, default=None)
+        if row:
+            self.target.append(row.key, row.value)
+        return self
 
 
 class Pipe(Task):
