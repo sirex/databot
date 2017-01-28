@@ -38,9 +38,18 @@ class Select(object):
             self.html = None
 
         if isinstance(self.key, (list, Call, Expression)) and self.value is None:
-            return self.render(row, self.html, self.key)
+            return self.check_render(row, self.html, self.key)
         else:
-            return [(self.render(row, self.html, self.key), self.render(row, self.html, self.value))]
+            return [(self.render(row, self.html, self.key), self.check_render(row, self.html, self.value))]
+
+    def check_render(self, row, html, value, **kwargs):
+        result = self.render(row, html, value, **kwargs)
+        if result:
+            return result
+        elif isinstance(result, list):
+            raise ValueError("Select query did not returned any results.")
+        else:
+            return result
 
     def render(self, row, html, value, many=False, single=True):
         """Process provided value in given context.
