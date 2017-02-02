@@ -10,14 +10,27 @@ class DownloadErrror(Exception):
     pass
 
 
-def dump_response(response):
-    return {
+def get_final_url(response, url):
+    for resp in response.history:
+        if resp.status_code in range(300, 400) and 'Location' in resp.headers:
+            url = resp.headers['Location']
+    return url
+
+
+def dump_response(response, url):
+    dump = {
         'headers': dict(response.headers),
         'cookies': response.cookies if isinstance(response.cookies, dict) else response.cookies.get_dict(),
         'status_code': response.status_code,
         'encoding': response.encoding,
-        'content': response.content,
     }
+
+    if url:
+        dump['content'] = response.content
+        dump['history'] = [dump_response(r, None) for r in response.history]
+        dump['url'] = get_final_url(response, url)
+
+    return dump
 
 
 def download(session, urlexpr, delay=None, update=None, **kwargs):
@@ -38,7 +51,7 @@ def download(session, urlexpr, delay=None, update=None, **kwargs):
         response = session.get(url, **kwargs)
 
         if response.status_code == 200:
-            value = dump_response(response)
+            value = dump_response(response, url)
             for k, fn in update.items():
                 value[k] = fn(row)
             yield url, value
