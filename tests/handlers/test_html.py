@@ -275,6 +275,7 @@ def test_empty_result(Html):
         '  <p>1</p>',
         '  <p>2</p>',
         '  <p>3</p>',
+        '  <h2></h2>',
         '</div>',
     ])
 
@@ -291,6 +292,10 @@ def test_empty_result(Html):
     # Allow empty result from selector, but check if we still looking at the right page.
     selector = html.Select(['p.new:text'], check='xpath://h1[text() = "Test"]')
     assert selector(row) == []
+
+    # Existing element without content should not be threated as emtpy.
+    selector = html.Select(select('xpath://h2').text())
+    assert selector(row) == ''
 
 
 def test_float(Html):
