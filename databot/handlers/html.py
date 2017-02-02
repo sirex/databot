@@ -140,6 +140,10 @@ class Select(object):
             return tuple([self.render(row, html, v, many, single) for v in value])
         else:
             result = self.select(html, value)
+
+            if not isinstance(result, list):
+                return result
+
             if many:
                 return result
             elif len(result) == 0:
@@ -172,7 +176,9 @@ class Select(object):
             if subquery in engines:
                 engine = engines[subquery]
             else:
-                result = itertools.chain.from_iterable([engine(node, subquery) for node in result])
+                result = [engine(node, subquery) for node in result]
+                result = [x if isinstance(x, list) else [x] for x in result]
+                result = itertools.chain.from_iterable(result)
         return list(result)
 
     def xpath(self, html, query):

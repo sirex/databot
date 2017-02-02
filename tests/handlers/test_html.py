@@ -291,3 +291,11 @@ def test_empty_result(Html):
     # Allow empty result from selector, but check if we still looking at the right page.
     selector = html.Select(['p.new:text'], check='xpath://h1[text() = "Test"]')
     assert selector(row) == []
+
+
+def test_float(Html):
+    row = Html(['<div><p>p1</p>p2<br>p3<br>p4</div>'])
+    selector = html.Select('xpath:count(//p)')
+    assert selector(row) == [
+        (1.0, None)
+    ]
