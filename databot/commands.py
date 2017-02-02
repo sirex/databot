@@ -156,7 +156,7 @@ class Select(Command):
         self.call(source, target, query, key=args.key, table=args.table, export=args.export, errors=args.errors)
 
     def call(self, source, target=None, query=None, key=None, table=False, export=None, errors=False, raw=False,
-             progressbar=True):
+             progressbar=True, check=True):
         """Select structured data from an unstructured source.
 
         Parameters
@@ -179,6 +179,8 @@ class Select(Command):
             Return raw python objects instead of printing results to stdout.
         progressbar : bool, optional
             Show progress bar if export is given.
+        check : bool or string, optional
+            See ``databot.handlers.html.Select.__init__``.
 
         """
         import tqdm
@@ -190,9 +192,9 @@ class Select(Command):
         assert query is not None
 
         if isinstance(query, tuple) and len(query) == 2:
-            selector = html.Select(query[0], query[1])
+            selector = html.Select(query[0], query[1], check=check)
         else:
-            selector = html.Select(query)
+            selector = html.Select(query, check=check)
 
         if errors:
             assert target

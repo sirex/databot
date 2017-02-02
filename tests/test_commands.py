@@ -137,6 +137,18 @@ def test_select_errors_export(bot, tmpdir):
     )
 
 
+def test_select_check(bot):
+    p1 = bot.define('p1').append('http://example.com/', {
+        'content': b'<div><span class="check">1</span></div>',
+    })
+    assert bot.commands.select(p1, query=['span.missing:text'], check=False) is None
+    assert bot.commands.select(p1, query=['span.missing:text'], check='span.check') is None
+
+    with pytest.raises(ValueError) as e:
+        bot.commands.select(p1, query=['span.missing:text'])
+    assert str(e.value) == 'Select query did not returned any results.'
+
+
 def test_download(bot, requests):
     requests.get('http://example.com/', text='<div>It works!</div>', headers={'Content-Type': 'text/html'})
     bot.main(argv=['download', 'http://example.com/'])

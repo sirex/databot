@@ -28,6 +28,16 @@ def create_bs4_parser(row):
 class Select(object):
 
     def __init__(self, key, value=None, check=True):
+        """
+        Parameters
+        ==========
+        check : bool or string
+            If check is True, always make sure, that selector returns something, if check is False, it is ok, if
+            selector did not returned any results.
+
+            If check is a string, then if selector did not returned anything, do another query, to double check if we
+            are string on the right page and if second query returns nothing, then raise exception.
+        """
         self.key = key
         self.value = value
         self.check = check
