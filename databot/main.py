@@ -2,15 +2,7 @@ import sys
 import argparse
 import databot
 
-from sqlalchemy.engine import reflection
-
-
-def define(bot):
-    tables = set(reflection.Inspector.from_engine(bot.engine).get_table_names())
-    for pipe in bot.engine.execute(bot.models.pipes.select()):
-        table_name = 't%s' % pipe.id
-        if table_name in tables:
-            yield databot.define(pipe.pipe)
+from databot.db.services import get_pipe_tables
 
 
 def main(argv=None, output=sys.stdout):
@@ -22,7 +14,7 @@ def main(argv=None, output=sys.stdout):
     bot = databot.Bot(args.db, output=output)
 
     pipeline = {
-        'pipes': list(define(bot)),
+        'pipes': [databot.define(pipe.pipe) for pipe in get_pipe_tables(bot)],
         'tasks': [],
     }
 

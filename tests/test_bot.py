@@ -62,3 +62,18 @@ def test_compress(bot):
 
     bot.compact()
     list(pipe.keys()) == [2, 1]
+
+
+def test_autodefine():
+    engine = sa.create_engine('sqlite:///:memory:')
+
+    bot = Bot(engine)
+    bot.define('a').append([1, 2, 3])
+
+    bot = Bot(engine)
+    with pytest.raises(KeyError) as e:
+        bot.pipe('a')
+    assert str(e.value) == "'a'"
+
+    bot = Bot(engine).autodefine()
+    assert list(bot.pipe('a').keys()) == [1, 2, 3]

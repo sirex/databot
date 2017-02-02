@@ -13,12 +13,13 @@ from databot.db.migrations import Migrations
 from databot.printing import Printer
 from databot import commands
 from databot.tasks import Task
+from databot.db.services import get_pipe_tables
 
 
 class Bot(Task):
 
-    def __init__(self, uri_or_engine='sqlite:///:memory:', *,
-                 debug=False, retry=False, limit=0, error_limit=None, verbosity=0, output=sys.stdout, models=None):
+    def __init__(self, uri_or_engine='sqlite:///:memory:', *, debug=False, retry=False, limit=0, error_limit=None,
+                 verbosity=0, output=sys.stdout, models=None):
         super().__init__()
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
@@ -44,6 +45,11 @@ class Bot(Task):
 
     def __repr__(self):
         return '<databot.bot.Bot(%r) at 0x%x>' % (self.engine.url, id(self))
+
+    def autodefine(self):
+        for pipe in get_pipe_tables(self):
+            self.define(pipe.pipe)
+        return self
 
     def define(self, name, uri_or_engine=None, compress=None):
         """Defines new pipe for storing data.
