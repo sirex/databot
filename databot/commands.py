@@ -155,7 +155,8 @@ class Select(Command):
 
         self.call(source, target, query, key=args.key, table=args.table, export=args.export, errors=args.errors)
 
-    def call(self, source, target=None, query=None, key=None, table=False, export=None, errors=False, raw=False):
+    def call(self, source, target=None, query=None, key=None, table=False, export=None, errors=False, raw=False,
+             progressbar=True):
         """Select structured data from an unstructured source.
 
         Parameters
@@ -176,6 +177,8 @@ class Select(Command):
             Read data frm target's errors.
         raw : bool, optional
             Return raw python objects instead of printing results to stdout.
+        progressbar : bool, optional
+            Show progress bar if export is given.
 
         """
         import tqdm
@@ -203,7 +206,7 @@ class Select(Command):
             from databot.exporters import csv, jsonl
 
             def scrape():
-                if self.bot.verbosity == 1:
+                if progressbar:
                     desc = '%s -> %s' % (source, export)
                     total = pipe.count()
                     rows = tqdm.tqdm(pipe.rows(), desc, total, leave=True)
