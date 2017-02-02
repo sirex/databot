@@ -393,7 +393,7 @@ class Show(Command):
             print('Not found.')
 
 
-class Tail(Command):
+class Head(Command):
 
     def add_arguments(self, parser):
         parser.add_argument('pipe', type=str, help="Pipe id, for example: 1")
@@ -408,8 +408,7 @@ class Tail(Command):
     def call(self, pipe, limit=10, table=False, include=None, exclude=None):
         from databot.db.utils import create_row
 
-        rows = pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(limit))
-        rows = [create_row(row) for row in reversed(list(rows))]
+        rows = [create_row(row) for row in self.rows(pipe, limit)]
 
         if rows:
             exclude = exclude.split(',') if exclude else None
@@ -421,6 +420,15 @@ class Tail(Command):
                     self.bot.output.key_value(row.key, row.value, exclude=exclude)
         else:
             print('Not found.')
+
+    def rows(self, pipe, limit):
+        return pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.asc()).limit(limit))
+
+
+class Tail(Head):
+
+    def rows(self, pipe, limit):
+        return reversed(list(pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.desc()).limit(limit))))
 
 
 class Export(Command):

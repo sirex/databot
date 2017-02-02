@@ -150,6 +150,7 @@ class Bot(Task):
         cmgr._register('clean', commands.Clean)
         cmgr._register('compact', commands.Compact)
         cmgr._register('show', commands.Show)
+        cmgr._register('head', commands.Head)
         cmgr._register('tail', commands.Tail)
         cmgr._register('export', commands.Export)
         cmgr._register('resolve', commands.Resolve)

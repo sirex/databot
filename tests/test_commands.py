@@ -264,14 +264,26 @@ def test_show_target_errors(bot):
     ]))
 
 
-def test_tail(bot):
-    bot.define('p1').append([(1, 'a'), (2, 'b')])
-    bot.main(argv=['tail', 'p1', '-t'])
+def test_head(bot):
+    bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')])
+    bot.main(argv=['head', 'p1', '-t', '-n', '2'])
     assert bot.output.output.getvalue() == '\n'.join([
         "key   value ",
         "===========",
         "1     a     ",
         "2     b     ",
+        "",
+    ])
+
+
+def test_tail(bot):
+    bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')])
+    bot.main(argv=['tail', 'p1', '-t', '-n', '2'])
+    assert bot.output.output.getvalue() == '\n'.join([
+        "key   value ",
+        "===========",
+        "4     d     ",
+        "5     e     ",
         "",
     ])
 
