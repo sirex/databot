@@ -541,6 +541,21 @@ class Compress(Command):
         self.call(*pipes)
 
     def call(self, *pipes):
+        """Compress specified pipes.
+
+        If you use SQLite, in order for compression to take effect, you need to vacuum SQLite database using this
+        command:
+
+            sqlite3 path/to.db vacuum
+
+        This will require at least same amount of free space as path/to.db file is currently taking.
+
+        Parameters
+        ----------
+        *pipes : databot.pipes.Pipe
+
+        """
+
         for pipe in pipes:
             pipe.compress()
 
