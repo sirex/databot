@@ -304,3 +304,18 @@ def test_float(Html):
     assert selector(row) == [
         (1.0, None)
     ]
+
+
+def test_null(Html):
+    row = Html(['<div><p id="this"> p1 </p>/div>'])
+
+    selector = html.Select(select('#wrong:text?').strip())
+    with pytest.raises(AttributeError) as e:
+        selector(row)
+    assert str(e.value) == "'NoneType' object has no attribute 'strip'"
+
+    selector = html.Select(select('#wrong:text?').null().strip())
+    assert selector(row) is None
+
+    selector = html.Select(select('#this:text?').null().strip())
+    assert selector(row) == 'p1'

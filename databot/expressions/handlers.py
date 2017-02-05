@@ -134,3 +134,11 @@ def monthly(expr, value):
         raise TypeError("Unsupported task type: %r." % type(value))
 
     return value
+
+
+@handler(item='method')
+def null(expr, value):
+    if value is None:
+        raise StopEval()
+    else:
+        return value
