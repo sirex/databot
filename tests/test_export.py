@@ -129,6 +129,18 @@ def test_flatten_rows_value(data):
     ]
 
 
+def test_flatten_int_key(data):
+    rows = [
+        Row(key=1, value={'year': {2000: 1, 2001: 2}}),
+        Row(key=2, value={'year': {2000: 3, 2001: 4}}),
+    ]
+    assert list(flatten_rows(rows)) == [
+        ['key', 'year.2000', 'year.2001'],
+        [1, 1, 2],
+        [2, 3, 4],
+    ]
+
+
 def test_jsonl(bot):
     pipe = bot.define('p1').append([('1', 'a'), ('2', 'b')])
     stream = io.StringIO()

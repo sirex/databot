@@ -74,7 +74,7 @@ def flatten_rows(rows, exclude=None, include: list=None, update=None, scan_field
         sample = funcy.take(scan_fields, rows)
         rows = itertools.chain(sample, rows)
         fields = sorted(detect_fields(updated_rows(sample, update)))
-        cols = ['key'] + (list(filter(None, ['.'.join(field) for field in fields])) or ['value'])
+        cols = ['key'] + (list(filter(None, ['.'.join(map(str, field)) for field in fields])) or ['value'])
         yield [c for c in cols if c not in exclude]
 
     for row in updated_rows(rows, update):
