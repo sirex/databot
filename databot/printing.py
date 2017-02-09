@@ -69,7 +69,7 @@ class Printer(object):
             if isinstance(value, str):
                 self.info('  value: %s' % self.highlight(repr(value[:cut]), py, formatter))
             elif isinstance(value, dict) and 'status_code' in value and ('content' in value):
-                if 'history' not in exclude:
+                if 'history' not in exclude and 'history' in value:
                     self.info('  history:')
                     code = textwrap.indent(pprint.pformat(value['history'], width=self.width), '    ')
                     self.info(self.highlight(code, py, formatter))

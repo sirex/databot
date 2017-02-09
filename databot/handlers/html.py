@@ -16,7 +16,10 @@ def create_html_parser(row):
     content = get_content(row.value)
     parser = lxml.html.HTMLParser(encoding='utf-8')
     html = lxml.html.document_fromstring(content, parser=parser)
-    html.make_links_absolute(row.key)
+    if 'url' in row.value:
+        html.make_links_absolute(row.value['url'])
+    else:
+        html.make_links_absolute(row.key)
     return html
 
 
@@ -66,7 +69,11 @@ class Select(object):
             elif isinstance(self.check, str) and self.select(html, self.check):
                 return result
             else:
-                raise ValueError("Select query did not returned any results.")
+                if self.value:
+                    selector = (self.key, self.value)
+                else:
+                    selector = self.key
+                raise ValueError("Select query did not returned any results. %r" % (selector,))
         else:
             return result
 
