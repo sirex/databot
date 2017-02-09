@@ -146,30 +146,30 @@ class Bot(Task):
             pipe.compact()
 
     def _register_commands(self, cmgr, pipeline=None):
-        cmgr._register('run', commands.Run, pipeline)
         cmgr._register('status', commands.Status)
+        cmgr._register('run', commands.Run, pipeline)
         cmgr._register('select', commands.Select)
-        cmgr._register('download', commands.Download)
+        cmgr._register('show', commands.Show)
+        cmgr._register('errors', commands.Errors)
+        cmgr._register('resolve', commands.Resolve)
         cmgr._register('skip', commands.Skip)
         cmgr._register('reset', commands.Reset)
         cmgr._register('offset', commands.Offset)
         cmgr._register('clean', commands.Clean)
-        cmgr._register('compact', commands.Compact)
-        cmgr._register('show', commands.Show)
         cmgr._register('head', commands.Head)
         cmgr._register('tail', commands.Tail)
         cmgr._register('export', commands.Export)
-        cmgr._register('resolve', commands.Resolve)
-        cmgr._register('migrate', commands.Migrate)
-        cmgr._register('errors', commands.Errors)
-        cmgr._register('sh', commands.Shell)
-        cmgr._register('rename', commands.Rename)
         cmgr._register('compress', commands.Compress)
         cmgr._register('decompress', commands.Decompress)
+        cmgr._register('compact', commands.Compact)
+        cmgr._register('download', commands.Download)
+        cmgr._register('rename', commands.Rename)
+        cmgr._register('migrate', commands.Migrate)
+        cmgr._register('sh', commands.Shell)
         return cmgr
 
     def main(self, pipeline=None, argv=None):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(formatter_class=commands.HelpFormatter)
 
         # Vorbosity levels:
         # 0 - no output
@@ -177,7 +177,7 @@ class Bot(Task):
         parser.add_argument('-v', '--verbosity', type=int, default=1)
         parser.add_argument('--log', default=None, choices=['debug', 'info', 'warn', 'error'])
 
-        sps = parser.add_subparsers(dest='command')
+        sps = parser.add_subparsers(dest='command', metavar='<command>')
 
         cmgr = commands.CommandsManager(self, sps)
         self._register_commands(cmgr, pipeline)
