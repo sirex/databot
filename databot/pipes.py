@@ -39,6 +39,10 @@ def keyvalueitems(key, value=None):
         return itertools.chain([(item, None)], ((k, None) for k in items))
 
 
+class ItemNotFound(Exception):
+    pass
+
+
 class PipeErrors(Task):
     def __init__(self, task):
         super().__init__()
@@ -558,8 +562,14 @@ class Pipe(Task):
 
         return self
 
-    def clean(self, age=None, now=None):
-        if age:
+    def clean(self, age=None, now=None, key=None):
+        if key is not None:
+            row = self.last(key)
+            if row is None:
+                raise ItemNotFound()
+            else:
+                query = self.table.delete(self.table.c.id == row.id)
+        elif age:
             now = now or datetime.datetime.utcnow()
             timestamp = now - age
             query = self.table.delete(self.table.c.created <= timestamp)

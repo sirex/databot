@@ -64,7 +64,7 @@ def test_select_export(bot, tmpdir):
         ('http://example.com/', {'content': b'<div id="3">c</div>'}),
     ])
 
-    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.csv'), '-q', '("div@id", "div:text")'])
+    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.csv'), '-eq', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert tmpdir.join('export.csv').read() == (
         'key,value\n'
@@ -73,7 +73,7 @@ def test_select_export(bot, tmpdir):
         '3,c\n'
     )
 
-    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.jsonl'), '-q', '("div@id", "div:text")'])
+    bot.main(argv=['select', 'p1', '-x', str(tmpdir / 'export.jsonl'), '-eq', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert list(map(json.loads, tmpdir.join('export.jsonl').read().splitlines())) == [
         {'key': '1', 'value': 'a'},
@@ -89,7 +89,7 @@ def test_select_export_non_verbose(bot, tmpdir):
         ('http://example.com/', {'content': b'<div id="3">c</div>'}),
     ])
 
-    bot.main(argv=['-v', '0', 'select', 'p1', '-x', str(tmpdir / 'export.csv'), '-q', '("div@id", "div:text")'])
+    bot.main(argv=['-v', '0', 'select', 'p1', '-x', str(tmpdir / 'export.csv'), '-eq', '("div@id", "div:text")'])
     assert bot.output.output.getvalue() == ''
     assert tmpdir.join('export.csv').read() == (
         'key,value\n'
@@ -230,6 +230,28 @@ def test_clean(bot):
         "=================================",
         "    1                 0  p1      ",
         "---------------------------------",
+        "",
+    ]))
+
+
+def test_clean_key(bot):
+    bot.define('p1').append([1, 2, 2, 3])
+    bot.main(argv=['clean', 'p1', '2', '-e'])
+    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
+        "   id              rows  source  ",
+        "       errors      left    target",
+        "=================================",
+        "    1                 3  p1      ",
+        "---------------------------------",
+        "",
+    ]))
+
+
+def test_clean_key_not_found(bot):
+    bot.define('p1').append([1, 2, 2, 3])
+    bot.main(argv=['clean', 'p1', '42'])
+    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
+        "Item with key='42' not found.",
         "",
     ]))
 
@@ -404,7 +426,7 @@ def test_resolve_key(bot):
     t2(t1).errors.report(rows[0], 'Error 1')
     t2(t1).errors.report(rows[2], 'Error 2')
 
-    bot.main(argv=['resolve', 'p1', 'p2', '"3"'])
+    bot.main(argv=['resolve', 'p1', 'p2', '3'])
     assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
         "   id              rows  source  ",
         "       errors      left    target",

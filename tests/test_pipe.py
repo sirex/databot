@@ -6,6 +6,7 @@ import databot.pipes
 
 from databot.db.serializers import serkey
 from databot.db.models import Compression
+from databot.pipes import ItemNotFound
 
 
 @pytest.fixture
@@ -182,3 +183,19 @@ def test_compress_decompress(bot):
     assert fetchrow(1, 'compression') is None
     assert fetchrow(1, 'value') == b'\x92\x01\xa1a'
     assert list(pipe.items()) == [(1, 'a'), (2, 'b')]
+
+
+def test_clean_key(bot):
+    p1 = bot.define('p1').append([(1, 'a'), (2, 'b'), (2, 'c'), (3, 'd')])
+
+    p1.clean(key=2)
+    assert list(p1.items()) == [(1, 'a'), (2, 'b'), (3, 'd')]
+
+    p1.clean(key=2)
+    assert list(p1.items()) == [(1, 'a'), (3, 'd')]
+
+    with pytest.raises(ItemNotFound):
+        p1.clean(key=42)
+
+    p1.clean()
+    assert list(p1.keys()) == []

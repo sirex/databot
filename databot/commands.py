@@ -1,11 +1,19 @@
+import ast
 import argparse
 import sqlalchemy as sa
 import funcy
 
-from databot import parsevalue
 from databot.exceptions import PipeNameError
 from databot.expressions.base import Expression
 from databot.runner import run_all_tasks
+
+
+def parse_expression(value, expression=False):
+    if value is None:
+        return value
+    if expression:
+        return ast.literal_eval(value)
+    return value
 
 
 def format_short_help_line(command):
@@ -192,19 +200,13 @@ class Select(Command):
         parser.add_argument('-k', '--key', type=str, help="Try on specific source key.")
         parser.add_argument('-t', '--table', action='store_true', default=False, help="Print ascii table.")
         parser.add_argument('-x', '--export', type=str, help="Export all data to specified file.")
-        parser.add_argument('-e', '--errors', action='store_true', help="Read data from target's errors.")
+        parser.add_argument('-e', '--expression', action='store_true', help="Query is an expression.")
+        parser.add_argument('--errors', action='store_true', help="Read data from target's errors.")
 
     def run(self, args):
-        import ast
-
         source = self.pipe(args.source)
         target = self.pipe(args.target) if args.target else None
-
-        if args.query and args.query[0] in ('[', '{', '(', '"', "'"):
-            query = ast.literal_eval(args.query)
-        else:
-            query = [args.query]
-
+        query = parse_expression(args.query, args.expression)
         self.call(source, target, query, key=args.key, table=args.table, export=args.export, errors=args.errors)
 
     def call(self, source, target=None, query=None, key=None, table=False, export=None, errors=False, raw=False,
@@ -371,10 +373,22 @@ class Clean(Command):
 
     def add_arguments(self, parser):
         parser.add_argument('pipe', type=str, help="Clean all data from specified pipe.")
+        parser.add_argument('key', type=str, nargs='?', help="Delete only last item with specified <key>.")
+        parser.add_argument('-e', '--expression', action='store_true', help="Key is an expression.")
 
     def run(self, args):
-        self.pipe(args.pipe).clean()
-        self.bot.output.status(self.bot)
+        key = parse_expression(args.key, args.expression)
+        self.call(self.pipe(args.pipe), key)
+
+    def call(self, pipe, key=None):
+        from databot.pipes import ItemNotFound
+
+        try:
+            pipe.clean(key=key)
+        except ItemNotFound:
+            self.bot.output.error("Item with key=%r not found." % key)
+        else:
+            self.bot.output.status(self.bot)
 
 
 class Compact(Command):
@@ -528,11 +542,10 @@ class Resolve(Command):
         parser.add_argument('key', type=str, nargs='?', help=(
             "Mark only specific key as resolved if key is not specified mark all errors as resolved."
         ))
+        parser.add_argument('-e', '--expression', action='store_true', help="Key is an expression.")
 
     def run(self, args):
-        import ast
-
-        key = ast.literal_eval(args.key) if args.key else None
+        key = parse_expression(args.key, args.expression)
         source = self.pipe(args.source)
         target = self.pipe(args.target)
         target(source).errors.resolve(key)
@@ -554,11 +567,12 @@ class Errors(Command):
         parser.add_argument('target', type=str, help="Target pipe id or name.")
         parser.add_argument('key', type=str, nargs='?',
                             help="Show errors for specific key only, if not specified show last error.")
+        parser.add_argument('-e', '--expression', action='store_true', help="Key is an expression.")
         parser.add_argument('-n', type=int, dest='limit', default=1, help="Number of errors to show.")
         parser.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
 
     def run(self, args):
-        key = parsevalue.parse(args.key)
+        key = parse_expression(args.key, args.expression)
         exclude = args.exclude.split(',') if args.exclude else None
         source = self.pipe(args.source)
         target = self.pipe(args.target)
