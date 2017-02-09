@@ -1,9 +1,8 @@
 import time
-import bs4
-import cgi
 
 from databot.recursive import call
 from databot.db.utils import Row
+from databot.handlers.html import Select
 
 
 class DownloadErrror(Exception):
@@ -33,7 +32,14 @@ def dump_response(response, url):
     return dump
 
 
-def download(session, urlexpr, delay=None, update=None, **kwargs):
+def check_download(url, response, check):
+    row = Row({'key': url, 'value': response})
+    select = Select(check)
+    select.set_row(row)
+    select.check_render(row, select.html, check, many=True)
+
+
+def download(session, urlexpr, delay=None, update=None, check=None, **kwargs):
     update = update or {}
 
     def func(row):
@@ -54,6 +60,8 @@ def download(session, urlexpr, delay=None, update=None, **kwargs):
             value = dump_response(response, url)
             for k, fn in update.items():
                 value[k] = fn(row)
+            if check:
+                check_download(url, value, check)
             yield url, value
         else:
             raise DownloadErrror('Error while downloading %s, returned status code was %s, response content:\n\n%s' % (
@@ -61,16 +69,3 @@ def download(session, urlexpr, delay=None, update=None, **kwargs):
             ))
 
     return func
-
-
-def get_content(data, errors='strict'):
-    headers = {k.lower(): v for k, v in data.get('headers', {}).items()}
-    content_type_header = headers.get('content-type', '')
-    content_type, params = cgi.parse_header(content_type_header)
-    if content_type.lower() in ('text/html', 'text/xml'):
-        soup = bs4.BeautifulSoup(data['content'], 'lxml', from_encoding=data['encoding'])
-        return data['content'].decode(soup.original_encoding, errors)
-    elif content_type.startswith('text/'):
-        return data['content'].decode(data['encoding'], errors)
-    else:
-        return data['content']

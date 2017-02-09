@@ -7,7 +7,7 @@ from cssselect.parser import SelectorSyntaxError
 from cssselect.xpath import ExpressionError
 from bs4 import BeautifulSoup
 
-from databot.handlers.download import get_content
+from databot.utils.html import get_content
 from databot.expressions.utils import handler
 from databot.expressions.base import Expression, Func
 
@@ -43,15 +43,18 @@ class Select(object):
         self.check = check
 
     def __call__(self, row):
-        if isinstance(row.value, dict) and 'content' in row.value:
-            self.html = create_html_parser(row)
-        else:
-            self.html = None
+        self.set_row(row)
 
         if isinstance(self.key, (list, Call, Expression)) and self.value is None:
             return self.check_render(row, self.html, self.key)
         else:
             return [(self.render(row, self.html, self.key), self.check_render(row, self.html, self.value))]
+
+    def set_row(self, row):
+        if isinstance(row.value, dict) and 'content' in row.value:
+            self.html = create_html_parser(row)
+        else:
+            self.html = None
 
     def check_render(self, row, html, value, **kwargs):
         result = self.render(row, html, value, **kwargs)

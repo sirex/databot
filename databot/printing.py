@@ -12,7 +12,7 @@ from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
 from databot.exporters.utils import flatten_rows
-from databot.handlers.download import get_content
+from databot.utils.html import get_content
 
 
 class Printer(object):
