@@ -68,6 +68,8 @@ class Select(object):
                 return result
             elif isinstance(self.check, str) and self.select(html, self.check):
                 return result
+            elif isinstance(self.check, Expression) and self.check._eval(row):
+                return result
             else:
                 if self.value:
                     selector = (self.key, self.value)

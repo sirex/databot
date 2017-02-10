@@ -40,6 +40,9 @@ class Expression:
         self._func = func
         self._reset()
 
+    def __eq__(self, other):
+        return self._add(Method('__eq__', (other,), {}))
+
     def __getitem__(self, key):
         return self._add(Item(key))
 

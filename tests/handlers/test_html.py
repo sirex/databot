@@ -319,3 +319,17 @@ def test_null(Html):
 
     selector = html.Select(select('#this:text?').null().strip())
     assert selector(row) == 'p1'
+
+
+def test_check_expr(bot):
+    key = 'http://exemple.com'
+    value = {'content': b'<div></div>', 'encoding': 'utf-8', 'headers': {'Content-Type': 'text/html'}}
+    row = bot.define('a').append(key, value).last()
+
+    selector = html.Select(['h1'], check=this.value.headers['Content-Type'].header().subtype == 'html')
+    assert selector(row) == []
+
+    selector = html.Select(['h1'])
+    with pytest.raises(ValueError) as e:
+        selector(row)
+    assert str(e.value) == "Select query did not returned any results. Query: ['h1']"

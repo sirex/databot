@@ -1,5 +1,7 @@
 from databot.expressions.base import Expression, Attr, Item, Func, Method
 
+this = Expression()
+
 
 def test_expression():
     assert Expression().a['b'].c(1, x=2)._stack == (
@@ -26,8 +28,6 @@ def test_eval():
 
 
 def test_eval_args():
-    this = Expression()
-
     def proxy(*args, **kwargs):
         return args, kwargs
 
@@ -36,3 +36,11 @@ def test_eval_args():
         ('c', 'C'),
         {'kw': 'C'},
     )
+
+
+def test_op_eq():
+    assert (this == 42)._eval(42) is True
+    assert (this == 42)._eval(0) is False
+    assert (this == this)._eval(42) is True
+    assert (this.a == this.b)._eval({'a': 1, 'b': 2}) is False
+    assert (this.a == this.b)._eval({'a': 2, 'b': 2}) is True
