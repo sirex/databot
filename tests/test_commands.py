@@ -307,6 +307,48 @@ def test_show_target_errors(bot):
     ]))
 
 
+def test_show_open(mocker, bot):
+    run = mocker.patch('subprocess.run')
+
+    bot.define('p1').append([(
+        'http://example.com/', {
+            'headers': {'Content-Type': 'text/html'},
+            'content': b'<html></html>',
+        },
+    )])
+
+    bot.main(argv=['show', 'p1'])
+    assert run.call_count == 1
+    assert bot.output.output.getvalue() == textwrap.dedent('''\
+        - key: 'http://example.com/'
+          value:
+            {'headers': {'Content-Type': 'text/html'}}
+    ''')
+
+
+def test_show_open_attachment(mocker, bot):
+    run = mocker.patch('subprocess.run')
+
+    bot.define('p1').append([(
+        'http://example.com/', {
+            'headers': {
+                'Content-Type': 'application/msword;charset=UTF-8',
+                'Content-Disposition': 'attachment; filename="TAIS_251059.DOC"',
+            },
+            'content': b'<html></html>',
+        },
+    )])
+
+    bot.main(argv=['show', 'p1'])
+    assert run.call_count == 1
+    assert bot.output.output.getvalue() == textwrap.dedent('''\
+        - key: 'http://example.com/'
+          value:
+            {'headers': {'Content-Disposition': 'attachment; filename="TAIS_251059.DOC"',
+                         'Content-Type': 'application/msword;charset=UTF-8'}}
+    ''')
+
+
 def test_head(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')])
     bot.main(argv=['head', 'p1', '-t', '-n', '2'])

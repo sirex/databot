@@ -100,9 +100,8 @@ class Printer(object):
                 self.info('  value: %s' % self.highlight(repr(value), py, formatter))
             else:
                 self.info('  value:')
-                for key in exclude:
-                    value.pop(key, None)
-
+                if isinstance(value, dict):
+                    value = {k: v for k, v in value.items() if k not in exclude}
                 code = textwrap.indent(pprint.pformat(value, width=self.width), '    ')
                 self.info(self.highlight(code, py, formatter))
 

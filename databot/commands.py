@@ -1,3 +1,4 @@
+import os
 import ast
 import argparse
 import sqlalchemy as sa
@@ -416,8 +417,8 @@ class Show(Command):
         parser.add_argument('target', type=str, nargs='?', help="Target pipe.")
         parser.add_argument('-k', '--key', type=str, help="If key is not provided, last item will be shown.")
         parser.add_argument('-x', '--exclude', type=str, help="Exclude items from value.")
-        parser.add_argument('-b', '--in-browser', action='store_true', help="Show value content in browser.")
         parser.add_argument('-e', '--errors', action='store_true', help="Read data from target's errors.")
+        parser.add_argument('-o', '--open', default='xdg-open', help="Open content in external program.")
 
     def run(self, args):
         import ast
@@ -431,9 +432,9 @@ class Show(Command):
         source = self.pipe(args.source)
         target = self.bot.pipe(args.target) if args.target else None
 
-        self.call(source, target, key, errors=args.errors, exclude=args.exclude, in_browser=args.in_browser)
+        self.call(source, target, key, errors=args.errors, exclude=args.exclude, prog=args.open)
 
-    def call(self, source, target=None, key=None, errors=False, exclude=None, in_browser=False):
+    def call(self, source, target=None, key=None, errors=False, exclude=None, prog='xdg-open'):
         """Show content of a record in a pipe.
 
         Parameters
@@ -446,13 +447,15 @@ class Show(Command):
             Read data frm target's errors.
         exclude : List[str], optional
             Exclude specified fields from output.
-        in_browser : boolean, optional
-            If this is a downloaded page, show it in your default web browser.
+        prog : str, optional
+            Open content in external program.
 
         """
 
-        import webbrowser
         import tempfile
+        import subprocess
+        import mimetypes
+        import cgi
 
         if errors:
             assert target
@@ -466,12 +469,31 @@ class Show(Command):
         row = row['row'] if row and errors else row
 
         if row:
-            exclude = exclude.split(',') if exclude else None
-            self.bot.output.key_value(row.key, row.value, exclude=exclude)
-            if in_browser:
-                with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
-                    f.write(row.value['content'])
-                webbrowser.open(f.name)
+            if prog != '-' and 'content' in row.value and 'headers' in row.value:
+                exclude = (exclude.split(',') if exclude else []) + ['content']
+                self.bot.output.key_value(row.key, row.value, exclude=exclude)
+
+                filename = None
+                if 'Content-Disposition' in row.value['headers']:
+                    value, params = cgi.parse_header(row.value['headers']['Content-Disposition'])
+                    if value == 'attachment' and 'filename' in params:
+                        filename = params['filename']
+
+                if filename:
+                    tempdir = tempfile.mkdtemp(prefix='databot_open_')
+                    path = os.path.join(tempdir, filename)
+                    with open(path, 'wb') as f:
+                        f.write(row.value['content'])
+                else:
+                    mimetype, _ = cgi.parse_header(row.value['headers']['Content-Type'])
+                    ext = mimetypes.guess_extension(mimetype)
+                    with tempfile.NamedTemporaryFile('wb', prefix='databot_open_', suffix=ext, delete=False) as f:
+                        f.write(row.value['content'])
+                    path = f.name
+                subprocess.run([prog, path])
+            else:
+                exclude = exclude.split(',') if exclude else None
+                self.bot.output.key_value(row.key, row.value, exclude=exclude)
         else:
             if key:
                 self.info('Item with key=%r not found.' % key)
