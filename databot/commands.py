@@ -2,6 +2,7 @@ import ast
 import argparse
 import sqlalchemy as sa
 import funcy
+import types
 
 from databot.exceptions import PipeNameError
 from databot.expressions.base import Expression
@@ -262,7 +263,10 @@ class Select(Command):
         if export:
             def scrape():
                 if progressbar:
-                    desc = '%s -> %s' % (source, export)
+                    if isinstance(export, types.ModuleType) and export.__name__ == 'pandas':
+                        desc = '%s -> pandas' % source
+                    else:
+                        desc = '%s -> %s' % (source, export)
                     total = pipe.count()
                     rows = tqdm.tqdm(pipe.rows(), desc, total, leave=True)
                 else:
