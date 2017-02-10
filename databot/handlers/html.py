@@ -342,6 +342,11 @@ def func(skipna=False):
     return wrapper
 
 
+@handler(item='method', eval_args=False)
+def select(expr, pos, pipe, *args, **kwargs):
+    pipe.select(*args, **kwargs)
+
+
 @handler(item='method')
 def text(expr, pos, nodes, strip=True, exclude=None):
     # Recursively extract all texts

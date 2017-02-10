@@ -23,3 +23,12 @@ def test_eval():
     assert Expression().cast(int)._eval('42') == 42
     assert Expression().cast(int)._eval('42') == 42
     assert Expression().urlparse().query.key.cast(int)._eval('http://example.com/?key=42') == 42
+
+
+def test_eval_args():
+    this = Expression()
+
+    def proxy(*args, **kwargs):
+        return args, kwargs
+
+    assert this.apply(proxy, this.upper(), kw=this.upper())._eval('a') == (('a', 'A'), {'kw': 'A'})

@@ -62,6 +62,14 @@ class Expression:
     def _reset(self):
         self._evals = 0
 
+    def _eval_args(self, value, item, eval_args=True):
+        if eval_args:
+            args = tuple(v._eval(value) if isinstance(v, Expression) else v for v in item.args)
+            kwargs = {k: v._eval(value) if isinstance(v, Expression) else v for k, v in item.kwargs.items()}
+            return args, kwargs
+        else:
+            return item.args, item.kwargs
+
     def _eval(self, value):
         self._evals += 1
 
@@ -73,9 +81,10 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
+                        args, kwargs = self._eval_args(value, item, handler.eval_args)
+                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
-                            value = handler.handler(self, i, value, *item.args, **item.kwargs)
+                            value = handler.handler(self, i, value, *args, **kwargs)
                         except StopEval:
                             logger.debug('eval: StopEval')
                             return value
@@ -90,17 +99,19 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
+                        args, kwargs = self._eval_args(value, item, handler.eval_args)
+                        logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
-                            value = handler.handler(self, i, value, *item.args, **item.kwargs)
+                            value = handler.handler(self, i, value, *args, **kwargs)
                         except StopEval:
                             logger.debug('eval: StopEval')
                             return value
                         break
                 else:
                     method = getattr(value, item.name)
-                    logger.debug('eval: %s', _HandlerRepr(method, item.args, item.kwargs))
-                    value = method(*item.args, **item.kwargs)
+                    args, kwargs = self._eval_args(value, item)
+                    logger.debug('eval: %s', _HandlerRepr(method, args, kwargs))
+                    value = method(*args, **kwargs)
 
             elif isinstance(item, Attr):
                 for handler in HANDLERS[item.key]:
