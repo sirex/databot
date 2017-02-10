@@ -71,6 +71,8 @@ class Expression:
             return item.args, item.kwargs
 
     def _eval(self, value):
+        orig_value = value
+
         self._evals += 1
 
         for i, item in enumerate(self._stack):
@@ -81,7 +83,7 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        args, kwargs = self._eval_args(value, item, handler.eval_args)
+                        args, kwargs = self._eval_args(orig_value, item, handler.eval_args)
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
@@ -99,7 +101,7 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        args, kwargs = self._eval_args(value, item, handler.eval_args)
+                        args, kwargs = self._eval_args(orig_value, item, handler.eval_args)
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
@@ -109,7 +111,7 @@ class Expression:
                         break
                 else:
                     method = getattr(value, item.name)
-                    args, kwargs = self._eval_args(value, item)
+                    args, kwargs = self._eval_args(orig_value, item)
                     logger.debug('eval: %s', _HandlerRepr(method, args, kwargs))
                     value = method(*args, **kwargs)
 

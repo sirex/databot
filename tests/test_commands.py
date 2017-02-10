@@ -110,9 +110,7 @@ def test_select_export_non_verbose(bot, tmpdir):
 def test_select_not_found(bot):
     bot.define('p1')
     bot.main(argv=['select', 'p1', '-k', 'missing', '-q', 'div:text'])
-    assert bot.output.output.getvalue() == (
-        'Not found.\n'
-    )
+    assert bot.output.output.getvalue() == "Item with key='missing' not found.\n"
 
 
 def test_select_raw(bot):

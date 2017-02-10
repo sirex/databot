@@ -32,3 +32,7 @@ def test_eval_args():
         return args, kwargs
 
     assert this.apply(proxy, this.upper(), kw=this.upper())._eval('a') == (('a', 'A'), {'kw': 'A'})
+    assert this.a.b.apply(proxy, this.a.b.upper(), kw=this.a.b.upper())._eval({'a': {'b': 'c'}}) == (
+        ('c', 'C'),
+        {'kw': 'C'},
+    )
