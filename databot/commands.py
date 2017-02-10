@@ -6,6 +6,7 @@ import funcy
 from databot.exceptions import PipeNameError
 from databot.expressions.base import Expression
 from databot.runner import run_all_tasks
+from databot.exporters.services import export as export_service
 
 
 def parse_expression(value, expression=False):
@@ -259,8 +260,6 @@ class Select(Command):
             pipe = source
 
         if export:
-            from databot.exporters import csv, jsonl
-
             def scrape():
                 if progressbar:
                     desc = '%s -> %s' % (source, export)
@@ -274,10 +273,7 @@ class Select(Command):
                         if key is not None:
                             yield Row(key=key, value=value)
 
-            if export.endswith('.jsonl'):
-                jsonl.export(export, scrape())
-            else:
-                csv.export(export, scrape())
+            return export_service(scrape(), export)
 
         else:
             row = pipe.last(key)
@@ -525,12 +521,17 @@ class Export(Command):
         parser.add_argument('--no-header', dest='header', action='store_false', help="Do not write header.")
 
     def run(self, args):
-        from databot.exporters import csv
-
         pipe = self.pipe(args.pipe)
         exclude = set(args.exclude.split(',') if args.exclude else [])
         include = args.include.split(',') if args.include else None
-        csv.export(args.path, pipe.rows(), exclude=exclude, include=include, append=args.append, header=args.header)
+        kwargs = [
+            ('exclude', exclude, set()),
+            ('include', include, None),
+            ('append', args.append, False),
+            ('header', args.header, True),
+        ]
+        kwargs = {k: v for k, v, default in kwargs if v != default}
+        export_service(pipe.rows(), args.path, **kwargs)
 
 
 class Resolve(Command):

@@ -4,7 +4,6 @@ import itertools
 import sqlalchemy as sa
 import traceback
 import tqdm
-import types
 
 from databot.db.serializers import serrow, serkey
 from databot.db.utils import strip_prefix, create_row, get_or_create, Row
@@ -12,7 +11,7 @@ from databot.db.windowedquery import windowed_query
 from databot.db.models import Compression
 from databot.handlers import download, html
 from databot.bulkinsert import BulkInsert
-from databot.exporters import csv, jsonl, pandas
+from databot.exporters.services import export
 from databot.expressions.base import Expression
 from databot.tasks import Task
 
@@ -707,15 +706,7 @@ class Pipe(Task):
             raise ValueError('%r returned more that one row.' % key)
 
     def export(self, dest, **kwargs):
-        if isinstance(dest, str):
-            if dest.endswith('.jsonl'):
-                jsonl.export(dest, self.rows(), **kwargs)
-            else:
-                csv.export(dest, self.rows(), **kwargs)
-        elif isinstance(dest, types.ModuleType) and dest.__name__ == 'pandas':
-            return pandas.export(dest, self.rows(), **kwargs)
-        else:
-            raise TypeError("Unknown destination: %s" % type(dest))
+        return export(self.rows(), dest, **kwargs)
 
     def download(self, urls=None, **kwargs):
         """Download list of URLs and store downloaded content into a pipe.

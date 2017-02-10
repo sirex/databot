@@ -181,8 +181,7 @@ def test_pandas(bot):
         (1, {'a': 10}),
         (2, {'a': 20}),
     ])
-    frame = pandas.export(pd, pipe.rows())
-    assert [dict(x._asdict()) for x in frame.itertuples()] == [
+    assert [dict(x._asdict()) for x in pipe.export(pd).itertuples()] == [
         {'Index': 1, 'a': 10.0},
         {'Index': 2, 'a': 20.0},
     ]

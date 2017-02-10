@@ -7,6 +7,7 @@ import sqlalchemy as sa
 import freezegun
 import pytest
 import textwrap
+import pandas as pd
 
 from databot import Bot, define, task, this
 from databot.db import migrations
@@ -58,7 +59,7 @@ def test_select_table(bot):
 
 
 def test_select_export(bot, tmpdir):
-    bot.define('p1').append([
+    p1 = bot.define('p1').append([
         ('http://example.com/', {'content': b'<div id="1">a</div>'}),
         ('http://example.com/', {'content': b'<div id="2">b</div>'}),
         ('http://example.com/', {'content': b'<div id="3">c</div>'}),
@@ -79,6 +80,13 @@ def test_select_export(bot, tmpdir):
         {'key': '1', 'value': 'a'},
         {'key': '2', 'value': 'b'},
         {'key': '3', 'value': 'c'},
+    ]
+
+    data = bot.commands.select(p1, query=("div@id", "div:text"), export=pd, progressbar=False)
+    assert [dict(x._asdict()) for x in data.itertuples()] == [
+        {'Index': '1', 'value': 'a'},
+        {'Index': '2', 'value': 'b'},
+        {'Index': '3', 'value': 'c'},
     ]
 
 
@@ -394,6 +402,17 @@ def test_export_no_header_append(bot):
         ])
 
     os.unlink(temp.name)
+
+
+def test_export_jsonl(bot, tmpdir):
+    bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c')])
+    bot.main(argv=['export', 'p1', str(tmpdir / 'export.jsonl')])
+    assert bot.output.output.getvalue() == ''
+    assert list(map(json.loads, tmpdir.join('export.jsonl').read().splitlines())) == [
+        {'key': 1, 'value': 'a'},
+        {'key': 2, 'value': 'b'},
+        {'key': 3, 'value': 'c'},
+    ]
 
 
 def test_resolve_all(bot):
