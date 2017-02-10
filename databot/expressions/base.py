@@ -65,7 +65,7 @@ class Expression:
     def _eval(self, value):
         self._evals += 1
 
-        for item in self._stack:
+        for i, item in enumerate(self._stack):
             if isinstance(item, Func):
                 for handler in HANDLERS[item.name]:
                     conditions = (
@@ -75,7 +75,7 @@ class Expression:
                     if conditions:
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
                         try:
-                            value = handler.handler(self, value, *item.args, **item.kwargs)
+                            value = handler.handler(self, i, value, *item.args, **item.kwargs)
                         except StopEval:
                             logger.debug('eval: StopEval')
                             return value
@@ -92,7 +92,7 @@ class Expression:
                     if conditions:
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + item.args, item.kwargs))
                         try:
-                            value = handler.handler(self, value, *item.args, **item.kwargs)
+                            value = handler.handler(self, i, value, *item.args, **item.kwargs)
                         except StopEval:
                             logger.debug('eval: StopEval')
                             return value

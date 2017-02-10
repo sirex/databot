@@ -759,9 +759,11 @@ class Pipe(Task):
 
         for url in urls:
             try:
-                return self.append(fetch(url))
+                self.append(fetch(url))
             except KeyboardInterrupt:
                 raise
             except Exception as e:
                 self.bot.output.key_value(url, None, short=True)
                 raise
+
+        return self

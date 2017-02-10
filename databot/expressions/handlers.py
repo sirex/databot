@@ -1,6 +1,7 @@
 import re as re_
 import urllib.parse
 import datetime
+import cgi
 
 import databot.utils.urls
 
@@ -11,28 +12,43 @@ from databot.tasks import Task
 
 
 @handler(item='func')
-def value(expr, _, value):
+def value(expr, pos, _, value):
     return value
 
 
 @handler(item='method')
-def cast(expr, value, func):
+def cast(expr, pos, value, func):
     return func(value)
 
 
 @handler(item='method')
-def apply(expr, value, func, *args, **kwargs):
+def apply(expr, pos, value, func, *args, **kwargs):
     return func(value, *args, **kwargs)
 
 
 @handler(str, 'method')
-def urlparse(expr, value):
+def urlparse(expr, pos, value):
     return urllib.parse.urlparse(value)
 
 
 @handler(str, 'method')
-def url(expr, value, *args, **kwargs):
+def url(expr, pos, value, *args, **kwargs):
     return databot.utils.urls.url(value, *args, **kwargs)
+
+
+@handler(str, 'method')
+def header(expr, pos, value):
+    value, params = cgi.parse_header(value)
+    assert 'value' not in params
+    params['value'] = value
+    item = expr._stack[pos - 1] if len(expr._stack) > 1 else None
+    if hasattr(item, 'key') and item.key.lower() == 'content-type':
+        type, subtype = value.split('/')
+        assert 'type' not in params
+        params['type'] = type
+        assert 'subtype' not in params
+        params['subtype'] = subtype
+    return params
 
 
 @handler(urllib.parse.ParseResult, 'attr')
@@ -41,22 +57,22 @@ def query(url):
 
 
 @handler(str, 'method')
-def strip(expr, value):
+def strip(expr, pos, value):
     return value.strip()
 
 
 @handler(str, 'method')
-def lower(expr, value):
+def lower(expr, pos, value):
     return value.lower()
 
 
 @handler(str, 'method')
-def upper(expr, value):
+def upper(expr, pos, value):
     return value.upper()
 
 
 @handler(str, 'method')
-def replace(expr, value, old, new, count=None):
+def replace(expr, pos, value, old, new, count=None):
     if count is None:
         return value.replace(old, new)
     else:
@@ -64,17 +80,17 @@ def replace(expr, value, old, new, count=None):
 
 
 @handler(list, 'method')
-def join(expr, value, sep=' '):
+def join(expr, pos, value, sep=' '):
     return sep.join(map(str, value))
 
 
 @handler(str, 'method')
-def normspace(expr, value):
+def normspace(expr, pos, value):
     return ' '.join([x for x in value.strip().split() if x])
 
 
 @handler(str, 'method')
-def re(expr, value, pattern):
+def re(expr, pos, value, pattern):
     matches = re_.findall(pattern, value)
     if len(matches) == 1:
         return matches[0]
@@ -83,7 +99,7 @@ def re(expr, value, pattern):
 
 
 @handler(Task, 'method')
-def once(expr, value):
+def once(expr, pos, value):
     if expr._evals > 1:
         raise StopEval()
     else:
@@ -91,7 +107,7 @@ def once(expr, value):
 
 
 @handler(Task, 'method')
-def freq(expr, value, timedelta=None, **kwargs):
+def freq(expr, pos, value, timedelta=None, **kwargs):
     if isinstance(value, (Pipe, TaskPipe)):
         if timedelta is None:
             timedelta = datetime.timedelta(**kwargs)
@@ -104,7 +120,7 @@ def freq(expr, value, timedelta=None, **kwargs):
 
 
 @handler(Task, 'method')
-def daily(expr, value):
+def daily(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=1):
             raise StopEval()
@@ -115,7 +131,7 @@ def daily(expr, value):
 
 
 @handler(Task, 'method')
-def weekly(expr, value):
+def weekly(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=7):
             raise StopEval()
@@ -126,7 +142,7 @@ def weekly(expr, value):
 
 
 @handler(Task, 'method')
-def monthly(expr, value):
+def monthly(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=30):
             raise StopEval()
@@ -137,7 +153,7 @@ def monthly(expr, value):
 
 
 @handler(item='method')
-def null(expr, value):
+def null(expr, pos, value):
     if value is None:
         raise StopEval()
     else:

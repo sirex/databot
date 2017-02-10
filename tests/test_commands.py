@@ -146,7 +146,7 @@ def test_select_check(bot):
 
     with pytest.raises(ValueError) as e:
         bot.commands.select(p1, query=['span.missing:text'])
-    assert str(e.value) == 'Select query did not returned any results.'
+    assert str(e.value) == "Select query did not returned any results. Query: ['span.missing:text']"
 
 
 def test_download(bot, requests):

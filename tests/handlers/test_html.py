@@ -283,7 +283,7 @@ def test_empty_result(Html):
     selector = html.Select(['p.new:text'])
     with pytest.raises(ValueError) as e:
         selector(row)
-    assert str(e.value) == 'Select query did not returned any results.'
+    assert str(e.value) == "Select query did not returned any results. Query: ['p.new:text']"
 
     # Allow empty result from selector.
     selector = html.Select(['p.new:text'], check=False)

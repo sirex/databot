@@ -6,12 +6,12 @@ logger = logging.getLogger(__name__)
 
 
 @handler(item='func')
-def define(expr, bot, *args, **kwargs):
+def define(expr, pos, bot, *args, **kwargs):
     return bot.define(*args, **kwargs)
 
 
 @handler(item='func')
-def task(expr, bot, source=None, target=None, watch=False):
+def task(expr, pos, bot, source=None, target=None, watch=False):
     if source and target:
         source = bot.pipe(source)
         target = bot.pipe(target)

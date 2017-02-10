@@ -73,7 +73,7 @@ class Select(object):
                     selector = (self.key, self.value)
                 else:
                     selector = self.key
-                raise ValueError("Select query did not returned any results. %r" % (selector,))
+                raise ValueError("Select query did not returned any results. Query: %r" % (selector,))
         else:
             return result
 
@@ -343,7 +343,7 @@ def func(skipna=False):
 
 
 @handler(item='method')
-def text(expr, nodes, strip=True, exclude=None):
+def text(expr, pos, nodes, strip=True, exclude=None):
     # Recursively extract all texts
     def extract(nodes):
         texts = []
