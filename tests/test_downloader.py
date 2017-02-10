@@ -1,4 +1,4 @@
-from databot import task
+from databot import task, this
 
 
 def test_download(bot, requests):
@@ -76,4 +76,19 @@ def test_download_check_multiple(bot, requests):
     bot.commands.run(tasks, limits=(0,), error_limit=0)
     assert target.count() == 1
     assert pipe.errors.count() == 0
+    assert list(target.keys()) == [url]
+
+
+def test_download_expr(bot, requests):
+    url = 'http://example.com/1'
+    requests.get(url, content=b'<div></div>')
+
+    bot.define('source').append([(1, {'link': url})])
+    target = bot.define('target')
+
+    tasks = [
+        task('source', 'target').download(this.value.link)
+    ]
+
+    bot.commands.run(tasks, limits=(0,), error_limit=0)
     assert list(target.keys()) == [url]

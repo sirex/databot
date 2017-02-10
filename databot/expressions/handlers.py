@@ -158,3 +158,8 @@ def null(expr, pos, value):
         raise StopEval()
     else:
         return value
+
+
+@handler(Task, item='method', eval_args=False)
+def download(expr, pos, pipe, *args, **kwargs):
+    return pipe.download(*args, **kwargs)
