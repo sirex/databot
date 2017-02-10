@@ -299,7 +299,10 @@ class Select(Command):
                             if key is not None:
                                 self.bot.output.key_value(key, value)
                 else:
-                    self.info('Not found.')
+                    if key:
+                        self.info('Item with key=%r not found.' % key)
+                    else:
+                        self.info('No items found.')
 
 
 class Download(Command):
@@ -470,7 +473,10 @@ class Show(Command):
                     f.write(row.value['content'])
                 webbrowser.open(f.name)
         else:
-            print('Not found.')
+            if key:
+                self.info('Item with key=%r not found.' % key)
+            else:
+                self.info('No items found.')
 
 
 class Head(Command):
@@ -500,7 +506,7 @@ class Head(Command):
                 for row in rows:
                     self.bot.output.key_value(row.key, row.value, exclude=exclude)
         else:
-            print('Not found.')
+            self.info('No items found.')
 
     def rows(self, pipe, limit):
         return pipe.engine.execute(pipe.table.select().order_by(pipe.table.c.id.asc()).limit(limit))
