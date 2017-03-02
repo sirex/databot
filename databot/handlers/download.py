@@ -3,6 +3,7 @@ import time
 from databot.recursive import call
 from databot.db.utils import Row
 from databot.handlers.html import Select
+from databot.expressions.base import Expression
 
 
 class DownloadErrror(Exception):
@@ -16,12 +17,13 @@ def get_final_url(response, url):
     return url
 
 
-def dump_response(response, url):
+def dump_response(response, url, request):
     dump = {
         'headers': dict(response.headers),
         'cookies': response.cookies if isinstance(response.cookies, dict) else response.cookies.get_dict(),
         'status_code': response.status_code,
         'encoding': response.encoding,
+        'request': request,
     }
 
     if url:
@@ -39,7 +41,7 @@ def check_download(url, response, check):
     select.check_render(row, select.html, check, many=True)
 
 
-def download(session, urlexpr, delay=None, update=None, check=None, **kwargs):
+def download(session, urlexpr, delay=None, update=None, check=None, method='GET', **kwargs):
     update = update or {}
 
     def func(row):
@@ -50,14 +52,14 @@ def download(session, urlexpr, delay=None, update=None, check=None, **kwargs):
 
         if isinstance(row, Row):
             kwargs = call(kwargs, row)
-            url = urlexpr._eval(row)
+            url = urlexpr._eval(row) if isinstance(urlexpr, Expression) else urlexpr
         else:
             url = row
 
-        response = session.get(url, **kwargs)
+        response = session.request(method, url, **kwargs)
 
         if response.status_code == 200:
-            value = dump_response(response, url)
+            value = dump_response(response, url, dict(method=method, **kwargs))
             for k, fn in update.items():
                 value[k] = fn(row)
             if check:

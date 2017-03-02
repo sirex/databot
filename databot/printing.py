@@ -69,6 +69,10 @@ class Printer(object):
             if isinstance(value, str):
                 self.info('  value: %s' % self.highlight(repr(value[:cut]), py, formatter))
             elif isinstance(value, dict) and 'status_code' in value and ('content' in value):
+                if 'request' not in exclude:
+                    self.info('  request:')
+                    code = textwrap.indent(pprint.pformat(value['request'], width=self.width), '    ')
+                    self.info(self.highlight(code, py, formatter))
                 if 'history' not in exclude and 'history' in value:
                     self.info('  history:')
                     code = textwrap.indent(pprint.pformat(value['history'], width=self.width), '    ')
@@ -92,7 +96,7 @@ class Printer(object):
                         self.info('  content:')
                         code = textwrap.indent(get_content(value, 'ignore'), '    ')
                         self.info(self.highlight(code, html, formatter))
-                special = {'history', 'headers', 'cookies', 'status_code', 'encoding', 'content'}
+                special = {'history', 'request', 'headers', 'cookies', 'status_code', 'encoding', 'content'}
                 for k, v in value.items():
                     if k not in exclude and k not in special:
                         self.info('  %s: %s' % (k, self.highlight(repr(v), py, formatter)))

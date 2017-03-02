@@ -92,3 +92,29 @@ def test_download_expr(bot, requests):
 
     bot.commands.run(tasks, limits=(0,), error_limit=0)
     assert list(target.keys()) == [url]
+
+
+def test_download_post(bot, requests):
+    def callback(request, context):
+        context.status_code = 200
+        return ('<div>%s</div>' % request.text).encode('utf-8')
+
+    url = 'http://example.com/'
+    requests.post(url, content=callback)
+
+    bot.define('source').append([(1, {'num': '42'})])
+    t1 = bot.define('t1')
+    t2 = bot.define('t2')
+
+    tasks = [
+        task('source', 't1').download(url, method='POST', data={'value': this.value.num}),
+        task('t1', 't2').select('div:text'),
+    ]
+
+    bot.commands.run(tasks, limits=(0,), error_limit=0)
+    assert list(t1.keys()) == [url]
+    assert list(t2.keys()) == ['value=42']
+    assert t1.last()['value']['request'] == {
+        'method': 'POST',
+        'data': {'value': '42'},
+    }

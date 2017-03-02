@@ -160,6 +160,8 @@ def test_download(bot, requests):
     bot.main(argv=['download', 'http://example.com/'])
     assert bot.output.output.getvalue() == '\n'.join([
         "- key: 'http://example.com/'",
+        "  request:",
+        "    {'method': 'GET'}",
         "  history:",
         "    []",
         "  headers:",
