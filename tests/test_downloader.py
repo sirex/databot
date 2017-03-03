@@ -102,7 +102,10 @@ def test_download_post(bot, requests):
     url = 'http://example.com/'
     requests.post(url, content=callback)
 
-    bot.define('source').append([(1, {'num': '42'})])
+    bot.define('source').append([
+        (1, {'num': '1'}),
+        (2, {'num': '2'}),
+    ])
     t1 = bot.define('t1')
     t2 = bot.define('t2')
 
@@ -112,9 +115,9 @@ def test_download_post(bot, requests):
     ]
 
     bot.commands.run(tasks, limits=(0,), error_limit=0)
-    assert list(t1.keys()) == [url]
-    assert list(t2.keys()) == ['value=42']
+    assert list(t1.keys()) == [url, url]
+    assert list(t2.keys()) == ['value=1', 'value=2']
     assert t1.last()['value']['request'] == {
         'method': 'POST',
-        'data': {'value': '42'},
+        'data': {'value': '2'},
     }

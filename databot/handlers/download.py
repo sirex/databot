@@ -51,15 +51,16 @@ def download(session, urlexpr, delay=None, update=None, check=None, method='GET'
             time.sleep(delay)
 
         if isinstance(row, Row):
-            kwargs = call(kwargs, row)
+            _kwargs = call(kwargs, row)
             url = urlexpr._eval(row) if isinstance(urlexpr, Expression) else urlexpr
         else:
+            _kwargs = kwargs
             url = row
 
-        response = session.request(method, url, **kwargs)
+        response = session.request(method, url, **_kwargs)
 
         if response.status_code == 200:
-            value = dump_response(response, url, dict(method=method, **kwargs))
+            value = dump_response(response, url, dict(method=method, **_kwargs))
             for k, fn in update.items():
                 value[k] = fn(row)
             if check:
