@@ -98,6 +98,11 @@ def re(expr, pos, value, pattern):
         raise ValueError("More than one match found for pattern: %r in value: %r." % (pattern, value))
 
 
+@handler(str, 'method')
+def sub(expr, pos, value, pattern, substitution):
+    return re_.sub(pattern, substitution, value)
+
+
 @handler(Task, 'method')
 def once(expr, pos, value):
     if expr._evals > 1:
