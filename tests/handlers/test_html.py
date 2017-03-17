@@ -333,3 +333,12 @@ def test_check_expr(bot):
     with pytest.raises(ValueError) as e:
         selector(row)
     assert str(e.value) == "Select query did not returned any results. Query: ['h1']"
+
+
+def test_apply_with_select_arg(Html):
+    def f(value, link):
+        return value, link
+
+    row = Html(['<div><p>1</p></div>'])
+    selector = html.Select(select('p:text').cast(int).apply(f, this.key))
+    assert selector(row) == (1, 'http://exemple.com')

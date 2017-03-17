@@ -73,11 +73,19 @@ class Expression:
         else:
             return item.args, item.kwargs
 
-    def _eval(self, value):
-        orig_value = value
+    def _eval(self, value, base=None):
+        """Evaluate expression with given value and base.
 
+        Parameters
+        ----------
+        value : object
+            Value used to evaluate this expression.
+        base : object
+            Base value used as value for expressions passed as arguments. If not given, base will be equal to value.
+
+        """
         self._evals += 1
-
+        base = value if base is None else base
         for i, item in enumerate(self._stack):
             if isinstance(item, Func):
                 for handler in HANDLERS[item.name]:
@@ -86,7 +94,7 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        args, kwargs = self._eval_args(orig_value, item, handler.eval_args)
+                        args, kwargs = self._eval_args(base, item, handler.eval_args)
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
@@ -104,7 +112,7 @@ class Expression:
                         (handler.types is None or isinstance(value, handler.types))
                     )
                     if conditions:
-                        args, kwargs = self._eval_args(orig_value, item, handler.eval_args)
+                        args, kwargs = self._eval_args(base, item, handler.eval_args)
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
@@ -114,7 +122,7 @@ class Expression:
                         break
                 else:
                     method = getattr(value, item.name)
-                    args, kwargs = self._eval_args(orig_value, item)
+                    args, kwargs = self._eval_args(base, item)
                     logger.debug('eval: %s', _HandlerRepr(method, args, kwargs))
                     value = method(*args, **kwargs)
 

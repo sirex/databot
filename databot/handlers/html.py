@@ -140,9 +140,9 @@ class Select(object):
                     value = html
 
                 if many and single:
-                    return [expr._eval(v) for v in value]
+                    return [expr._eval(v, row) for v in value]
                 else:
-                    return expr._eval(value)
+                    return expr._eval(value, row)
             else:
                 return value._eval(row)
         elif isinstance(value, Call):
@@ -346,7 +346,7 @@ def func(skipna=False):
 
 @handler(item='method', eval_args=False)
 def select(expr, pos, pipe, *args, **kwargs):
-    pipe.select(*args, **kwargs)
+    return pipe.select(*args, **kwargs)
 
 
 @handler(item='method')

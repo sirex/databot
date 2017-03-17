@@ -1,6 +1,6 @@
 import time
 
-from databot.recursive import call
+from databot import recursive
 from databot.db.utils import Row
 from databot.handlers.html import Select
 from databot.expressions.base import Expression
@@ -51,7 +51,7 @@ def download(session, urlexpr, delay=None, update=None, check=None, method='GET'
             time.sleep(delay)
 
         if isinstance(row, Row):
-            _kwargs = call(kwargs, row)
+            _kwargs = recursive.call(kwargs, row)
             url = urlexpr._eval(row) if isinstance(urlexpr, Expression) else urlexpr
         else:
             _kwargs = kwargs
@@ -61,8 +61,7 @@ def download(session, urlexpr, delay=None, update=None, check=None, method='GET'
 
         if response.status_code == 200:
             value = dump_response(response, url, dict(method=method, **_kwargs))
-            for k, fn in update.items():
-                value[k] = fn(row)
+            value = recursive.call(value, row)
             if check:
                 check_download(url, value, check)
             yield url, value
