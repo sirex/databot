@@ -1,3 +1,5 @@
+import copy
+
 from databot.expressions.base import Expression
 
 
@@ -16,3 +18,17 @@ def call(value, *args, **kwargs):
         return tuple([call(v, *args, **kwargs) for v in value])
     else:
         return value
+
+
+def update(source, data):
+    if isinstance(data, dict):
+        target = copy.deepcopy(source) if isinstance(source, dict) else {}
+        for key, new in data.items():
+            old = target
+            keys = key.split('.')
+            for k in keys[:-1]:
+                old = old[k] if k in old else {}
+            old[keys[-1]] = new
+        return target
+    else:
+        return data
