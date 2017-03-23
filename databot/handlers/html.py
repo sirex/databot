@@ -75,7 +75,9 @@ class Select(object):
                     selector = (self.key, self.value)
                 else:
                     selector = self.key
-                raise ValueError("Select query did not returned any results. Query: %r" % (selector,))
+                raise SelectorError(
+                    "Select query did not returned any results. Row key: %r. Query: %r" % (row.key, selector)
+                )
         else:
             return result
 
@@ -139,10 +141,15 @@ class Select(object):
                 else:
                     value = html
 
-                if many and single:
-                    return [expr._eval(v, row) for v in value]
-                else:
-                    return expr._eval(value, row)
+                try:
+                    if many and single:
+                        return [expr._eval(v, row) for v in value]
+                    else:
+                        return expr._eval(value, row)
+                except Exception as e:
+                    raise SelectorError("Expression error while evaluating %r. Error: %s. Context:\n\n%s" % (
+                        value, e, lxml.etree.tostring(html, pretty_print=True).decode('utf-8')
+                    ))
             else:
                 return value._eval(row)
         elif isinstance(value, Call):
@@ -173,18 +180,18 @@ class Select(object):
                     return None
                 else:
                     if html.tag != 'html':
-                        raise ValueError("'%s' did not returned any results. Context:\n\n%s" % (
+                        raise SelectorError("'%s' did not returned any results. Context:\n\n%s" % (
                             value, lxml.etree.tostring(html, pretty_print=True).decode('utf-8')
                         ))
                     else:
-                        raise ValueError("'%s' did not returned any results. Source: %s" % (value, row.key))
+                        raise SelectorError("'%s' did not returned any results. Source: %s" % (value, row.key))
             elif len(result) > 1:
                 if html.tag != 'html':
-                    raise ValueError("'%s' returned more than one value: %r. Context:\n\n%s" % (
+                    raise SelectorError("'%s' returned more than one value: %r. Context:\n\n%s" % (
                         value, result, lxml.etree.tostring(html, pretty_print=True).decode('utf-8')
                     ))
                 else:
-                    raise ValueError("'%s' returned more than one value: %r." % (value, result))
+                    raise SelectorError("'%s' returned more than one value: %r." % (value, result))
             else:
                 return result[0]
 
@@ -307,6 +314,23 @@ class First(Call):
         return None
 
 
+class OneOf(Call):
+
+    def __init__(self, *queries):
+        self.queries = queries
+
+    def __call__(self, select, row, node, many=False, single=True):
+        for query in self.queries:
+            try:
+                value = select.render(row, node, query, many, single=True)
+            except SelectorError:
+                pass
+            else:
+                if value:
+                    return value
+        return None
+
+
 class Subst(Call):
 
     def __init__(self, query, subst, default=Exception):
@@ -391,3 +415,7 @@ def text(expr, pos, nodes, strip=True, exclude=None):
         text = '\n\n'.join(filter(None, lines))
 
     return text
+
+
+class SelectorError(Exception):
+    pass

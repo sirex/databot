@@ -14,6 +14,7 @@ from databot.db import migrations
 from databot.db.models import Models
 from databot.commands import Command
 from databot.exceptions import PipeNameError
+from databot.handlers.html import SelectorError
 
 
 def test_pipe_name_error(bot):
@@ -150,9 +151,11 @@ def test_select_check(bot):
     assert bot.commands.select(p1, query=['span.missing:text'], check=False) is None
     assert bot.commands.select(p1, query=['span.missing:text'], check='span.check') is None
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(SelectorError) as e:
         bot.commands.select(p1, query=['span.missing:text'])
-    assert str(e.value) == "Select query did not returned any results. Query: ['span.missing:text']"
+    assert str(e.value) == (
+        "Select query did not returned any results. Row key: 'http://example.com/'. Query: ['span.missing:text']"
+    )
 
 
 def test_download(bot, requests):

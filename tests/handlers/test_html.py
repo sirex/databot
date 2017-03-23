@@ -1,8 +1,10 @@
+from textwrap import dedent
+
 import pytest
 import databot
 import databot.pipes
 
-from databot import select, value, this
+from databot import select, value, this, oneof
 
 from databot.handlers import html
 
@@ -44,14 +46,14 @@ def test_css_list(Html):
 def test_css_not_fould_value_error(Html):
     row = Html(['<p id="a">value-a</p><p id="b">value-b</p><p id="c">value-c</p>'])
     qry = html.Select(None, '#missing')
-    with pytest.raises(ValueError):
+    with pytest.raises(html.SelectorError):
         qry(row)
 
 
 def test_css_multiple_values_error(Html):
     row = Html(['<p id="a">value-a</p><p id="b">value-b</p><p id="c">value-c</p>'])
     qry = html.Select(None, 'p:text')
-    with pytest.raises(ValueError):
+    with pytest.raises(html.SelectorError):
         qry(row)
 
 
@@ -179,7 +181,7 @@ def test_first_from_list(Html):
     row = Html(['<div><a name="1">a</a><a name="2">b</a></div>'])
 
     qry = html.Select(databot.first('a:text'))
-    with pytest.raises(ValueError):
+    with pytest.raises(html.SelectorError):
         qry(row)
 
     qry = html.Select(databot.first(['a:text']))
@@ -281,9 +283,11 @@ def test_empty_result(Html):
 
     # Raise error, if selector did not found anything
     selector = html.Select(['p.new:text'])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(html.SelectorError) as e:
         selector(row)
-    assert str(e.value) == "Select query did not returned any results. Query: ['p.new:text']"
+    assert str(e.value) == (
+        "Select query did not returned any results. Row key: 'http://exemple.com'. Query: ['p.new:text']"
+    )
 
     # Allow empty result from selector.
     selector = html.Select(['p.new:text'], check=False)
@@ -310,9 +314,17 @@ def test_null(Html):
     row = Html(['<div><p id="this"> p1 </p>/div>'])
 
     selector = html.Select(select('#wrong:text?').strip())
-    with pytest.raises(AttributeError) as e:
+    with pytest.raises(html.SelectorError) as e:
         selector(row)
-    assert str(e.value) == "'NoneType' object has no attribute 'strip'"
+    assert str(e.value) == dedent('''\
+        Expression error while evaluating None. Error: 'NoneType' object has no attribute 'strip'. Context:
+
+        <html>
+          <body>
+            <div><p id="this"> p1 </p>/div&gt;</div>
+          </body>
+        </html>
+    ''')
 
     selector = html.Select(select('#wrong:text?').null().strip())
     assert selector(row) is None
@@ -330,9 +342,9 @@ def test_check_expr(bot):
     assert selector(row) == []
 
     selector = html.Select(['h1'])
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(html.SelectorError) as e:
         selector(row)
-    assert str(e.value) == "Select query did not returned any results. Query: ['h1']"
+    assert str(e.value) == "Select query did not returned any results. Row key: 'http://exemple.com'. Query: ['h1']"
 
 
 def test_apply_with_select_arg(Html):
@@ -342,3 +354,21 @@ def test_apply_with_select_arg(Html):
     row = Html(['<div><p>1</p></div>'])
     selector = html.Select(select('p:text').cast(int).apply(f, this.key))
     assert selector(row) == (1, 'http://exemple.com')
+
+
+def test_oneof(Html):
+    row = Html([
+        '<div>'
+        '  <p><a>1</a></p>'
+        '  <p><b>2</b></p>'
+        '  <p><i>3</i></p>'
+        '</div>'
+    ])
+    selector = html.Select([
+        'div p', oneof(
+            select('a:text'),
+            select('b:text'),
+            select('i:text'),
+        )
+    ])
+    assert selector(row) == ['1', '2', '3']
