@@ -99,6 +99,11 @@ def re(expr, pos, value, pattern):
 
 
 @handler(str, 'method')
+def rall(expr, pos, value, pattern):
+    return re_.findall(pattern, value)
+
+
+@handler(str, 'method')
 def sub(expr, pos, value, pattern, substitution):
     return re_.sub(pattern, substitution, value)
 
