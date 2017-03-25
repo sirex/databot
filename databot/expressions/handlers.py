@@ -111,7 +111,7 @@ def sub(expr, pos, value, pattern, substitution):
 @handler(Task, 'method')
 def once(expr, pos, value):
     if expr._evals > 1:
-        raise StopEval()
+        raise StopEval(value)
     else:
         return value
 
@@ -122,7 +122,7 @@ def freq(expr, pos, value, timedelta=None, **kwargs):
         if timedelta is None:
             timedelta = datetime.timedelta(**kwargs)
         if value.age() < timedelta:
-            raise StopEval()
+            raise StopEval(value)
     else:
         raise TypeError("Unsupported task type: %r." % type(value))
 
@@ -133,7 +133,7 @@ def freq(expr, pos, value, timedelta=None, **kwargs):
 def daily(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=1):
-            raise StopEval()
+            raise StopEval(value)
     else:
         raise TypeError("Unsupported task type: %r." % type(value))
 
@@ -144,7 +144,7 @@ def daily(expr, pos, value):
 def weekly(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=7):
-            raise StopEval()
+            raise StopEval(value)
     else:
         raise TypeError("Unsupported task type: %r." % type(value))
 
@@ -155,7 +155,7 @@ def weekly(expr, pos, value):
 def monthly(expr, pos, value):
     if isinstance(value, (Pipe, TaskPipe)):
         if value.age() < datetime.timedelta(days=30):
-            raise StopEval()
+            raise StopEval(value)
     else:
         raise TypeError("Unsupported task type: %r." % type(value))
 
@@ -164,8 +164,41 @@ def monthly(expr, pos, value):
 
 @handler(item='method')
 def null(expr, pos, value):
+    """Stop expression execution if value is None."""
     if value is None:
-        raise StopEval()
+        raise StopEval(value)
+    else:
+        return value
+
+
+@handler(item='method')
+def notnull(expr, pos, value):
+    """Raises ValueError if value is None."""
+    if value is None:
+        raise ValueError('value should not be null')
+    else:
+        return value
+
+
+@handler(item='method')
+def bypass(expr, pos, value, *args):
+    """Stop expression execution if key is found in given mapping.
+
+    bypass(mapping) - in this case key is value
+    bypass(key, mapping) - in this case key is another expression
+
+    If key is found in given mapping, expression will stop execution and returns with a mapping[key] value.
+    """
+    if len(args) == 1:
+        key = value
+        mapping, = args
+    elif len(args) == 2:
+        key, mapping = args
+    else:
+        raise TypeError('bypass() takes only one or tow arguments, got: %d' % len(args))
+
+    if key in mapping:
+        raise StopEval(mapping[key])
     else:
         return value
 

@@ -349,11 +349,17 @@ class Reset(Command):
     def add_arguments(self, parser):
         parser.add_argument('source', type=str, help="Source pipe.")
         parser.add_argument('target', type=str, help="Target pipe.")
+        parser.add_argument('--clean', action='store_true', help="Reset and clean target.")
 
     def run(self, args):
         source = self.pipe(args.source)
         target = self.pipe(args.target)
+        self.call(source, target, clean=args.clean)
+
+    def call(self, source, target, clean=False):
         target(source).reset()
+        if clean:
+            target.clean()
         self.bot.output.status(self.bot)
 
 

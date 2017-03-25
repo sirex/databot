@@ -98,9 +98,9 @@ class Expression:
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
-                        except StopEval:
+                        except StopEval as e:
                             logger.debug('eval: StopEval')
-                            return value
+                            return e.value
                         break
                 else:
                     raise ExpressionError("Unknown function %r for value %r." % (item.name, value))
@@ -116,9 +116,9 @@ class Expression:
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,) + args, kwargs))
                         try:
                             value = handler.handler(self, i, value, *args, **kwargs)
-                        except StopEval:
+                        except StopEval as e:
                             logger.debug('eval: StopEval')
-                            return value
+                            return e.value
                         break
                 else:
                     method = getattr(value, item.name)
@@ -136,9 +136,9 @@ class Expression:
                         logger.debug('eval: %s', _HandlerRepr(handler.handler, (value,), {}))
                         try:
                             value = handler.handler(value)
-                        except StopEval:
+                        except StopEval as e:
                             logger.debug('eval: StopEval')
-                            return value
+                            return e.value
                         break
                 else:
                     if isinstance(value, dict):

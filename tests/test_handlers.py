@@ -21,3 +21,26 @@ def test_header_content_type():
     assert this['Content-Type'].header().type._eval(value) == 'text'
     assert this['Content-Type'].header().subtype._eval(value) == 'plain'
     assert this['Content-Type'].header().charset._eval(value) == 'UTF-8'
+
+
+def test_bypass():
+    data = {'key': 1, 'value': 'a'}
+
+    assert this.value.bypass({'a': 'b'})._eval(data) == 'b'
+    assert this.value.bypass({'x': 'b'})._eval(data) == 'a'
+
+    assert this.value.bypass({'a': 'b'}).upper()._eval(data) == 'b'
+    assert this.value.bypass({'x': 'b'}).upper()._eval(data) == 'A'
+
+    assert this.value.bypass(this.key, {1: 'b'})._eval(data) == 'b'
+    assert this.value.bypass(this.key, {2: 'b'})._eval(data) == 'a'
+
+    assert this.value.bypass(this.key, {1: 'b'}).upper()._eval(data) == 'b'
+    assert this.value.bypass(this.key, {2: 'b'}).upper()._eval(data) == 'A'
+
+
+def test_notnull():
+    with pytest.raises(ValueError):
+        this.notnull()._eval(None)
+
+    assert this.notnull()._eval(1) == 1

@@ -1,3 +1,4 @@
+import re
 import os
 import io
 import json
@@ -8,6 +9,7 @@ import freezegun
 import pytest
 import textwrap
 import pandas as pd
+from textwrap import dedent
 
 from databot import Bot, define, task, this
 from databot.db import migrations
@@ -184,34 +186,50 @@ def test_skip(bot):
     bot.define('p1').append([1, 2, 3, 4])
     bot.define('p2')
     bot.main(argv=['skip', 'p1', 'p2'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 4  p1      ",
-        "            0         0    p2    ",
-        "---------------------------------",
-        "    2                 0  p2      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 4  p1
+                    0         0    p2
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_reset(bot):
-    bot.define('p1').append([1, 2, 3, 4])
-    bot.define('p2')
+    p1 = bot.define('p1').append([1, 2, 3, 4])
+    p2 = bot.define('p2').append([6, 7, 8, 9])
+    p2(p1).skip()
     bot.main(argv=['reset', 'p1', 'p2'])
-    bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 4  p1      ",
-        "            0         4    p2    ",
-        "---------------------------------",
-        "    2                 0  p2      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 4  p1
+                    0         4    p2
+        ---------------------------------
+            2                 4  p2
+        ---------------------------------
+    ''')
+
+
+def test_reset_clean(bot):
+    p1 = bot.define('p1').append([1, 2, 3, 4])
+    p2 = bot.define('p2').append([6, 7, 8, 9])
+    p2(p1).skip()
+    bot.main(argv=['reset', 'p1', 'p2', '--clean'])
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 4  p1
+                    0         4    p2
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_offset(bot):
@@ -219,85 +237,78 @@ def test_offset(bot):
     p2 = bot.define('p2')
     p2(p1).skip()
     bot.main(argv=['offset', 'p1', 'p2', '-1'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 4  p1      ",
-        "            0         1    p2    ",
-        "---------------------------------",
-        "    2                 0  p2      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 4  p1
+                    0         1    p2
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_clean(bot):
     bot.define('p1').append([1, 2, 3, 4])
     bot.main(argv=['clean', 'p1'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 0  p1      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 0  p1
+        ---------------------------------
+    ''')
 
 
 def test_clean_key(bot):
     bot.define('p1').append([1, 2, 2, 3])
     bot.main(argv=['clean', 'p1', '2', '-e'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 3  p1      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 3  p1
+        ---------------------------------
+    ''')
 
 
 def test_clean_key_not_found(bot):
     bot.define('p1').append([1, 2, 2, 3])
     bot.main(argv=['clean', 'p1', '42'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "Item with key='42' not found.",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+        Item with key='42' not found.
+    ''')
 
 
 def test_compact(bot):
     bot.define('p1').append([1, 1, 2, 1, 1])
     bot.main(argv=['compact', 'p1'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 2  p1      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 2  p1
+        ---------------------------------
+    ''')
 
 
 def test_show(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b')])
     bot.main(argv=['show', 'p1'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "- key: 2  ",
-        "  value: 'b'",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+        - key: 2
+          value: 'b'
+    ''')
 
 
 def test_show_key(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b')])
     bot.main(argv=['show', 'p1', '-k', '1'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "- key: 1  ",
-        "  value: 'a'",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+        - key: 1
+          value: 'a'
+    ''')
 
 
 def test_show_target_errors(bot):
@@ -305,11 +316,10 @@ def test_show_target_errors(bot):
     p2 = bot.define('p2')
     p2(p1).errors.report(p1.get('2'), 'Error.')
     bot.main(argv=['show', 'p1', 'p2', '-e'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "- key: '2'  ",
-        "  value: 'b'",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+        - key: '2'
+          value: 'b'
+    ''')
 
 
 def test_show_open(mocker, bot):
@@ -324,7 +334,7 @@ def test_show_open(mocker, bot):
 
     bot.main(argv=['show', 'p1'])
     assert run.call_count == 1
-    assert bot.output.output.getvalue() == textwrap.dedent('''\
+    assert bot.output.output.getvalue() == dedent('''\
         - key: 'http://example.com/'
           value:
             {'headers': {'Content-Type': 'text/html'}}
@@ -346,7 +356,7 @@ def test_show_open_attachment(mocker, bot):
 
     bot.main(argv=['show', 'p1'])
     assert run.call_count == 1
-    assert bot.output.output.getvalue() == textwrap.dedent('''\
+    assert bot.output.output.getvalue() == dedent('''\
         - key: 'http://example.com/'
           value:
             {'headers': {'Content-Disposition': 'attachment; filename="TAIS_251059.DOC"',
@@ -357,37 +367,34 @@ def test_show_open_attachment(mocker, bot):
 def test_head(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')])
     bot.main(argv=['head', 'p1', '-t', '-n', '2'])
-    assert bot.output.output.getvalue() == '\n'.join([
-        "key   value ",
-        "===========",
-        "1     a     ",
-        "2     b     ",
-        "",
-    ])
+    assert clean(bot.output.output.getvalue()) == dedent('''\
+        key   value
+        ===========
+        1     a
+        2     b
+    ''')
 
 
 def test_tail(bot):
     bot.define('p1').append([(1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e')])
     bot.main(argv=['tail', 'p1', '-t', '-n', '2'])
-    assert bot.output.output.getvalue() == '\n'.join([
-        "key   value ",
-        "===========",
-        "4     d     ",
-        "5     e     ",
-        "",
-    ])
+    assert clean(bot.output.output.getvalue()) == dedent('''\
+        key   value
+        ===========
+        4     d
+        5     e
+    ''')
 
 
 def test_tail_include(bot):
     bot.define('p1').append([(1, {'a': 1, 'b': 2}), (2, {'b': 3})])
     bot.main(argv=['tail', 'p1', '-t', '-i', 'a,b'])
-    assert bot.output.output.getvalue() == '\n'.join([
-        " a     b ",
-        "========",
-        "1      2 ",
-        "None   3 ",
-        "",
-    ])
+    assert clean(bot.output.output.getvalue()) == dedent('''\
+         a     b
+        ========
+        1      2
+        None   3
+    ''')
 
 
 def test_export_csv(bot):
@@ -395,12 +402,11 @@ def test_export_csv(bot):
     temp = tempfile.NamedTemporaryFile(suffix='.csv', delete=False)
     bot.main(argv=['export', 'p1', temp.name])
     with open(temp.name) as f:
-        assert f.read() == '\n'.join([
-            "key,value",
-            "1,a",
-            "2,b",
-            "",
-        ])
+        assert f.read() == dedent('''\
+            key,value
+            1,a
+            2,b
+        ''')
     os.unlink(temp.name)
 
 
@@ -409,12 +415,11 @@ def test_export_include(bot):
     temp = tempfile.NamedTemporaryFile(suffix='.csv', delete=False)
     bot.main(argv=['export', 'p1', temp.name, '-i', 'a,b'])
     with open(temp.name) as f:
-        assert f.read() == '\n'.join([
-            "a,b",
-            "1,2",
-            ",3",
-            "",
-        ])
+        assert f.read() == dedent('''\
+            a,b
+            1,2
+            ,3
+        ''')
     os.unlink(temp.name)
 
 
@@ -423,12 +428,11 @@ def test_export_tsv(bot):
     temp = tempfile.NamedTemporaryFile(suffix='.tsv', delete=False)
     bot.main(argv=['export', 'p1', temp.name])
     with open(temp.name) as f:
-        assert f.read() == '\n'.join([
-            "key\tvalue",
-            "1\ta",
-            "2\tb",
-            "",
-        ])
+        assert f.read() == dedent('''\
+            key\tvalue
+            1\ta
+            2\tb
+        ''')
     os.unlink(temp.name)
 
 
@@ -438,13 +442,12 @@ def test_export_no_header_append(bot):
     bot.main(argv=['export', 'p1', temp.name, '--no-header'])
     bot.main(argv=['export', 'p1', temp.name, '--no-header', '--append'])
     with open(temp.name) as f:
-        assert f.read() == '\n'.join([
-            "1,a",
-            "2,b",
-            "1,a",
-            "2,b",
-            "",
-        ])
+        assert f.read() == dedent('''\
+            1,a
+            2,b
+            1,a
+            2,b
+        ''')
 
     os.unlink(temp.name)
 
@@ -469,17 +472,16 @@ def test_resolve_all(bot):
     t2(t1).errors.report(rows[2], 'Error 2')
 
     bot.main(argv=['resolve', 'p1', 'p2'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 3  p1      ",
-        "            0         3    p2    ",
-        "---------------------------------",
-        "    2                 0  p2      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 3  p1
+                    0         3    p2
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_resolve_key(bot):
@@ -491,17 +493,16 @@ def test_resolve_key(bot):
     t2(t1).errors.report(rows[2], 'Error 2')
 
     bot.main(argv=['resolve', 'p1', 'p2', '3'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "   id              rows  source  ",
-        "       errors      left    target",
-        "=================================",
-        "    1                 3  p1      ",
-        "            1         3    p2    ",
-        "---------------------------------",
-        "    2                 0  p2      ",
-        "---------------------------------",
-        "",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 3  p1
+                    1         3    p2
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_error_when_migrations_not_applied(mocker, db):
@@ -517,22 +518,21 @@ def test_error_when_migrations_not_applied(mocker, db):
     db.engine.execute(p1.table.insert().values(key='1', value=b'"a"'))
 
     bot.main(argv=['status'])
-    assert bot.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "You need to run database migrations:                   ",
-        "                                                       ",
-        "    databot sqlite:///:memory: migrate                 ",
-        "                                                       ",
-        "List of unapplied migrations:                          ",
-        "                                                       ",
-        "  - ValueToMsgpack                                     ",
-        "                                                       ",
-        "   id              rows  source                        ",
-        "       errors      left    target                      ",
-        "=================================                      ",
-        "    1                 1  p1                            ",
-        "---------------------------------                      ",
-        "                                                       ",
-    ]))
+    assert bot.output.output.getvalue() == dedent('''\
+        You need to run database migrations:
+
+            databot sqlite:///:memory: migrate
+
+        List of unapplied migrations:
+
+          - ValueToMsgpack
+
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 1  p1
+        ---------------------------------
+    ''')
 
 
 def test_migrate(mocker, db):
@@ -569,26 +569,25 @@ def test_external_db_error_when_migrations_not_applied(mocker, db):
     bot2.define('p1', bot1.engine)
     bot2.define('p2')
     bot2.main(argv=['status'])
-    assert bot2.output.output.getvalue() == '\n'.join(map(str.rstrip, [
-        "External database 'sqlite:///:memory:' from 'p1' pipe has unapplied migrations.",
-        "                                                                               ",
-        "You need to run database migrations:                                           ",
-        "                                                                               ",
-        "    databot sqlite:///:memory: migrate                                         ",
-        "                                                                               ",
-        "List of unapplied migrations:                                                  ",
-        "                                                                               ",
-        "  - ValueToMsgpack                                                             ",
-        "                                                                               ",
-        "   id              rows  source                                                ",
-        "       errors      left    target                                              ",
-        "=================================                                              ",
-        "    1                 0  p1                                                    ",
-        "---------------------------------                                              ",
-        "    2                 0  p2                                                    ",
-        "---------------------------------                                              ",
-        "                                                                               ",
-    ]))
+    assert bot2.output.output.getvalue() == dedent('''\
+        External database 'sqlite:///:memory:' from 'p1' pipe has unapplied migrations.
+
+        You need to run database migrations:
+
+            databot sqlite:///:memory: migrate
+
+        List of unapplied migrations:
+
+          - ValueToMsgpack
+
+           id              rows  source
+               errors      left    target
+        =================================
+            1                 0  p1
+        ---------------------------------
+            2                 0  p2
+        ---------------------------------
+    ''')
 
 
 def test_errors(bot):
@@ -748,3 +747,7 @@ def test_run_error_limit_n(bot, capsys):
     assert list(bot.pipe('p2').items()) == [(1, 'A')]
     assert capsys.readouterr()[0] == 'Interrupting bot because error limit of 2 was reached.\n'
     assert task('p1', 'p2').errors.count()._eval(bot) == 2
+
+
+def clean(text):
+    return re.sub(r'( +)$', '', text, flags=re.MULTILINE)

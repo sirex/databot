@@ -6,7 +6,9 @@ Handler = namedtuple('Handler', ('handler', 'types', 'items', 'eval_args'))
 
 
 class StopEval(Exception):
-    pass
+
+    def __init__(self, value):
+        self.value = value
 
 
 def handler(types=None, item=None, eval_args=True):
