@@ -64,6 +64,7 @@ def download(session, urlexpr, delay=None, update=None, check=None, method='GET'
             value = recursive.call(value, row)
             if check:
                 check_download(url, value, check)
+            value = recursive.update(value, recursive.call(update, row))
             yield url, value
         else:
             raise DownloadErrror('Error while downloading %s, returned status code was %s, response content:\n\n%s' % (

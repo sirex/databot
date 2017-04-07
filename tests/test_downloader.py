@@ -121,3 +121,34 @@ def test_download_post(bot, requests):
         'method': 'POST',
         'data': {'value': '2'},
     }
+
+
+def test_download_update(bot, requests):
+    url = 'http://example.com/1'
+    requests.get(url, content=b'<div></div>')
+
+    bot.define('source').append([(url, {'extra': 42})])
+    target = bot.define('target')
+
+    tasks = [
+        task('source', 'target').download(update={
+            'extra': this.value.extra,
+            'request.foo': 'bar',
+        })
+    ]
+
+    bot.commands.run(tasks, limits=(0,), error_limit=0)
+    assert list(target.items()) == [('http://example.com/1', {
+        'content': b'<div></div>',
+        'cookies': {},
+        'encoding': None,
+        'extra': 42,
+        'headers': {},
+        'history': [],
+        'status_code': 200,
+        'url': 'http://example.com/1',
+        'request': {
+            'method': 'GET',
+            'foo': 'bar',
+        },
+    })]
