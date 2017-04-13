@@ -270,6 +270,18 @@ def test_text(Html):
     ]
 
 
+def test_text_comments(Html):
+    row = Html(['<div><p>text <!-- comment --><o:p></o:p></p></div>'])
+    selector = html.Select(select('div').text())
+    assert selector(row) == 'text'
+
+
+def test_text_processing_instructions(Html):
+    row = Html(['<div><p>text <?xml:namespace prefix="o" /></p></div>'])
+    selector = html.Select(select('div').text())
+    assert selector(row) == 'text'
+
+
 def test_empty_result(Html):
     row = Html([
         '<div>',

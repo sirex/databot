@@ -383,6 +383,9 @@ def text(expr, pos, nodes, strip=True, exclude=None):
                 continue
             if node.tag in ('script', 'style', 'head'):
                 continue
+            if callable(node.tag) and node.tag.func_name == 'ProcessingInstruction':
+                # Skip things like <?xml:namespace prefix="o" />
+                continue
             if node in exclude_nodes:
                 continue
 
