@@ -14,6 +14,7 @@ from databot.bulkinsert import BulkInsert
 from databot.exporters.services import export
 from databot.expressions.base import Expression
 from databot.tasks import Task
+from databot.services import merge_rows
 
 
 NONE = object()
@@ -623,6 +624,19 @@ class Pipe(Task):
             query = sa.select([query.alias().c.id])
 
         self.engine.execute(self.table.delete(self.table.c.id.in_(query)))
+        return self
+
+    def merge(self):
+        """Merge all duplicate value, newer values overwrites older values.
+
+        Dicts will be merged recursively.
+
+        After merge, old values will be left as is, use compact to remove them.
+
+        """
+        query = self.table.select().order_by(self.table.c.key, self.table.c.created)
+        rows = merge_rows(create_row(row) for row in windowed_query(self.engine, query, self.table.c.id))
+        self.append((x.key, x.value) for x in rows)
         return self
 
     def compress(self):

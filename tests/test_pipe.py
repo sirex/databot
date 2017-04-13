@@ -199,3 +199,13 @@ def test_clean_key(bot):
 
     p1.clean()
     assert list(p1.keys()) == []
+
+
+def test_merge_scalar(bot):
+    data = [
+        (1, {'a': 1, 'b': 2}),
+        (1, {'a': 1, 'b': 2, 'c': 3}),
+        (1, {'a': 8, 'b': 2}),
+    ]
+    pipe = bot.define('p1').append(data).merge().compact()
+    assert list(pipe.items()) == [(1, {'a': 8, 'b': 2})]
