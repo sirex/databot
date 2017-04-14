@@ -635,8 +635,8 @@ class Pipe(Task):
 
         """
         query = self.table.select().order_by(self.table.c.key, self.table.c.created)
-        rows = merge_rows(create_row(row) for row in windowed_query(self.engine, query, self.table.c.id))
-        self.append((x.key, x.value) for x in rows)
+        rows = (create_row(row) for row in windowed_query(self.engine, query, self.table.c.id))
+        self.append(merge_rows((row.key, row.value) for row in rows))
         return self
 
     def compress(self):

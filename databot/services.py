@@ -1,17 +1,26 @@
-def merge_rows(rows):
-    key = None
-    value = None
-    merged = False
-    for row in rows:
-        if row.key == key:
-            if isinstance(value, dict) and isinstance(row.value, dict):
-                value.update(row.value)
+from operator import itemgetter
+from itertools import groupby
+
+from databot import recursive
+
+
+def merge_rows(items):
+    """Merge all values grouped by keys.
+
+    items shoulbe be sorted by key already.
+    """
+    for key, values in groupby(items, key=itemgetter(0)):
+        values = (v for k, v in values)
+        value = next(values, None)
+        merged = False
+        for new in values:
+            if value is None and isinstance(new, dict):
+                value = new
+            elif isinstance(value, dict) and isinstance(new, dict):
+                recursive.merge(value, new)
                 merged = True
             else:
-                value = row.value
-        else:
-            if merged:
                 merged = False
-                yield key, value
-            key = row.key
-            value = row.value
+                break
+        if merged:
+            yield key, value

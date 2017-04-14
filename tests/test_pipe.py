@@ -203,9 +203,32 @@ def test_clean_key(bot):
 
 def test_merge_scalar(bot):
     data = [
+        (1, 'a'),
+        (1, 'b'),
+        (1, 'c'),
+    ]
+    pipe = bot.define('p1').append(data).merge()
+    assert list(pipe.items()) == data
+
+
+def test_merge_dict(bot):
+    data = [
         (1, {'a': 1, 'b': 2}),
         (1, {'a': 1, 'b': 2, 'c': 3}),
-        (1, {'a': 8, 'b': 2}),
+        (1, {'a': 8, 'b': 2, 'x': 4}),
     ]
-    pipe = bot.define('p1').append(data).merge().compact()
-    assert list(pipe.items()) == [(1, {'a': 8, 'b': 2})]
+    pipe = bot.define('p1').append(data).merge()
+    assert list(pipe.items()) == data + [
+        (1, {'a': 8, 'b': 2, 'c': 3, 'x': 4}),
+    ]
+
+
+def test_merge_dict_nested(bot):
+    data = [
+        (1, {'a': {'b': {'x': 1}}}),
+        (1, {'a': {'b': {'y': 1}}}),
+    ]
+    pipe = bot.define('p1').append(data).merge()
+    assert list(pipe.items()) == data + [
+        (1, {'a': {'b': {'x': 1, 'y': 1}}}),
+    ]

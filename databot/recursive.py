@@ -1,4 +1,5 @@
 import copy
+import collections
 
 from databot.expressions.base import Expression
 
@@ -32,3 +33,12 @@ def update(source, data):
         return target
     else:
         return data
+
+
+def merge(source, data):
+    for key, value in data.items():
+        if isinstance(value, collections.Mapping):
+            source[key] = merge(source.get(key, {}), value)
+        else:
+            source[key] = data[key]
+    return source
