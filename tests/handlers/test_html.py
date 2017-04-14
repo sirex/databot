@@ -282,6 +282,12 @@ def test_text_processing_instructions(Html):
     assert selector(row) == 'text'
 
 
+def test_text_text(Html):
+    row = Html(['<div><p>1</p>2<p>3</p>4</div>'])
+    selector = html.Select(select(['xpath://p[1]/following-sibling::node()']).text())
+    assert selector(row) == '2 3\n\n4'
+
+
 def test_empty_result(Html):
     row = Html([
         '<div>',

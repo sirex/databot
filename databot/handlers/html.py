@@ -376,9 +376,12 @@ def select(expr, pos, pipe, *args, **kwargs):
 @handler(item='method')
 def text(expr, pos, nodes, strip=True, exclude=None):
     # Recursively extract all texts
-    def extract(nodes):
+    def extract(nodes, tail=False):
         texts = []
         for node in nodes:
+            if isinstance(node, str):
+                texts.append(node)
+                continue
             if node.tag is lxml.etree.Comment:
                 continue
             if node.tag in ('script', 'style', 'head'):
@@ -390,10 +393,11 @@ def text(expr, pos, nodes, strip=True, exclude=None):
                 continue
 
             texts.append(node.text)
-            texts.extend(extract(node.getchildren()))
+            texts.extend(extract(node.getchildren(), tail=True))
             if node.tag in ('p', 'br', 'h1', 'h2', 'h3', 'h4', 'h5'):
                 texts.append('\n')
-            texts.append(node.tail)
+            if tail:
+                texts.append(node.tail)
         return texts
 
     nodes = nodes if isinstance(nodes, list) else [nodes]
