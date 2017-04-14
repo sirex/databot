@@ -206,3 +206,11 @@ def bypass(expr, pos, value, *args):
 @handler(Task, item='method', eval_args=False)
 def download(expr, pos, pipe, *args, **kwargs):
     return pipe.download(*args, **kwargs)
+
+
+@handler((list, tuple), item='method')
+def get(expr, pos, value, key, default=None):
+    if len(value) - 1 >= key:
+        return value[key]
+    else:
+        return default

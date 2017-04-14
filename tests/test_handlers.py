@@ -44,3 +44,7 @@ def test_notnull():
         this.notnull()._eval(None)
 
     assert this.notnull()._eval(1) == 1
+
+
+def test_list_get():
+    assert this.get(1)._eval([1]) is None
