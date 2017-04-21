@@ -57,8 +57,8 @@ def query(url):
 
 
 @handler(str, 'method')
-def strip(expr, pos, value):
-    return value.strip()
+def strip(expr, pos, value, chars=None):
+    return value.strip(chars)
 
 
 @handler(str, 'method')
@@ -181,7 +181,7 @@ def notnull(expr, pos, value):
 
 
 @handler(item='method')
-def bypass(expr, pos, value, *args):
+def bypass(expr, pos, value, *args, **kwargs):
     """Stop expression execution if key is found in given mapping.
 
     bypass(mapping) - in this case key is value
@@ -199,6 +199,8 @@ def bypass(expr, pos, value, *args):
 
     if key in mapping:
         raise StopEval(mapping[key])
+    elif 'default' in kwargs:
+        raise StopEval(kwargs['default'])
     else:
         return value
 
