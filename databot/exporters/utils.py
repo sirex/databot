@@ -10,6 +10,13 @@ def get_fields(data, field=()):
     if isinstance(data, dict):
         for k, v in sorted(data.items()):
             fields.extend(get_fields(v, field + (k,)))
+    elif isinstance(data, (tuple, list)):
+        if field:
+            field = field[:-1] + (field[-1] + '[]',)
+        else:
+            field = ('[]',)
+        for v in data:
+            fields.extend(get_fields(v, field))
     else:
         fields.append(field)
     return fields

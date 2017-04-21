@@ -51,6 +51,31 @@ def test_missing_value(data):
     assert get_values(fields, data) == (1, None)
 
 
+def group_fields(fields):
+    pass
+
+
+def test_group_fields():
+    pass
+
+
+def test_nested_value(data):
+    data = {'a': 1, 'b': [
+        {'c': 1, 'd': 1},
+        {'c': 2, 'd': 2},
+    ]}
+    fields = [
+        ('a',),
+        ('b[]', 'c'),
+        ('b[]', 'd'),
+    ]
+    fields = [
+        ('a',),
+        ('b', ['c', 'd']),
+    ]
+    assert get_values(fields, data) == (1, None)
+
+
 def test_flatten_rows_update(data):
     rows = [
         Row(key=1, value={'text': 'abc'}),
@@ -62,6 +87,51 @@ def test_flatten_rows_update(data):
         [1, 3],
         [1, 5],
     ]
+
+
+def flatten_nested(nested, field=()):
+    if isinstance(nested, dict):
+        for k, v in nested.items():
+            yield from flatten_nested(v, field + (k,))
+    elif isinstance(nested, list):
+        if field:
+            field = field[:-1] + (field[-1] + '[]',)
+        else:
+            field = ('[]',)
+        for v in nested:
+            yield from flatten_nested(v, field)
+    else:
+        yield (field, nested)
+
+
+def split_flattened(flat):
+    for key, value in flat:
+        for i in range(1, len(key) - 1):
+            # yield key[:i], key[i:], value
+            yield '.'.join(key[:i]), '.'.join(key[i:]), value
+
+
+def group_flattened(flat):
+    from itertools import groupby
+    from operator import itemgetter
+
+    for key, group in groupby(split_flattened(flat), key=itemgetter(0)):
+        yield key, dict(x[1:] for x in group)
+
+
+def test_flattenjson():
+    rows = [
+        {'key': 1, 'value': {'events': [
+            {'name': 'Event 1', 'date': '2017-01-01'},
+            {'name': 'Event 2', 'date': '2017-02-01'},
+        ]}},
+        {'key': 2, 'value': {'events': [
+            {'name': 'Event 3', 'date': '2017-03-01'},
+            {'name': 'Event 4', 'date': '2017-04-01'},
+        ]}},
+    ]
+    # assert list(flatten_nested(rows)) == []
+    assert list(group_flattened(flatten_nested(rows))) == []
 
 
 def test_flatten_rows_update_without_include(data):
@@ -138,6 +208,22 @@ def test_flatten_int_key(data):
         ['key', 'year.2000', 'year.2001'],
         [1, 1, 2],
         [2, 3, 4],
+    ]
+
+
+def test_flatten_list(data):
+    rows = [
+        Row(key=1, value={'events': [
+            {'name': 'Event 1', 'date': '2017-01-01'},
+            {'name': 'Event 2', 'date': '2017-02-01'},
+        ]}),
+        Row(key=2, value={'events': [
+            {'name': 'Event 3', 'date': '2017-03-01'},
+            {'name': 'Event 4', 'date': '2017-04-01'},
+        ]}),
+    ]
+    assert list(flatten_rows(rows)) == [
+        ['key', 'events[].date', 'events[].name'],
     ]
 
 
