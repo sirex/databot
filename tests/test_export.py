@@ -119,19 +119,92 @@ def group_flattened(flat):
         yield key, dict(x[1:] for x in group)
 
 
+def commonstart(a, b):
+    for a, b in zip(a, b):
+        if a == b:
+            yield a
+        else:
+            break
+
+
+def includes(items, value):
+    for item in items:
+        common = tuple(commonstart(value, item))
+        if len(common) == len(value) or len(common) >= len(item):
+            return True
+    return False
+
+
+def flatten_nested2(nested, field=(), include=None, exclude=None):
+    skip = False
+
+    if field and include:
+        if includes(include, field):
+            if field in include:
+                include = None
+        else:
+            skip = True
+
+    if field and exclude:
+        if exclude is True:
+            skip = True
+        elif field in exclude:
+            skip = True
+            exclude = True
+
+    if skip:
+        pass
+    elif isinstance(nested, dict):
+        for k, v in nested.items():
+            yield from flatten_nested2(v, field + (k,), include, exclude)
+    elif isinstance(nested, (tuple, list)):
+        yield (field, nested)
+    else:
+        yield (field, nested)
+
+
+def separate_lists(nested, field=(), include=None, exclude=None):
+    data = []
+    lists = []
+    for key, value in flatten_nested2(nested, field, include, exclude):
+        if isinstance(value, (tuple, list)):
+            lists.append((key, value))
+        else:
+            data.append((key, value))
+    return dict(data), lists
+
+
+def flatten_nested3(nested, include=None, exclude=None, field=(), context=None):
+    data, lists = separate_lists(nested, field, include, exclude)
+    data.update(context or {})
+    if lists:
+        for key, values in lists:
+            for value in values:
+                yield from flatten_nested3(value, include, exclude, key, data)
+    else:
+        yield data
+
+
 def test_flattenjson():
     rows = [
-        {'key': 1, 'value': {'events': [
-            {'name': 'Event 1', 'date': '2017-01-01'},
-            {'name': 'Event 2', 'date': '2017-02-01'},
+        {'key': 1, 'value': {'foo': 'bar', 'events': [
+            {'name': 'Event 1', 'date': '2017-01-01', 'people': ['a', 'b']},
+            {'name': 'Event 2', 'date': '2017-01-02', 'people': ['a']},
         ]}},
-        {'key': 2, 'value': {'events': [
-            {'name': 'Event 3', 'date': '2017-03-01'},
-            {'name': 'Event 4', 'date': '2017-04-01'},
+        {'key': 2, 'value': {'foo': 'baz', 'events': [
+            {'name': 'Event 3', 'date': '2017-01-03', 'people': ['x', 'y']},
+            {'name': 'Event 4', 'date': '2017-01-04', 'people': ['z']},
         ]}},
     ]
+    assert list(flatten_nested3(rows, include={
+        ('key',),
+        # ('value', 'foo'),
+        ('value', 'events', 'date'),
+        # ('value', 'events', 'people'),
+    })) == []
+    # assert list(separate_lists(rows[0])) == []
     # assert list(flatten_nested(rows)) == []
-    assert list(group_flattened(flatten_nested(rows))) == []
+    # assert list(group_flattened(flatten_nested(rows))) == []
 
 
 def test_flatten_rows_update_without_include(data):
