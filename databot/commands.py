@@ -559,6 +559,8 @@ class Export(Command):
         parser.add_argument('--no-header', dest='header', action='store_false', help="Do not write header.")
 
     def run(self, args):
+        import tqdm
+
         pipe = self.pipe(args.pipe)
         exclude = set(args.exclude.split(',') if args.exclude else [])
         include = args.include.split(',') if args.include else None
@@ -569,7 +571,9 @@ class Export(Command):
             ('header', args.header, True),
         ]
         kwargs = {k: v for k, v, default in kwargs if v != default}
-        export_service(pipe.rows(), args.path, **kwargs)
+        total = pipe.count()
+        rows = tqdm.tqdm(pipe.rows(), 'export', total)
+        export_service(rows, args.path, **kwargs)
 
 
 class Resolve(Command):
