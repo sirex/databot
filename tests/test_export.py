@@ -5,7 +5,7 @@ import databot
 import pandas as pd
 
 from databot.db.utils import Row
-from databot.exporters.utils import get_fields, get_values, flatten_rows
+from databot.exporters.utils import flatten_nested_lists, flatten_nested_dicts, get_level_keys, flatten, sort_fields
 from databot.exporters import jsonl
 from databot.exporters import pandas
 
@@ -23,166 +23,17 @@ def data():
     }
 
 
-def test_get_fields(data):
-    assert get_fields(data) == [
-        ('a',),
-        ('b',),
-        ('c', 'x'),
-        ('c', 'y'),
-        ('c', 'z'),
-    ]
-
-
-def test_get_values(data):
-    fields = [
-        ('a',),
-        ('b',),
-        ('c', 'x'),
-        ('c', 'z'),
-    ]
-    assert get_values(fields, data) == (1, 2, 1, ['foo', 'bar', 'baz'])
-
-
-def test_missing_value(data):
-    fields = [
-        ('a',),
-        ('z',),
-    ]
-    assert get_values(fields, data) == (1, None)
-
-
-def group_fields(fields):
-    pass
-
-
-def test_group_fields():
-    pass
-
-
-def test_nested_value(data):
-    data = {'a': 1, 'b': [
-        {'c': 1, 'd': 1},
-        {'c': 2, 'd': 2},
-    ]}
-    fields = [
-        ('a',),
-        ('b[]', 'c'),
-        ('b[]', 'd'),
-    ]
-    fields = [
-        ('a',),
-        ('b', ['c', 'd']),
-    ]
-    assert get_values(fields, data) == (1, None)
-
-
 def test_flatten_rows_update(data):
     rows = [
         Row(key=1, value={'text': 'abc'}),
         Row(key=1, value={'text': 'abcde'}),
     ]
     update = {'size': databot.this.value.text.apply(len)}
-    assert list(flatten_rows(rows, include=['key', 'size'], update=update)) == [
-        ['key', 'size'],
-        [1, 3],
-        [1, 5],
+    assert list(flatten(rows, include=['key', 'size'], update=update)) == [
+        ('key', 'size'),
+        (1, 3),
+        (1, 5),
     ]
-
-
-def flatten_nested(nested, field=()):
-    if isinstance(nested, dict):
-        for k, v in nested.items():
-            yield from flatten_nested(v, field + (k,))
-    elif isinstance(nested, list):
-        if field:
-            field = field[:-1] + (field[-1] + '[]',)
-        else:
-            field = ('[]',)
-        for v in nested:
-            yield from flatten_nested(v, field)
-    else:
-        yield (field, nested)
-
-
-def split_flattened(flat):
-    for key, value in flat:
-        for i in range(1, len(key) - 1):
-            # yield key[:i], key[i:], value
-            yield '.'.join(key[:i]), '.'.join(key[i:]), value
-
-
-def group_flattened(flat):
-    from itertools import groupby
-    from operator import itemgetter
-
-    for key, group in groupby(split_flattened(flat), key=itemgetter(0)):
-        yield key, dict(x[1:] for x in group)
-
-
-def commonstart(a, b):
-    for a, b in zip(a, b):
-        if a == b:
-            yield a
-        else:
-            break
-
-
-def includes(items, value):
-    for item in items:
-        common = tuple(commonstart(value, item))
-        if len(common) == len(value) or len(common) >= len(item):
-            return True
-    return False
-
-
-def flatten_nested2(nested, field=(), include=None, exclude=None):
-    skip = False
-
-    if field and include:
-        if includes(include, field):
-            if field in include:
-                include = None
-        else:
-            skip = True
-
-    if field and exclude:
-        if exclude is True:
-            skip = True
-        elif field in exclude:
-            skip = True
-            exclude = True
-
-    if skip:
-        pass
-    elif isinstance(nested, dict):
-        for k, v in nested.items():
-            yield from flatten_nested2(v, field + (k,), include, exclude)
-    elif isinstance(nested, (tuple, list)):
-        yield (field, nested)
-    else:
-        yield (field, nested)
-
-
-def separate_lists(nested, field=(), include=None, exclude=None):
-    data = []
-    lists = []
-    for key, value in flatten_nested2(nested, field, include, exclude):
-        if isinstance(value, (tuple, list)):
-            lists.append((key, value))
-        else:
-            data.append((key, value))
-    return dict(data), lists
-
-
-def flatten_nested3(nested, include=None, exclude=None, field=(), context=None):
-    data, lists = separate_lists(nested, field, include, exclude)
-    data.update(context or {})
-    if lists:
-        for key, values in lists:
-            for value in values:
-                yield from flatten_nested3(value, include, exclude, key, data)
-    else:
-        yield data
 
 
 def test_flattenjson():
@@ -196,15 +47,114 @@ def test_flattenjson():
             {'name': 'Event 4', 'date': '2017-01-04', 'people': ['z']},
         ]}},
     ]
-    assert list(flatten_nested3(rows, include={
-        ('key',),
-        # ('value', 'foo'),
-        ('value', 'events', 'date'),
-        # ('value', 'events', 'people'),
-    })) == []
-    # assert list(separate_lists(rows[0])) == []
-    # assert list(flatten_nested(rows)) == []
-    # assert list(group_flattened(flatten_nested(rows))) == []
+    assert list(map(dict, flatten_nested_lists(rows, include={('key',), ('value', 'events', 'date')}))) == [
+        {('key',): 1, ('value', 'events', 'date'): '2017-01-01'},
+        {('key',): 1, ('value', 'events', 'date'): '2017-01-02'},
+        {('key',): 2, ('value', 'events', 'date'): '2017-01-03'},
+        {('key',): 2, ('value', 'events', 'date'): '2017-01-04'},
+    ]
+
+    assert list(map(dict, flatten_nested_lists(rows, include={('key',), ('value', 'events', 'people')}))) == [
+        {('key',): 1, ('value', 'events', 'people'): 'a'},
+        {('key',): 1, ('value', 'events', 'people'): 'b'},
+        {('key',): 1, ('value', 'events', 'people'): 'a'},
+        {('key',): 2, ('value', 'events', 'people'): 'x'},
+        {('key',): 2, ('value', 'events', 'people'): 'y'},
+        {('key',): 2, ('value', 'events', 'people'): 'z'},
+    ]
+
+    assert [{v for k, v in x} for x in flatten_nested_lists(rows, include=[('key',), ('value',)])] == [
+        {1, 'bar', '2017-01-01', 'Event 1', 'a'},
+        {1, 'bar', '2017-01-01', 'Event 1', 'b'},
+        {1, 'bar', '2017-01-02', 'Event 2', 'a'},
+        {2, 'baz', '2017-01-03', 'Event 3', 'x'},
+        {2, 'baz', '2017-01-03', 'Event 3', 'y'},
+        {2, 'baz', '2017-01-04', 'Event 4', 'z'},
+    ]
+
+    assert [{v for k, v in x} for x in flatten_nested_lists(rows)] == [
+        {1, 'bar', '2017-01-01', 'Event 1', 'a'},
+        {1, 'bar', '2017-01-01', 'Event 1', 'b'},
+        {1, 'bar', '2017-01-02', 'Event 2', 'a'},
+        {2, 'baz', '2017-01-03', 'Event 3', 'x'},
+        {2, 'baz', '2017-01-03', 'Event 3', 'y'},
+        {2, 'baz', '2017-01-04', 'Event 4', 'z'},
+    ]
+
+
+def test_flatten_nested_dicts():
+    assert set(flatten_nested_dicts({'a': 1, 'b': 2, 'c': 3})) == {
+        (('a',), 1),
+        (('b',), 2),
+        (('c',), 3),
+    }
+
+
+def test_flatten_nested_dicts_include():
+    assert set(flatten_nested_dicts({'a': 1, 'b': 2, 'c': 3}, include=[('b',), ('a',), ('c',)])) == {
+        (('b',), 2),
+        (('a',), 1),
+        (('c',), 3),
+    }
+
+
+def test_get_level_keys():
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=(), include=())) == ['a', 'b', 'c']
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=(), include=[('b',), ('a',), ('c',)])) == ['b', 'a', 'c']
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=('x',), include=())) == ['a', 'b', 'c']
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=('x',), include=[('x', 'b',), ('x', 'c',)])) == ['b', 'c']
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=(), include=[('b',), ('x',)])) == ['b']
+    assert list(get_level_keys(keys=['c', 'b', 'a'], field=('x', 'y'), include=[('x',)])) == ['a', 'b', 'c']
+
+
+def test_flatten():
+    rows = [
+        Row(key=1, value={'foo': 'bar', 'events': [
+            {'name': 'Event 1', 'date': '2017-01-01', 'people': ['a', 'b']},
+            {'name': 'Event 2', 'date': '2017-01-02', 'people': ['a']},
+        ]}),
+        Row(key=2, value={'foo': 'baz', 'events': [
+            {'name': 'Event 3', 'date': '2017-01-03', 'people': ['x', 'y']},
+            {'name': 'Event 4', 'date': '2017-01-04', 'people': ['z']},
+        ]}),
+    ]
+    assert list(flatten(rows)) == [
+        ('events.date', 'events.name', 'events.people', 'foo', 'key'),
+        ('2017-01-01', 'Event 1', 'a', 'bar', 1),
+        ('2017-01-01', 'Event 1', 'b', 'bar', 1),
+        ('2017-01-02', 'Event 2', 'a', 'bar', 1),
+        ('2017-01-03', 'Event 3', 'x', 'baz', 2),
+        ('2017-01-03', 'Event 3', 'y', 'baz', 2),
+        ('2017-01-04', 'Event 4', 'z', 'baz', 2),
+    ]
+
+    assert list(flatten(rows, include=('key', 'foo', 'events.people'))) == [
+        ('key', 'foo', 'events.people'),
+        (1, 'bar', 'a'),
+        (1, 'bar', 'b'),
+        (1, 'bar', 'a'),
+        (2, 'baz', 'x'),
+        (2, 'baz', 'y'),
+        (2, 'baz', 'z'),
+    ]
+
+    assert list(flatten(rows, include=('key', 'foo'))) == [
+        ('key', 'foo'),
+        (1, 'bar'),
+        (2, 'baz'),
+    ]
+
+
+def test_sort_fields():
+    def _(fields, include):
+        fields = [tuple(x.split('.')) for x in fields]
+        include = [tuple(x.split('.')) for x in include]
+        return ['.'.join(x) for x in sort_fields(fields, include)]
+
+    assert _(['c', 'b', 'a'], []) == ['a', 'b', 'c']
+    assert _(['c', 'b', 'a'], ['a', 'c']) == ['a', 'c']
+    assert _(['x.c', 'x.b', 'x.a'], ['x']) == ['x.a', 'x.b', 'x.c']
+    assert _(['z', 'x.b', 'x.a'], ['x', 'z']) == ['x.a', 'x.b', 'z']
 
 
 def test_flatten_rows_update_without_include(data):
@@ -213,10 +163,10 @@ def test_flatten_rows_update_without_include(data):
         Row(key=1, value={'text': 'abcde'}),
     ]
     update = {'size': databot.this.value.text.apply(len)}
-    assert list(flatten_rows(rows, update=update)) == [
-        ['key', 'size', 'text'],
-        [1, 3, 'abc'],
-        [1, 5, 'abcde'],
+    assert list(flatten(rows, update=update)) == [
+        ('key', 'size', 'text'),
+        (1, 3, 'abc'),
+        (1, 5, 'abcde'),
     ]
 
 
@@ -229,10 +179,10 @@ def test_flatten_rows_callable_update(data):
     def update(row):
         return {'size': len(row.value['text'])}
 
-    assert list(flatten_rows(rows, update=update)) == [
-        ['size'],
-        [3],
-        [5],
+    assert list(flatten(rows, update=update)) == [
+        ('size',),
+        (3,),
+        (5,),
     ]
 
 
@@ -241,10 +191,10 @@ def test_flatten_rows_include(data):
         Row(key=1, value={'a': 1}),
         Row(key=2, value={'b': 2}),
     ]
-    assert list(flatten_rows(rows, include=['a', 'b'])) == [
-        ['a', 'b'],
-        [1, None],
-        [None, 2],
+    assert list(flatten(rows, include=['a', 'b'])) == [
+        ('a', 'b'),
+        (1, None),
+        (None, 2),
     ]
 
 
@@ -253,10 +203,10 @@ def test_flatten_rows_include_value(data):
         Row(key=1, value='a'),
         Row(key=2, value='b'),
     ]
-    assert list(flatten_rows(rows, include=['key', 'value'])) == [
-        ['key', 'value'],
-        [1, 'a'],
-        [2, 'b'],
+    assert list(flatten(rows, include=['key', 'value'])) == [
+        ('key', 'value'),
+        (1, 'a'),
+        (2, 'b'),
     ]
 
 
@@ -265,10 +215,10 @@ def test_flatten_rows_value(data):
         Row(key=1, value='a'),
         Row(key=2, value='b'),
     ]
-    assert list(flatten_rows(rows)) == [
-        ['key', 'value'],
-        [1, 'a'],
-        [2, 'b'],
+    assert list(flatten(rows)) == [
+        ('key', 'value'),
+        (1, 'a'),
+        (2, 'b'),
     ]
 
 
@@ -277,10 +227,10 @@ def test_flatten_int_key(data):
         Row(key=1, value={'year': {2000: 1, 2001: 2}}),
         Row(key=2, value={'year': {2000: 3, 2001: 4}}),
     ]
-    assert list(flatten_rows(rows)) == [
-        ['key', 'year.2000', 'year.2001'],
-        [1, 1, 2],
-        [2, 3, 4],
+    assert list(flatten(rows)) == [
+        ('key', 'year.2000', 'year.2001'),
+        (1, 1, 2),
+        (2, 3, 4),
     ]
 
 
@@ -295,8 +245,12 @@ def test_flatten_list(data):
             {'name': 'Event 4', 'date': '2017-04-01'},
         ]}),
     ]
-    assert list(flatten_rows(rows)) == [
-        ['key', 'events[].date', 'events[].name'],
+    assert list(flatten(rows)) == [
+        ('events.date', 'events.name', 'key'),
+        ('2017-01-01', 'Event 1', 1),
+        ('2017-02-01', 'Event 2', 1),
+        ('2017-03-01', 'Event 3', 2),
+        ('2017-04-01', 'Event 4', 2),
     ]
 
 

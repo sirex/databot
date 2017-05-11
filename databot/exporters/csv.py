@@ -3,7 +3,7 @@ import json
 import functools
 import pathlib
 
-from databot.exporters.utils import flatten_rows
+from databot.exporters.utils import flatten
 
 
 def values_to_csv(values):
@@ -55,7 +55,7 @@ def export(path, rows, exclude=None, include=None, update=None, append=False, he
 
     with path.open(mode) as f:
         writer = Writer(f)
-        rows = flatten_rows(rows, exclude, include, update)
+        rows = flatten(rows, exclude, include, update)
 
         for row in rows:
             if header:

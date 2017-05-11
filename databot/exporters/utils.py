@@ -1,39 +1,7 @@
-import itertools
-import funcy
+from itertools import islice, chain
 
 from databot.db.utils import Row
 from databot.expressions.base import Expression
-
-
-def get_fields(data, field=()):
-    fields = []
-    if isinstance(data, dict):
-        for k, v in sorted(data.items()):
-            fields.extend(get_fields(v, field + (k,)))
-    elif isinstance(data, (tuple, list)):
-        if field:
-            field = field[:-1] + (field[-1] + '[]',)
-        else:
-            field = ('[]',)
-        for v in data:
-            fields.extend(get_fields(v, field))
-    else:
-        fields.append(field)
-    return fields
-
-
-def get_values(fields, data):
-    values = []
-    for field in fields:
-        node = data
-        for key in field:
-            try:
-                node = node[key]
-            except (KeyError, TypeError):
-                node = None
-                break
-        values.append(node)
-    return tuple(values)
 
 
 def _force_dict(value):
@@ -59,35 +27,139 @@ def updated_rows(rows, update=None):
             yield row
 
 
-def detect_fields(rows):
-    fields = set()
-    for row in rows:
-        fields.update(get_fields(row.value))
-    return fields
-
-
-def flatten_rows(rows, exclude=None, include: list=None, update=None, scan_fields=1):
-    if callable(update) and include is None and exclude is None:
-        exclude = {'key'}
-    else:
-        exclude = exclude or set()
-
-    if include:
-        cols = ['key'] + [c for c in include if c != 'key']
-        fields = [tuple(field.split('.')) for field in cols[1:]]
-        yield include
-    else:
-        rows = iter(rows)
-        sample = funcy.take(scan_fields, rows)
-        rows = itertools.chain(sample, rows)
-        fields = sorted(detect_fields(updated_rows(sample, update)))
-        cols = ['key'] + (list(filter(None, ['.'.join(map(str, field)) for field in fields])) or ['value'])
-        yield [c for c in cols if c not in exclude]
-
-    for row in updated_rows(rows, update):
-        values = [row.key] + list(get_values(fields, row.value))
-        if include:
-            values = dict(zip(cols, values))
-            yield [values.get(k) for k in include]
+def commonstart(a, b):
+    for a, b in zip(a, b):
+        if a == b:
+            yield a
         else:
-            yield [v for k, v in zip(cols, values) if k not in exclude]
+            break
+
+
+def includes(items, value):
+    for item in items:
+        common = tuple(commonstart(value, item))
+        if len(common) == len(value) or len(common) >= len(item):
+            return True
+    return False
+
+
+def flatten_nested_dicts(nested, field=(), include=None, exclude=None):
+    skip = False
+
+    if field and include:
+        if includes(include, field):
+            if field in include:
+                include = None
+        else:
+            skip = True
+
+    if field and exclude:
+        if exclude is True:
+            skip = True
+        elif field in exclude:
+            skip = True
+            exclude = True
+
+    if skip:
+        pass
+    elif isinstance(nested, dict):
+        for k, v in nested.items():
+            yield from flatten_nested_dicts(v, field + (k,), include, exclude)
+    else:
+        yield (field, nested)
+
+
+def separate_dicts_from_lists(nested, field=(), include=None, exclude=None):
+    data = []
+    lists = []
+    for key, value in flatten_nested_dicts(nested, field, include, exclude):
+        if isinstance(value, (tuple, list)):
+            lists.append((key, value))
+        else:
+            data.append((key, value))
+    return data, lists
+
+
+def flatten_nested_lists(nested, include=None, exclude=None, field=(), context=None):
+    data, lists = separate_dicts_from_lists(nested, field, include, exclude)
+    data += (context or [])
+    if lists:
+        for key, values in lists:
+            for value in values:
+                yield from flatten_nested_lists(value, include, exclude, key, data)
+    else:
+        yield data
+
+
+def detect_fields(rows, scan):
+    fields = set()
+    scanrows = list(islice(rows, scan))
+    for row in scanrows:
+        fields.update(k for k, v in row)
+    return chain(scanrows, rows), fields
+
+
+def get_level_keys(keys, field, include=()):
+    include_all = True
+    include_some = False
+    if include:
+        include_all = False
+        for item in include:
+            common = tuple(commonstart(field, item))
+            if len(field) == len(common) and len(item) > len(field):
+                include_some = True
+                if item[len(field)] in keys:
+                    yield item[len(field)]
+            elif len(item) <= len(common):
+                include_all = True
+
+    if include_some is False and include_all:
+        yield from sorted(keys)
+
+
+def sort_fields(fields, include):
+    if include:
+        fields = set(fields)
+        sorted_fields = []
+        for item in include:
+            if item in fields:
+                sorted_fields.append(item)
+                fields.remove(item)
+            else:
+                unsorted_fields = []
+                for field in fields:
+                    common = tuple(commonstart(field, item))
+                    if len(item) == len(common) and len(field) >= len(common):
+                        unsorted_fields.append(field)
+                for field in sorted(unsorted_fields):
+                    sorted_fields.append(field)
+                    fields.remove(field)
+        return sorted_fields
+    else:
+        return sorted(fields)
+
+
+def row_to_dict(row, key_name):
+    if row.key is None or key_name is None:
+        return row.value
+    else:
+        return dict(row.value, **{key_name: row.key})
+
+
+def flatten(rows, exclude=None, include: list=None, update=None, sep='.', scan=100, key_name='key'):
+    include = [tuple(x.split(sep)) for x in include] if include else []
+    exclude = [tuple(x.split(sep)) for x in exclude] if exclude else []
+
+    rows = (
+        x
+        for row in updated_rows(rows, update)
+        for x in flatten_nested_lists(row_to_dict(row, key_name), include, exclude)
+    )
+
+    rows, fields = detect_fields(rows, scan)
+
+    fields = sort_fields(fields, include)
+    yield tuple(sep.join(map(str, x)) for x in fields)
+
+    for row in map(dict, rows):
+        yield tuple(row.get(x) for x in fields)

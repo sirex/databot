@@ -11,7 +11,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import Terminal256Formatter
 from pygments.styles import get_style_by_name
 
-from databot.exporters.utils import flatten_rows
+from databot.exporters.utils import flatten
 from databot.utils.html import get_content
 
 
@@ -111,7 +111,7 @@ class Printer(object):
 
     def table(self, rows, exclude=None, include=None):
         _rows = []
-        flat_rows = flatten_rows(rows, exclude, include)
+        flat_rows = flatten(rows, exclude, include)
 
         for row in flat_rows:
             max_value_size = (self.width // len(row)) * 3

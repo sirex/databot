@@ -1,4 +1,4 @@
-from databot.exporters.utils import flatten_rows
+from databot.exporters.utils import flatten
 
 
 def index_from_columns(columns, name):
@@ -23,7 +23,7 @@ def rows_to_dataframe_items(rows, index):
 
 
 def export(pd, rows, exclude=None, include=None, update=None):
-    rows = flatten_rows(rows, exclude, include, update)
+    rows = flatten(rows, exclude, include, update)
     columns = next(rows, None)
     index, columns = index_from_columns(columns, 'key')
     items = rows_to_dataframe_items(rows, index)
