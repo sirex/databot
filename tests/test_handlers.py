@@ -1,12 +1,13 @@
 import pytest
 
 from databot import this
+from databot.expressions.base import ExpressionError
 
 
 def test_re():
     assert this.re('\d+').cast(int)._eval('42 comments') == 42
     assert this.re('(\d+)').cast(int)._eval('42 comments') == 42
-    with pytest.raises(ValueError):
+    with pytest.raises(ExpressionError):
         this.re('\d+').cast(int)._eval('1 2 3')
 
 
@@ -40,7 +41,7 @@ def test_bypass():
 
 
 def test_notnull():
-    with pytest.raises(ValueError):
+    with pytest.raises(ExpressionError):
         this.notnull()._eval(None)
 
     assert this.notnull()._eval(1) == 1

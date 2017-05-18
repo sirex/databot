@@ -2,6 +2,7 @@ import pytest
 import freezegun
 
 from databot import Bot, define, task, this
+from databot.expressions.base import ExpressionError
 
 
 def test_run():
@@ -124,7 +125,7 @@ def test_run_limits_and_fail():
     p1 = bot.define('p1')
     p2 = bot.define('p2')
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ExpressionError):
         bot.main(pipeline, ['run', '-l', '1,1,0'])
 
     assert list(p1.keys()) == ['a', 'b', 'c']

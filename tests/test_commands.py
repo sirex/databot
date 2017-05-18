@@ -17,6 +17,7 @@ from databot.db.models import Models
 from databot.commands import Command
 from databot.exceptions import PipeNameError
 from databot.handlers.html import SelectorError
+from databot.expressions.base import ExpressionError
 
 
 def test_pipe_name_error(bot):
@@ -698,7 +699,7 @@ def test_run_error_limit(bot, capsys):
         ]
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ExpressionError):
         bot.main(pipeline, argv=['run', '-f'])
 
     assert bot.output.output.getvalue() == textwrap.dedent('''\
@@ -734,7 +735,7 @@ def test_run_error_limit_n(bot, capsys):
         ]
     }
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ExpressionError):
         bot.main(pipeline, argv=['run', '-f', '2', '-l', '0'])
 
     assert bot.output.output.getvalue() == textwrap.dedent('''\

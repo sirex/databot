@@ -26,6 +26,7 @@ setup(
         'pytest-cov',
         'pytest-mock',
         'requests-mock',
+        'freezegun',
     ],
     entry_points={
         'console_scripts': [

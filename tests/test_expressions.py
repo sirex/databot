@@ -1,4 +1,9 @@
-from databot.expressions.base import Expression, Attr, Item, Func, Method
+import pytest
+
+from textwrap import dedent
+
+from databot import task, select
+from databot.expressions.base import Expression, ExpressionError, Attr, Item, Func, Method
 
 this = Expression()
 
@@ -44,3 +49,34 @@ def test_op_eq():
     assert (this == this)._eval(42) is True
     assert (this.a == this.b)._eval({'a': 1, 'b': 2}) is False
     assert (this.a == this.b)._eval({'a': 2, 'b': 2}) is True
+
+
+def test_expresion_str():
+    expr = (
+        task('a', 'b').
+        select(['query', ('key', {
+            'foo': select('query'),
+        })]).
+        download(this.key, check=select('query')).
+        urlparse().
+        query.key.cast(int)
+    )
+    assert str(expr) == dedent('''
+        task('a', 'b').
+        select(['query', ('key', {'foo': select('query')})]).
+        download(this.key, check=select('query')).
+        urlparse().query.key.
+        cast('int')
+    ''').strip()
+
+
+def test_expresion_exception_handling(caplog):
+    with pytest.raises(ExpressionError) as e:
+        this.cast('int')._eval('foobar')
+    assert str(e.value) == dedent("""
+        error while processing expression:
+          this.
+          cast('int')
+        evaluated with:
+          'foobar'
+    """).strip()

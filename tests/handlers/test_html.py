@@ -1,3 +1,5 @@
+import datetime
+
 from textwrap import dedent
 
 import pytest
@@ -328,14 +330,26 @@ def test_float(Html):
     ]
 
 
-def test_null(Html):
+def test_null(Html, freezegun):
     row = Html(['<div><p id="this"> p1 </p>/div>'])
+
+    freezegun(datetime.datetime(2017, 5, 18, 14, 43, 40, 876642))
 
     selector = html.Select(select('#wrong:text?').strip())
     with pytest.raises(html.SelectorError) as e:
         selector(row)
     assert str(e.value) == dedent('''\
-        Expression error while evaluating None. Error: 'NoneType' object has no attribute 'strip'. Context:
+        Expression error while evaluating None. Error: error while processing expression:
+          this.
+          strip()
+        evaluated with:
+          Row({
+              'compression': None,
+              'created': datetime.datetime(2017, 5, 18, 14, 43, 40, 876642),
+              'id': 1,
+              'key': 'http://exemple.com',
+              'value': {'content': b'<div><p id="this"> p1 </p>/div>'},
+          }). Context:
 
         <html>
           <body>

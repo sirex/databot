@@ -7,6 +7,10 @@ import sqlalchemy.pool
 import pytest
 import databot
 import requests_mock
+import datetime
+import dateutil
+
+from freezegun.api import FakeDatetime, FakeDate, FrozenDateTimeFactory, convert_to_timezone_naive
 
 from databot.db.models import Models
 
@@ -108,3 +112,37 @@ def bot():
 def requests():
     with requests_mock.mock() as mock:
         yield mock
+
+
+@pytest.fixture
+def freezetime(request, mocker):
+    def unfreeze():
+        FakeDate.dates_to_freeze.pop()
+        FakeDate.tz_offsets.pop()
+
+        FakeDatetime.times_to_freeze.pop()
+        FakeDatetime.tz_offsets.pop()
+
+    def freeze(time_to_freeze_str, tz_offset=0):
+        if isinstance(time_to_freeze_str, datetime.datetime):
+            time_to_freeze = time_to_freeze_str
+        elif isinstance(time_to_freeze_str, datetime.date):
+            time_to_freeze = datetime.datetime.combine(time_to_freeze_str, datetime.time())
+        else:
+            time_to_freeze = dateutil.parser.parse(time_to_freeze_str)
+
+        time_to_freeze = convert_to_timezone_naive(time_to_freeze)
+        time_to_freeze = FrozenDateTimeFactory(time_to_freeze)
+
+        FakeDate.dates_to_freeze.append(time_to_freeze)
+        FakeDate.tz_offsets.append(tz_offset)
+
+        FakeDatetime.times_to_freeze.append(time_to_freeze)
+        FakeDatetime.tz_offsets.append(tz_offset)
+
+        mocker.patch('datetime.date', FakeDate)
+        mocker.patch('datetime.datetime', FakeDatetime)
+
+        request.addfinalizer(unfreeze)
+
+    return freeze
