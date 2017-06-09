@@ -10,6 +10,8 @@ from bs4 import BeautifulSoup
 from databot.utils.html import get_content
 from databot.expressions.utils import handler
 from databot.expressions.base import Expression, Func
+from databot.tasks import Task
+from databot.db.utils import Row
 
 
 def create_html_parser(row):
@@ -18,7 +20,7 @@ def create_html_parser(row):
     html = lxml.html.document_fromstring(content, parser=parser)
     if 'url' in row.value:
         html.make_links_absolute(row.value['url'])
-    else:
+    elif row.key:
         html.make_links_absolute(row.key)
     return html
 
@@ -369,8 +371,18 @@ def func(skipna=False):
 
 
 @handler(item='method', eval_args=False)
-def select(expr, pos, pipe, *args, **kwargs):
-    return pipe.select(*args, **kwargs)
+def select(expr, pos, value, *args, **kwargs):
+    if isinstance(value, Task):
+        return value.select(*args, **kwargs)
+    else:
+        row = Row({
+            'key': None,
+            'value': {
+                'content': value.encode('utf-8'),
+            }
+        })
+        selector = Select(*args, **kwargs)
+        return list(selector(row))
 
 
 @handler(item='method')

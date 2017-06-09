@@ -9,6 +9,7 @@ import databot.pipes
 from databot import select, value, this, oneof
 
 from databot.handlers import html
+from databot.db.utils import Row
 
 
 @pytest.fixture
@@ -404,3 +405,21 @@ def test_oneof(Html):
         )
     ])
     assert selector(row) == ['1', '2', '3']
+
+
+def test_select_method(bot):
+    row = Row({
+        'key': 1,
+        'value': {
+            'xml': (
+                '<div>'
+                '  <p>1</p>'
+                '  <p>2</p>'
+                '  <p>3</p>'
+                '</div>'
+            ),
+        },
+    })
+
+    selector = html.Select(this.value.xml.select([select('div p:text').cast(int)]))
+    assert selector(row) == [1, 2, 3]
