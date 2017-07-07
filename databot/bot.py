@@ -43,6 +43,9 @@ class Bot(Task):
         if self.migrations.has_initial_state():
             self.migrations.initialize()
 
+    def __getitem__(self, name):
+        return self.pipe(self.name)
+
     def __repr__(self):
         return '<databot.bot.Bot(%r) at 0x%x>' % (self.engine.url, id(self))
 

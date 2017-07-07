@@ -33,7 +33,7 @@ def run_single_task(bot, expr, source, target):
         (source and target is None and (source.name,) == task.args) or
         (source and target is None and len(task.args) == 2 and (source.name,) == task.args[1:])
     ):
-        expr._eval(bot)
+        expr._eval(bot, bot=bot)
 
 
 def get_watching_tasks(bot, tasks):

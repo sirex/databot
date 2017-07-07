@@ -216,3 +216,25 @@ def get(expr, pos, value, key, default=None):
         return value[key]
     else:
         return default
+
+
+@handler((int, str), item='method', eval_args=False)
+def pipe(expr, pos, value, pipe_name, ref):
+    pipe = expr._context['bot'][pipe_name]
+
+    if 'pipe_ref_cache' not in expr._context:
+        expr._context['pipe_ref_cache'] = {}
+
+    cache_name = '%s/%s' % (pipe_name, ref)
+    if cache_name not in expr._context['pipe_ref_cache']:
+        expr._context['pipe_ref_cache'][cache_name] = dict(_get_pipe_ref_cache(pipe, ref))
+
+    key = expr._context['pipe_ref_cache'][cache_name].get(value)
+
+    if key is not None:
+        return pipe.getall(key)
+
+
+def _get_pipe_ref_cache(pipe, ref):
+    for row in pipe.rows():
+        yield ref._eval(row), row.key

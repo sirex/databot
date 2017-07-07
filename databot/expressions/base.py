@@ -58,6 +58,7 @@ class Expression:
         self._stack = stack
         self._func = func
         self._reset()
+        self._context = {}
 
     def __str__(self):
         result = ''
@@ -123,7 +124,7 @@ class Expression:
         else:
             return item.args, item.kwargs
 
-    def _eval(self, value, base=None):
+    def _eval(self, value, base=None, **kwargs):
         """Evaluate expression with given value and base.
 
         Parameters
@@ -136,6 +137,7 @@ class Expression:
         """
         self._evals += 1
         base = value if base is None else base
+        self._context = kwargs
 
         try:
             for i, item in enumerate(self._stack):
