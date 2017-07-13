@@ -2,7 +2,7 @@ import datetime
 
 import pytest
 
-from databot import this, utcnow
+from databot import this, utcnow, strformat
 from databot.expressions.base import ExpressionError
 
 
@@ -65,3 +65,12 @@ def test_strptime(freezetime):
 def test_sort():
     assert this.sort()._eval([3, 1, 2]) == [1, 2, 3]
     assert this.sort(reverse=True)._eval([3, 1, 2]) == [3, 2, 1]
+
+
+def test_min_max():
+    assert this.min()._eval([3, 1, 2]) == 1
+    assert this.max()._eval([3, 1, 2]) == 3
+
+
+def test_strformat():
+    assert strformat('{}/{}', this.min(), this.max())._eval([3, 1, 2]) == '1/3'

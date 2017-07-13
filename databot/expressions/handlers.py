@@ -3,6 +3,7 @@ import urllib.parse
 import datetime
 import cgi
 import typing
+import builtins
 
 import databot.utils.urls
 
@@ -230,5 +231,20 @@ def strptime(expr, pos, value, format):
 
 
 @handler(typing.Iterable, item='method')
-def sort(expr, pos, value, key=None, reverse=False):
-    return sorted(value, key=key, reverse=reverse)
+def sort(expr, pos, value, **kwargs):
+    return sorted(value, **kwargs)
+
+
+@handler(typing.Iterable, item='method')
+def min(expr, pos, value, **kwargs):
+    return builtins.min(value, **kwargs)
+
+
+@handler(typing.Iterable, item='method')
+def max(expr, pos, value, **kwargs):
+    return builtins.max(value, **kwargs)
+
+
+@handler(item='func')
+def strformat(expr, pos, value, s, *args, **kwargs):
+    return s.format(*args, **kwargs)
