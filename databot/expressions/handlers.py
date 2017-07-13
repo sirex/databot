@@ -2,6 +2,7 @@ import re as re_
 import urllib.parse
 import datetime
 import cgi
+import typing
 
 import databot.utils.urls
 
@@ -226,3 +227,8 @@ def utcnow(expr, pos, value):
 @handler(str, item='method')
 def strptime(expr, pos, value, format):
     return datetime.datetime.strptime(value, format)
+
+
+@handler(typing.Iterable, item='method')
+def sort(expr, pos, value, key=None, reverse=False):
+    return sorted(value, key=key, reverse=reverse)

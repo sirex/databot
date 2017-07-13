@@ -60,3 +60,8 @@ def test_utcnow(freezetime):
 
 def test_strptime(freezetime):
     assert this.strptime('%Y-%m-%d')._eval('2017-05-18') == datetime.datetime(2017, 5, 18)
+
+
+def test_sort():
+    assert this.sort()._eval([3, 1, 2]) == [1, 2, 3]
+    assert this.sort(reverse=True)._eval([3, 1, 2]) == [3, 2, 1]
