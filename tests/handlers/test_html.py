@@ -1,5 +1,3 @@
-import datetime
-
 from textwrap import dedent
 
 import pytest
@@ -331,10 +329,10 @@ def test_float(Html):
     ]
 
 
-def test_null(Html, freezegun):
-    row = Html(['<div><p id="this"> p1 </p>/div>'])
+def test_null(Html, freezetime):
+    freezetime('2017-05-18T14:43:40.876642')
 
-    freezegun(datetime.datetime(2017, 5, 18, 14, 43, 40, 876642))
+    row = Html(['<div><p id="this"> p1 </p>/div>'])
 
     selector = html.Select(select('#wrong:text?').strip())
     with pytest.raises(html.SelectorError) as e:
