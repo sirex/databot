@@ -14,3 +14,4 @@ task = Expression(func='task')
 this = Expression()
 select = Expression(func='select')  # noqa
 value = Expression(func='value')
+utcnow = Expression(func='utcnow')

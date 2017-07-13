@@ -1,6 +1,8 @@
+import datetime
+
 import pytest
 
-from databot import this
+from databot import this, utcnow
 from databot.expressions.base import ExpressionError
 
 
@@ -49,3 +51,12 @@ def test_notnull():
 
 def test_list_get():
     assert this.get(1)._eval([1]) is None
+
+
+def test_utcnow(freezetime):
+    freezetime('2017-05-18T14:43:40.876642')
+    assert utcnow().strftime('%Y-%m-%d')._eval(None) == '2017-05-18'
+
+
+def test_strptime(freezetime):
+    assert this.strptime('%Y-%m-%d')._eval('2017-05-18') == datetime.datetime(2017, 5, 18)

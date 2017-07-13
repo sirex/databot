@@ -216,3 +216,13 @@ def get(expr, pos, value, key, default=None):
         return value[key]
     else:
         return default
+
+
+@handler(item='func')
+def utcnow(expr, pos, value):
+    return datetime.datetime.utcnow()
+
+
+@handler(str, item='method')
+def strptime(expr, pos, value, format):
+    return datetime.datetime.strptime(value, format)
