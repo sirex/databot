@@ -20,6 +20,7 @@ setup(
         'freezegun',
         'unidecode',
         'mock',
+        'pprintpp',
     ],
     tests_require=[
         'pytest',
