@@ -28,7 +28,7 @@ def dump_response(response, url, request):
 
     if url:
         dump['content'] = response.content
-        dump['history'] = [dump_response(r, None) for r in response.history]
+        dump['history'] = [dump_response(r, None, None) for r in response.history]
         dump['url'] = get_final_url(response, url)
 
     return dump
