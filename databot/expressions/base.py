@@ -97,7 +97,11 @@ class Expression:
         return self._add(Item(key))
 
     def __getattr__(self, key):
-        return self._add(Attr(key))
+        # Do not add magic methods to the stack.
+        if key.startswith('__') and key.endswith('__'):
+            super().__getattr__(key)
+        else:
+            return self._add(Attr(key))
 
     def __call__(self, *args, **kwargs):
         if self._func:

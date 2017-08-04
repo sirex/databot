@@ -19,7 +19,7 @@ from databot.db.services import get_pipe_tables
 class Bot(Task):
 
     def __init__(self, uri_or_engine='sqlite:///:memory:', *, debug=False, retry=False, limit=0, error_limit=None,
-                 verbosity=0, output=sys.stdout, models=None):
+                 verbosity=0, output=sys.stdout, models=None, initializer=None):
         super().__init__()
         self.path = pathlib.Path(sys.modules[self.__class__.__module__].__file__).resolve().parent
         self.engine = get_engine(uri_or_engine, self.path)
@@ -38,6 +38,7 @@ class Bot(Task):
         self.download_delay = None
         self.requests = requests.Session()
         self.commands = self._register_commands(commands.CommandsManager(self))
+        self.initializer = initializer
 
         self.migrations = Migrations(self.models, self.engine, self.output, verbosity=1)
         if self.migrations.has_initial_state():

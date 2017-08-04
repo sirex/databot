@@ -156,6 +156,9 @@ class Run(Command):
         self.bot.debug = debug
         self.bot.retry = retry
 
+        if self.bot.initializer:
+            self.bot.initializer(self.bot)
+
         if tasks:
             self.info('Validating pipeline.')
 
@@ -273,10 +276,15 @@ class Select(Command):
                 else:
                     rows = pipe.rows()
 
-                for row in rows:
-                    for key, value in keyvalueitems(selector(row)):
-                        if key is not None:
-                            yield Row(key=key, value=value)
+                try:
+                    for row in rows:
+                        for key, value in keyvalueitems(selector(row)):
+                            if key is not None:
+                                yield Row(key=key, value=value)
+                except:
+                    if progressbar:
+                        rows.close()
+                    raise
 
             return export_service(scrape(), export)
 
