@@ -57,3 +57,5 @@ target/
 /db.sqlite3
 /data
 /tags
+
+/.pytest_cache/

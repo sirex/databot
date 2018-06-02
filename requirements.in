@@ -1,0 +1,17 @@
+lxml
+sqlalchemy
+alembic
+pygments
+texttable
+cssselect
+tqdm
+toposort
+msgpack-python
+funcy
+beautifulsoup4
+requests
+freezegun
+unidecode
+mock
+pprintpp
+pandas

@@ -56,9 +56,9 @@ def test_select_table(bot):
     bot.define('p1').append('http://example.com/', {'content': b'<div>value</div>'})
     bot.main(argv=['select', 'p1', '-q', 'div:text', '-t'])
     assert bot.output.output.getvalue() == (
-        ' key    value \n'
+        ' key    value\n'
         '=============\n'
-        'value   None  \n'
+        'value   None \n'
     )
 
 

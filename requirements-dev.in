@@ -1,0 +1,7 @@
+pytest
+pytest-cov
+pytest-mock
+requests-mock
+freezegun
+jinja2
+-e git+https://github.com/sirex/jinjatag.git@py3-support#egg=jinjatag

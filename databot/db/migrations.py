@@ -25,7 +25,7 @@ class Migration(object):
         self.engine = engine
         self.output = output
         self.verbosity = verbosity
-        self.op = Operations(MigrationContext.configure(engine))
+        self.op = Operations(MigrationContext.configure(engine.connect()))
 
     def migrate(self):
         pass

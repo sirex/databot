@@ -1,0 +1,4 @@
+include *.rst
+include Makefile
+include requirements*.in
+prune tests
