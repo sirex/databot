@@ -4,32 +4,33 @@
 #
 #    pip-compile --output-file requirements.txt requirements.in
 #
-alembic==0.9.9
-beautifulsoup4==4.6.0
+alembic==0.9.9            # via -r requirements.in
+beautifulsoup4==4.6.0     # via -r requirements.in
 certifi==2018.4.16        # via requests
 chardet==3.0.4            # via requests
-cssselect==1.0.3
-freezegun==0.3.10
-funcy==1.10.2
+cssselect==1.0.3          # via -r requirements.in
+freezegun==0.3.10         # via -r requirements.in
+funcsigs==1.0.2           # via mock
+funcy==1.10.2             # via -r requirements.in
 idna==2.6                 # via requests
-lxml==4.2.1
+lxml==4.6.2               # via -r requirements.in
 mako==1.0.7               # via alembic
 markupsafe==1.0           # via mako
-mock==2.0.0
-msgpack-python==0.5.6
+mock==2.0.0               # via -r requirements.in
+msgpack-python==0.5.6     # via -r requirements.in
 numpy==1.14.3             # via pandas
-pandas==0.23.0
+pandas==0.23.0            # via -r requirements.in
 pbr==4.0.3                # via mock
-pprintpp==0.3.0
-pygments==2.2.0
+pprintpp==0.3.0           # via -r requirements.in
+pygments==2.2.0           # via -r requirements.in
 python-dateutil==2.7.3    # via alembic, freezegun, pandas
 python-editor==1.0.3      # via alembic
 pytz==2018.4              # via pandas
-requests==2.18.4
+requests==2.18.4          # via -r requirements.in
 six==1.11.0               # via freezegun, mock, python-dateutil
-sqlalchemy==1.2.8
-texttable==1.2.1
-toposort==1.5
-tqdm==4.23.4
-unidecode==1.0.22
+sqlalchemy==1.2.8         # via -r requirements.in, alembic
+texttable==1.2.1          # via -r requirements.in
+toposort==1.5             # via -r requirements.in
+tqdm==4.23.4              # via -r requirements.in
+unidecode==1.0.22         # via -r requirements.in
 urllib3==1.22             # via requests
