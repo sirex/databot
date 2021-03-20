@@ -1,4 +1,4 @@
-Jinja2==2.9.2
+Jinja2==2.11.3
 MarkupSafe==0.23
 pprintpp==0.3.0
 Pygments==2.1.3
