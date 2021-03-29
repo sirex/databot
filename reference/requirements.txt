@@ -1,5 +1,5 @@
 Jinja2==2.9.2
 MarkupSafe==0.23
 pprintpp==0.3.0
-Pygments==2.1.3
+Pygments==2.7.4
 -e git+https://github.com/sirex/jinjatag.git@py3-support#egg=jinjatag
